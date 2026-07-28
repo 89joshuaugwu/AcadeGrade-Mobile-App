@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, ViewStyle } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { GlassCard } from './GlassCard';
+import { GlassCard } from '../ui/GlassCard';
 import { colors, spacing } from '@/constants/theme';
 
 type Span = 'full' | 'half' | 'third' | 'twoThirds';

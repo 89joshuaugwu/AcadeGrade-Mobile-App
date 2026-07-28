@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#07090F"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ng.acadegrade.mobile",
@@ -30,7 +32,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#07090F"
       },
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "NOTIFICATIONS"]
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "NOTIFICATIONS"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -47,7 +53,12 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.380362341267-na0lm35fvh9nf1ei0ga9ns3ds69eqna7"
         }
-      ]
+      ],
+      "expo-asset",
+      "expo-image",
+      "expo-sharing",
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true
