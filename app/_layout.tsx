@@ -31,28 +31,32 @@ export default function RootLayout() {
   const { firebaseUser, profile, setFirebaseUser, setProfile, setResolving } = useAuthStore();
 
   useEffect(() => {
-    const unsub = onAuthStateChange(async (user) => {
+    let unsubDoc: (() => void) | undefined;
+
+    const unsubAuth = onAuthStateChange(async (user) => {
       setFirebaseUser(user);
 
       if (user) {
-        const unsubDoc = db.collection('users').doc(user.uid).onSnapshot((snap) => {
+        unsubDoc = db.collection('users').doc(user.uid).onSnapshot((snap) => {
           if (snap.exists) {
             setProfile({ uid: user.uid, ...(snap.data() as any) } as UserWithId);
           }
           setResolving(false);
           setReady(true);
         });
-        registerFcmToken(user.uid).catch(() => {
-          // Non-fatal — permission denial or emulator, doesn't block app usage
-        });
-        return () => unsubDoc();
+        registerFcmToken(user.uid).catch(() => {});
       } else {
+        if (unsubDoc) unsubDoc(); 
         setProfile(null);
         setResolving(false);
         setReady(true);
       }
     });
-    return unsub;
+
+    return () => {
+      unsubAuth();
+      if (unsubDoc) unsubDoc(); 
+    };
   }, []);
 
   const onLayoutRootView = useCallback(async () => {

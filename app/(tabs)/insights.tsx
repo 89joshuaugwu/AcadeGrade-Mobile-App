@@ -23,10 +23,10 @@ export default function Insights() {
   const lastHaptic = useRef(0);
 
   useEffect(() => {
-    if (!cooldownMs) return;
+    if (cooldownMs <= 0) return;
     const t = setInterval(() => setCooldownMs((ms) => Math.max(0, ms - 1000)), 1000);
     return () => clearInterval(t);
-  }, [cooldownMs > 0]);
+  }, [cooldownMs]);
 
   // Typing/character-reveal animation — ported conceptually from web, per
   // 02_DESIGN.md §3 ("it works well and is cheap to port conceptually").
