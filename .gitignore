@@ -1,0 +1,51 @@
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# Dependencies
+node_modules/
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+
+# Env files — never commit real secrets, only .env.example is tracked
+.env
+.env.local
+.env*.local
+
+# Firebase native config — project-specific, generated per-developer/CI from
+# the Firebase console. Referenced in app.json but must never be committed.
+GoogleService-Info.plist
+google-services.json
+
+# EAS
+.eas/
+
+# Typescript
+*.tsbuildinfo
+
+# Logs
+*.log
+
+# Editor
+.vscode/
+.idea/

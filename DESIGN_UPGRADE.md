@@ -1,0 +1,67 @@
+# UI/UX Upgrade — 2026 Mobile Design Research Applied
+
+Sourced from current (mid-2026) mobile design research before touching any
+code. Five sources cross-referenced, common threads pulled out below. Every
+change below builds ON your existing brand colors (`#6366F1` indigo,
+`#F59E0B` gold) — nothing was recolored, only how surfaces and motion are
+presented changed.
+
+## What the research actually said
+
+1. **Liquid Glass, not flat cards.** Apple's 2026 evolution of Glassmorphism
+   — translucent surfaces with a light-catching border, not static frosted
+   panels. "Designers must balance translucency with legibility, using
+   controlled blur levels and subtle light borders instead of solid colors."
+2. **Bento-grid, modular dashboards** — variable-size tiles that direct
+   attention by size/weight, not a uniform card grid.
+3. **Micro-interactions signal intelligence, not just delight.** "We're past
+   the era of bounce animations. In 2026, micro-interactions communicate
+   system intelligence." A shimmer that sweeps like it's actively reading
+   data beats a generic spinner.
+4. **Progressive disclosure over crowded dashboards.** "Complex data is
+   presented through scrollytelling instead of crowded dashboards, making
+   information easier to consume."
+5. **Home screens are becoming smart hubs, not static dashboards** — a
+   contextual, data-driven nudge instead of a plain "Welcome back" header.
+6. **Accessible design is a named 2026 trend in its own right**, not an
+   afterthought — which is why the contrast fix from the previous review
+   got folded into this pass rather than left for later.
+
+## What actually changed (files)
+
+| New/changed file | What it does |
+|---|---|
+| `constants/theme.ts` | Added `glass` token set (translucency/border/wash values built from your existing brand hex codes) |
+| `components/ui/GlassCard.tsx` | **New.** BlurView + light-catching border, replaces flat `Card` on Dashboard and Insights |
+| `components/ui/Shimmer.tsx` | **New.** Gradient-sweep skeleton for AI loading states — replaces plain spinners |
+| `components/ui/AIPulseBadge.tsx` | **New.** Pulsing-dot indicator for "AI is live here" — Insights + Dashboard outlook |
+| `components/dashboard/BentoGrid.tsx` | **New.** Variable-size tile system (`half`/`third`/`full` spans) |
+| `components/dashboard/SmartNudge.tsx` | **New.** Computes one contextual line from real on-device data (at-risk courses → degree-class proximity → unfetched insight), not a generic banner |
+| `app/(tabs)/dashboard.tsx` | Rebuilt around the bento grid + glass hero tile + smart nudge + collapsible AI outlook card |
+| `app/(tabs)/_layout.tsx` | Tab bar now uses a BlurView background (glass pill) instead of flat surface color |
+| `app/(tabs)/insights.tsx` | Written Analysis card is now glass + AI-pulse badge + shimmer while loading, instead of a flat card + plain text |
+| Multiple files | `textFaint` (2.75:1 contrast, fails WCAG AA) swapped for `textMuted` (6.43:1) anywhere it carried actual body copy — kept only for pure decoration |
+
+## What did NOT change
+
+- Your brand hex values — indigo, gold, all semantic colors, untouched
+- The CGPA/PI math, Firestore schema, API contracts — none of this is a
+  visual-layer concern, so none of it was touched
+- Results screen course list and semester detail — these are functional
+  data-entry screens where "boring and unambiguous" is correct UX; I didn't
+  glass-ify or bento-ify screens where speed of data entry matters more than
+  visual flourish. Applying trends everywhere regardless of context is
+  itself the mistake research warns against ("evaluate whether the trend
+  supports business goals... not blindly copy trends").
+
+## Honest limitation, same as last time
+
+I still haven't run this in a simulator — the components are correct
+React Native/Reanimated/expo-blur usage (verified: brace-balanced, correct
+imports, no undefined references), but "compiles and is structurally sound"
+and "looks and feels great on a real device" are different bars. BlurView
+performance in particular is worth checking on a mid-range Android device
+specifically — glass effects are the first thing to visibly stutter on
+weaker GPUs, and that's a real risk with this pattern that the research
+itself flags implicitly (Apple ships Liquid Glass on hardware with strong
+GPUs; budget Android phones are a different story).
