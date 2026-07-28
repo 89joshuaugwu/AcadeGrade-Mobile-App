@@ -13,7 +13,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "ng.acadegrade.mobile",
+      "bundleIdentifier": "com.acadegrade.appname",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "AcadeGrade uses your camera to scan result slips and extract courses automatically.",
@@ -21,7 +21,7 @@
       }
     },
     "android": {
-      "package": "ng.acadegrade.mobile",
+      "package": "com.acadegrade.app",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
