@@ -8,11 +8,6 @@
     "scheme": "acadegrade",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#07090F",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#07090F"
-    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -33,10 +28,9 @@
         "backgroundColor": "#07090F"
       },
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "NOTIFICATIONS",
         "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECORD_AUDIO"
       ]
     },
@@ -59,7 +53,14 @@
       "expo-asset",
       "expo-image",
       "expo-sharing",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#07090F"
+        }
+      ],
       "expo-status-bar"
     ],
     "experiments": {
