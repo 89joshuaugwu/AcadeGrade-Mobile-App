@@ -34,8 +34,8 @@ yarn-error.*
 
 # Firebase native config — project-specific, generated per-developer/CI from
 # the Firebase console. Referenced in app.json but must never be committed.
-GoogleService-Info.plist
-google-services.json
+# GoogleService-Info.plist
+# google-services.json
 
 # EAS
 .eas/
