@@ -2,11 +2,20 @@ import { useState } from 'react';
 import { View, Text, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { colors, spacing, APP_NAME } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { AuthGlow } from '@/components/ui/AuthGlow';
 import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 
+/**
+ * UPGRADED per acadegrade-ui-upgrade-prompt.md §1: AuthGlow background
+ * (was flat colors.void), form fields wrapped in one GlassCard panel (was
+ * a bare ScrollView), staggered FadeInDown entrance per field. All
+ * handlers/logic/error-mapping unchanged.
+ */
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -41,53 +50,66 @@ export default function Login() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: spacing.xl, flexGrow: 1, justifyContent: 'center' }}>
-          <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800', marginBottom: 4 }}>Welcome back</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 15, marginBottom: spacing.xl }}>
-            Sign in to {APP_NAME}
-          </Text>
+    <View style={{ flex: 1 }}>
+      <AuthGlow />
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <ScrollView contentContainerStyle={{ padding: spacing.xl, flexGrow: 1, justifyContent: 'center' }}>
+            <Animated.View entering={FadeInDown.duration(300)}>
+              <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800', marginBottom: 4 }}>Welcome back</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 15, marginBottom: spacing.xl }}>
+                Sign in to {APP_NAME}
+              </Text>
+            </Animated.View>
 
-          <Input
-            label="Email"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-          />
-          <Input
-            label="Password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-          />
+            <GlassCard elevated>
+              <Animated.View entering={FadeInDown.delay(60).duration(300)}>
+                <Input
+                  label="Email"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                />
+              </Animated.View>
+              <Animated.View entering={FadeInDown.delay(110).duration(300)}>
+                <Input
+                  label="Password"
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                />
+              </Animated.View>
 
-          {error && (
-            <Text style={{ color: colors.danger, marginBottom: spacing.md, fontSize: 13 }}>{error}</Text>
-          )}
+              {error && (
+                <Text style={{ color: colors.danger, marginBottom: spacing.md, fontSize: 13 }}>{error}</Text>
+              )}
 
-          <Link href="/(auth)/forgot-password" asChild>
-            <Text style={{ color: colors.primaryGlow, fontSize: 13, marginBottom: spacing.lg, alignSelf: 'flex-end' }}>
-              Forgot password?
-            </Text>
-          </Link>
+              <Link href="/(auth)/forgot-password" asChild>
+                <Text style={{ color: colors.primaryGlow, fontSize: 13, marginBottom: spacing.lg, alignSelf: 'flex-end' }}>
+                  Forgot password?
+                </Text>
+              </Link>
 
-          <Button label="Sign In" onPress={handleLogin} loading={loading} fullWidth />
-          <View style={{ height: spacing.md }} />
-          <Button label="Continue with Google" variant="secondary" onPress={handleGoogle} fullWidth />
+              <Animated.View entering={FadeInDown.delay(160).duration(300)}>
+                <Button label="Sign In" onPress={handleLogin} loading={loading} fullWidth />
+                <View style={{ height: spacing.md }} />
+                <Button label="Continue with Google" variant="secondary" onPress={handleGoogle} fullWidth />
+              </Animated.View>
+            </GlassCard>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl }}>
-            <Text style={{ color: colors.textMuted }}>Don't have an account? </Text>
-            <Link href="/(auth)/register">
-              <Text style={{ color: colors.primaryGlow, fontWeight: '600' }}>Sign up</Text>
-            </Link>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl }}>
+              <Text style={{ color: colors.textMuted }}>Don't have an account? </Text>
+              <Link href="/(auth)/register">
+                <Text style={{ color: colors.primaryGlow, fontWeight: '600' }}>Sign up</Text>
+              </Link>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 

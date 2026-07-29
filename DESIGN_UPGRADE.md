@@ -65,3 +65,36 @@ specifically — glass effects are the first thing to visibly stutter on
 weaker GPUs, and that's a real risk with this pattern that the research
 itself flags implicitly (Apple ships Liquid Glass on hardware with strong
 GPUs; budget Android phones are a different story).
+
+## Round 2 — Auth flow upgrade (acadegrade-ui-upgrade-prompt.md §1)
+
+| New/changed file | What it does |
+|---|---|
+| `components/ui/AuthGlow.tsx` | **New.** Two slow-drifting blurred color blobs (primaryGlow + gold, existing tokens) behind auth screens — replaces flat `colors.void` background per the prompt's "shouldn't be a plain void" note |
+| `components/ui/HeroArt.tsx` | **New.** Animated icon-in-a-pulsing-ring, built from `lucide-react-native` + `react-native-svg` + Reanimated. Replaces both the emoji hero art AND the `assets/lottie/` folder, which the prompt correctly flagged as mistakenly containing font files, not Lottie JSON. No new dependency, matches the prompt's own fallback option ("SVG built from the existing icon set") |
+| `components/ui/SuccessCheck.tsx` | **New.** Checkmark draw-in (ring, then stroke) via `strokeDashoffset` — same animation technique as `CGPAArc` elsewhere in the app, for motion-language consistency. Replaces the static ✅ emoji on the password-reset success screen |
+| `app/(auth)/welcome.tsx` | AuthGlow background; `HeroArt` per slide instead of emoji; parallax scale/opacity/translateY on inactive carousel slides (was a hard cut); staggered CTA entrance |
+| `app/(auth)/login.tsx` | AuthGlow background; form fields wrapped in one `GlassCard`; staggered per-field `FadeInDown` entrance. Auth logic/error mapping unchanged |
+| `app/(auth)/register.tsx` | Same treatment; step transition (details → OTP) now fades instead of hard-swapping. OTP/Firestore-write logic unchanged — same user-doc shape web writes |
+| `app/(auth)/forgot-password.tsx` | Same treatment; success screen uses `SuccessCheck` instead of a static emoji |
+| `app/(auth)/onboarding-tour.tsx` | AuthGlow background; `HeroArt` instead of emoji; preference row now a `GlassCard`. Firestore write unchanged |
+| `assets/lottie/` | **Removed.** Contained font files by mistake (not Lottie JSON, per the prompt's own note) and nothing referenced it — `HeroArt` replaces the need for it entirely |
+
+**Not done yet** — Results, Profile, Transcript, and the global nav/tilt-effect
+items from the same prompt (§2–5) are still on the flat `Card`/no-motion
+treatment. Same reasoning as the original pass: sequencing matters more
+than speed here, and this round was scoped to the auth flow (the "first
+impression" the prompt calls out) plus the actual app-breaking bug fix
+below. Next round continues with Results.
+
+## Round 2 — also: the actual splash-hang bug
+
+Unrelated to the UI work above, but discovered while investigating this
+build: `@react-native-firebase/*` was pinned to `^21.6.1`, which predates
+reliable support for the New Architecture that Expo SDK 57 / RN 0.86 makes
+**mandatory** (confirmed via the package's own changelog: "All modules will
+be converted to new architecture soon, old architecture support is
+deprecated in general for react-native-firebase," plus an open GitHub issue
+specifically about SDK 55+/newArch problems with v21). Bumped to `^25.1.0`
+(current latest as of this session). This is a NATIVE dependency change —
+**requires a full new `eas build`**, not just a JS bundle reload.
