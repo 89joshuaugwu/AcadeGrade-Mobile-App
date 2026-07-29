@@ -8,9 +8,40 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { firebaseAuth } from './client';
 
-GoogleSignin.configure({
-  webClientId: process.env.EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID, // OAuth web client ID from the SAME Firebase project
-});
+/**
+ * FIXED — was previously `GoogleSignin.configure({...})` called at raw
+ * module-import time, before any component renders and before any error
+ * boundary exists anywhere in the app. If `EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID`
+ * is undefined (which it will be in an EAS cloud build unless that var was
+ * explicitly registered with EAS — a LOCAL `.env.local` file is invisible to
+ * `eas build`), this call could throw synchronously and kill the JS thread
+ * before `app/_layout.tsx` ever mounts. In a non-dev-client build profile
+ * (no red-screen overlay), that failure is completely silent — the native
+ * splash screen, which is a separate native-level surface, simply never
+ * receives the `SplashScreen.hideAsync()` call buried inside React logic
+ * that never got to run. This is the most likely explanation for the
+ * permanent splash hang.
+ *
+ * Now: deferred into a function, called once from `app/_layout.tsx` inside
+ * a `useEffect` + try/catch, and guarded so a missing/blank client ID logs
+ * a warning instead of throwing.
+ */
+export function configureGoogleSignIn() {
+  const webClientId = process.env.EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID;
+  if (!webClientId) {
+    console.warn(
+      '[AcadeGrade] EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID is not set — Google sign-in will not work. ' +
+        'If this is an EAS build, a local .env.local file is NOT enough: register the var with ' +
+        '`eas env:create` or the "env" block in eas.json, then rebuild.'
+    );
+    return;
+  }
+  try {
+    GoogleSignin.configure({ webClientId });
+  } catch (err) {
+    console.error('[AcadeGrade] GoogleSignin.configure() failed:', err);
+  }
+}
 
 export async function signInWithEmail(email: string, password: string) {
   return firebaseAuth.signInWithEmailAndPassword(email, password);
