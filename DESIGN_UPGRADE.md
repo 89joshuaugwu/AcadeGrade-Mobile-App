@@ -98,3 +98,35 @@ deprecated in general for react-native-firebase," plus an open GitHub issue
 specifically about SDK 55+/newArch problems with v21). Bumped to `^25.1.0`
 (current latest as of this session). This is a NATIVE dependency change —
 **requires a full new `eas build`**, not just a JS bundle reload.
+
+## Round 3 — logo + register flow (real bugs, not style)
+
+User caught two things that were flatly wrong, not just unpolished — verified against `app/(public)/login/page.tsx` and `app/(public)/register/page.tsx` on the web before fixing, not guessed:
+
+1. **No `<Logo>` anywhere.** Zero logo usage on any auth screen. The real
+   brand asset was sitting unused in `assets/icon.png` the whole time —
+   confirmed by MD5 checksum match against web's
+   `public/android-chrome-512x512.png`, byte-identical. Built
+   `components/ui/Logo.tsx` and wired it into welcome, login,
+   forgot-password, register.
+2. **Register was a single flat form.** Web's real flow: Google auth skips
+   OTP entirely (already verified by Google) and goes straight to academic
+   details; email auth requires `/api/auth/otp/send` → code entry →
+   `/api/auth/otp/verify` before continuing. The previous version of
+   `app/(auth)/register.tsx` had neither the phasing nor the branching.
+   Rebuilt as a proper 3-step wizard (Account+OTP → Academic Details →
+   Record Mode) with the Google-skip-OTP logic matching web exactly.
+   Simplified from web's 4 steps — the "past semesters" review step (for
+   users who pick "Complete Record") isn't built yet; noted as a follow-up,
+   not silently dropped.
+3. New: `components/ui/PickerField.tsx` (bottom-sheet searchable select,
+   for university/department/programme — no equivalent existed) and
+   `lib/data/academic-data.ts` (university/department/programme lists,
+   copied from web's `lib/utils/academic-data.ts`).
+
+**Not done yet, scoped for next rounds**: light/dark theme toggle system,
+BizStock-style "More" bottom-sheet nav (replacing the current flat tab
+row), a new Calendar/Events feature (not in the web app at all — genuinely
+new), and re-skinning inspiration images 2–11 (structure reference only,
+need our palette) vs images 12–16 (closest to actual brand already, useful
+as a target reference for Dashboard/Results screens specifically).

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { colors, spacing, APP_NAME } from '@/constants/theme';
+import { Logo } from '@/components/ui/Logo';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -55,6 +56,9 @@ export default function Login() {
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: spacing.xl, flexGrow: 1, justifyContent: 'center' }}>
+            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+              <Logo size={48} showWordmark={false} />
+            </Animated.View>
             <Animated.View entering={FadeInDown.duration(300)}>
               <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800', marginBottom: 4 }}>Welcome back</Text>
               <Text style={{ color: colors.textMuted, fontSize: 15, marginBottom: spacing.xl }}>

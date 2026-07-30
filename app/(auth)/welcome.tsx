@@ -11,6 +11,7 @@ import Animated, {
   FadeInDown,
 } from 'react-native-reanimated';
 import { colors, spacing, APP_NAME } from '@/constants/theme';
+import { Logo } from '@/components/ui/Logo';
 import { Button } from '@/components/ui/Button';
 import { AuthGlow } from '@/components/ui/AuthGlow';
 import { HeroArt } from '@/components/ui/HeroArt';
@@ -58,7 +59,7 @@ export default function Welcome() {
       <AuthGlow />
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ alignItems: 'center', paddingTop: spacing.xl }}>
-          <Text style={{ color: colors.primaryGlow, fontSize: 24, fontWeight: '800' }}>{APP_NAME}</Text>
+          <Logo size={40} showWordmark={false} />
         </View>
 
         <Animated.ScrollView

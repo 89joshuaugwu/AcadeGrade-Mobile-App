@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { AuthGlow } from '@/components/ui/AuthGlow';
 import { SuccessCheck } from '@/components/ui/SuccessCheck';
+import { Logo } from '@/components/ui/Logo';
 import { authApi } from '@/lib/api/client';
 
 type Step = 'email' | 'reset';
@@ -84,6 +85,9 @@ export default function ForgotPassword() {
       <AuthGlow />
       <SafeAreaView style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: spacing.xl, flexGrow: 1, justifyContent: 'center' }}>
+          <Animated.View entering={FadeInDown.duration(250)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+            <Logo size={44} showWordmark={false} />
+          </Animated.View>
           <Animated.Text
             entering={FadeInDown.duration(300)}
             style={{ color: colors.text, fontSize: 24, fontWeight: '800', marginBottom: spacing.xl }}
