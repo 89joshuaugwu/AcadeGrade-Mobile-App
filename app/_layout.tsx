@@ -105,13 +105,22 @@ export default function RootLayout() {
   useEffect(() => {
     if (!ready || timedOut) return;
     const inAuthGroup = segments[0] === '(auth)';
+    const inTabsGroup = segments[0] === '(tabs)';
 
-    if (!firebaseUser && !inAuthGroup) {
-      router.replace('/(auth)/welcome');
-    } else if (firebaseUser && profile && !profile.mobileOnboardingCompleted && !inAuthGroup) {
-      router.replace('/(auth)/onboarding-tour');
-    } else if (firebaseUser && inAuthGroup && profile?.mobileOnboardingCompleted) {
-      router.replace('/(tabs)/dashboard');
+    // FIX: the previous version only redirected an authenticated+onboarded
+    // user to the dashboard if `inAuthGroup` was already true — never the
+    // case on a cold app open, where `segments` is empty at the bare root
+    // ("acadegrade:///"). That left the app on Expo Router's "Unmatched
+    // Route" screen forever, with no error, matching the exact bug report:
+    // "after the logo screen it just shows this [Unmatched Route] then I
+    // have to click on one of pages." Now driven by target state instead
+    // of current segment, so it redirects correctly however the app opens.
+    if (!firebaseUser) {
+      if (!inAuthGroup) router.replace('/(auth)/welcome');
+    } else if (profile && !profile.mobileOnboardingCompleted) {
+      if (segments[1] !== 'onboarding-tour') router.replace('/(auth)/onboarding-tour');
+    } else if (profile) {
+      if (!inTabsGroup) router.replace('/(tabs)/dashboard');
     }
   }, [ready, timedOut, firebaseUser, profile, segments]);
 
