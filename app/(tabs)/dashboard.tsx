@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Share, RefreshControl, Pressable, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -142,7 +142,9 @@ export default function Dashboard() {
 
 function ExpandIcon({ expanded }: { expanded: boolean }) {
   const rotation = useSharedValue(expanded ? 180 : 0);
-  rotation.value = withTiming(expanded ? 180 : 0, { duration: 200 });
+  useEffect(() => {
+    rotation.value = withTiming(expanded ? 180 : 0, { duration: 200 });
+  }, [expanded]);
   const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
   return (
     <Animated.View style={style}>
