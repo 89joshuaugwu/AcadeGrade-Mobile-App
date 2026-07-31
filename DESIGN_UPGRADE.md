@@ -196,3 +196,52 @@ bottom-sheet nav pattern is not built. These are the next round, in that
 order — Dashboard first, since Round 3 already made progress there
 (CGPAArc rebuilt as a gradient arc) before this round's redirect/flow work
 took priority.
+
+## Round 5 — the real routing fix, Dashboard/Profile rebuilds, Results/Transcript light conversion
+
+### The actual "Unmatched Route" root cause (user-diagnosed, verified working)
+My Round 4 fix improved the redirect logic but didn't address the deeper
+issue: Expo Router had **no file matching the bare `/` route at all**, so
+on cold open there was nothing to render before the `_layout.tsx` `useEffect`
+redirect could fire — a race condition, not just bad branching logic. Fix:
+added `app/index.tsx` using `<Redirect>` to resolve instantly on first
+render, and registered it in the root `<Stack>`. The two mechanisms are
+complementary: `index.tsx` handles cold-open, `_layout.tsx`'s `useEffect`
+still handles auth state changes while the app is already running.
+
+**Note**: the empty `insights/`/`profile/`/`transcript/` directory
+collisions flagged in the same analysis don't exist in this codebase — likely
+local-machine leftovers from earlier experiments. Worth deleting on the
+dev machine directly if still present there.
+
+### Welcome screen logo fix
+Removed the generic graduation-cap icon inside a colored gradient badge —
+redundant since our actual logo already has its own built-in color
+gradient. Now shows the real logo directly with a soft shadow instead of
+nesting it inside a mismatched second gradient.
+
+### Dashboard — rebuilt again
+Previous round's radial-gauge version replaced with the actual inspiration
+layout (image 4, "UserDashboard"): greeting header, gradient hero card
+(orange→purple, Current GPA + trend pills), Completed/Credits stat pair,
+dismissible tour nudge, Recent Grades list, GPA Trend chart. Light theme.
+
+### Profile — rebuilt to match the UserProfile reference
+Avatar with edit badge, stats row, Institution card, Academic Preferences
+(metric toggle, session, grade-alert switches), Account & Security,
+Export Transcript, Log Out. Every piece of existing logic — Cloudinary
+avatar upload, Firestore notification preferences, RTDB notification feed,
+delete-account confirmation, sign-out + FCM token cleanup — preserved
+exactly; only the layout and light theme are new. Also properly wired the
+transcript export button (write PDF + native share sheet) instead of
+leaving it as a stub — `expo-sharing` turned out to already be available.
+
+### Results & Transcript — converted to light theme
+Structure and logic unchanged, just the color tokens.
+
+### Explicitly deferred, not forgotten
+**Insights** stays on the dark "Liquid Glass" AI aesthetic (`GlassCard`) —
+that's a deliberate distinct treatment for AI-specific surfaces, common
+even in otherwise-light apps, and converting it properly needs more care
+than this round had room for. **BizStock "More" nav** still not built —
+next round.

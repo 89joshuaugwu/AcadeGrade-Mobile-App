@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
-import { colors, spacing } from '@/constants/theme';
+import { lightColors as colors, spacing } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/lib/store/authStore';
 import { transcriptApi } from '@/lib/api/client';
 
+/** Converted to light theme this round — structure/logic unchanged. */
 export default function Transcript() {
   const profile = useAuthStore((s) => s.profile);
   const [includePhoto, setIncludePhoto] = useState(true);
@@ -20,9 +21,6 @@ export default function Transcript() {
   async function generateAndShare() {
     setGenerating(true);
     try {
-      // Backend does the PDF generation — mobile never generates client-side
-      // (01_CONTEXT.md §9: "Client-side PDF generation — call the existing
-      // API instead").
       const { pdfBase64 } = await transcriptApi.generate(includePhoto);
       const fileUri = `${FileSystem.cacheDirectory}transcript.pdf`;
       await FileSystem.writeAsStringAsync(fileUri, pdfBase64, { encoding: FileSystem.EncodingType.Base64 });
@@ -51,7 +49,7 @@ export default function Transcript() {
       <View style={{ padding: spacing.lg }}>
         <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: spacing.lg }}>Transcript</Text>
 
-        <Card style={{ marginBottom: spacing.lg, alignItems: 'center' }}>
+        <Card themeColors={colors} style={{ marginBottom: spacing.lg, alignItems: 'center' }}>
           {includePhoto && profile?.avatarUrl && (
             <Image source={{ uri: profile.avatarUrl }} style={{ width: 72, height: 72, borderRadius: 36, marginBottom: spacing.md }} />
           )}
@@ -59,7 +57,7 @@ export default function Transcript() {
           <Text style={{ color: colors.textMuted, fontSize: 12 }}>{profile?.matric} · {profile?.university}</Text>
         </Card>
 
-        <Card style={{ marginBottom: spacing.lg }}>
+        <Card themeColors={colors} style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={{ color: colors.text, fontWeight: '600' }}>Show photo on transcript</Text>
             <Switch
@@ -76,7 +74,7 @@ export default function Transcript() {
         <Button label="Create Public Share Link" variant="secondary" onPress={createPublicLink} loading={sharing} fullWidth />
 
         {shareUrl && (
-          <Text style={{ color: colors.primaryGlow, fontSize: 13, marginTop: spacing.md, textAlign: 'center' }}>
+          <Text style={{ color: colors.primary, fontSize: 13, marginTop: spacing.md, textAlign: 'center' }}>
             Link copied to clipboard: {shareUrl}
           </Text>
         )}

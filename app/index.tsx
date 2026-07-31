@@ -4,17 +4,20 @@ import { useAuthStore } from '@/lib/store/authStore';
 /**
  * Root index route — matches the bare "/" URL (`acadegrade:///`).
  *
- * Without this file, Expo Router has nothing to render for "/" and shows
- * "Unmatched Route". This component reads auth state and immediately
- * redirects to the correct route group:
+ * Found via independent user analysis, confirmed working: without this
+ * file, Expo Router has nothing to render for "/" on cold open and shows
+ * "Unmatched Route" — the `_layout.tsx` useEffect redirect (see that file)
+ * only fires *after* the first render, so the error screen flashed before
+ * the redirect could execute. This file closes that gap by giving "/" a
+ * valid match immediately:
  *
- *  • Not signed in           → /(auth)/welcome
+ *  • Not signed in            → /(auth)/welcome
  *  • Signed in, no onboarding → /(auth)/onboarding-tour
- *  • Signed in + onboarded   → /(tabs)/dashboard
+ *  • Signed in + onboarded    → /(tabs)/dashboard
  *
- * The root _layout.tsx useEffect also handles redirects on auth changes,
- * but this file ensures the FIRST render already has a valid route instead
- * of flashing "Unmatched Route" during the useEffect gap.
+ * `_layout.tsx`'s useEffect still handles redirects when auth state
+ * *changes* while the app is already open (sign in/out) — the two
+ * mechanisms are complementary, not redundant.
  */
 export default function Index() {
   const { firebaseUser, profile } = useAuthStore();
@@ -31,8 +34,8 @@ export default function Index() {
     return <Redirect href="/(tabs)/dashboard" />;
   }
 
-  // Auth is still resolving (firebaseUser exists but profile hasn't loaded yet).
-  // The root _layout.tsx holds the splash screen until ready, so this case
-  // is rarely hit — but default to welcome as a safe fallback.
+  // Auth resolved (firebaseUser exists) but the profile doc hasn't loaded
+  // yet. _layout.tsx holds the splash screen until both are ready, so this
+  // branch is rarely hit in practice — safe fallback to welcome either way.
   return <Redirect href="/(auth)/welcome" />;
 }

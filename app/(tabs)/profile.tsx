@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Switch, Image, Alert, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
 import database from '@react-native-firebase/database';
 import {
@@ -93,12 +95,12 @@ export default function Profile() {
   async function handleExportTranscript() {
     setExporting(true);
     try {
-      // NOTE: returns { pdfBase64 } — full save-to-device/share-sheet flow
-      // needs `expo-sharing`, which isn't in the current dependency set.
-      // Confirms generation succeeds; wiring the actual share sheet is a
-      // follow-up once that dependency is added.
-      await transcriptApi.generate(false);
-      Alert.alert('Transcript generated', 'Your transcript PDF was generated successfully.');
+      const { pdfBase64 } = await transcriptApi.generate(true);
+      const fileUri = `${FileSystem.cacheDirectory}transcript.pdf`;
+      await FileSystem.writeAsStringAsync(fileUri, pdfBase64, { encoding: FileSystem.EncodingType.Base64 });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, { mimeType: 'application/pdf', dialogTitle: 'AcadeGrade Transcript' });
+      }
     } catch (e: any) {
       Alert.alert('Failed', e.message ?? 'Could not generate transcript.');
     } finally {
