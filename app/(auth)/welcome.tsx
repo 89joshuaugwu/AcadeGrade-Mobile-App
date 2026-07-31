@@ -1,134 +1,77 @@
-import { useRef, useState } from 'react';
-import { View, Text, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, {
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  interpolate,
-  Extrapolation,
-  FadeInDown,
-} from 'react-native-reanimated';
-import { colors, spacing, APP_NAME } from '@/constants/theme';
-import { Logo } from '@/components/ui/Logo';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GraduationCap, TrendingUp, Sparkles, CalendarClock } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { spacing, radius, APP_NAME, colors } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
-import { AuthGlow } from '@/components/ui/AuthGlow';
-import { HeroArt } from '@/components/ui/HeroArt';
-
-const { width } = Dimensions.get('window');
-
-const SLIDES = [
-  {
-    title: 'Know exactly where you stand',
-    body: 'Track your CGPA and Performance Index side by side, updated the instant you add a result.',
-    icon: 'TrendingUp' as const,
-  },
-  {
-    title: 'Scan results, skip the typing',
-    body: 'Snap a photo of your result slip — AI extracts every course and score for you to review.',
-    icon: 'Camera' as const,
-  },
-  {
-    title: 'See where you\u2019re headed',
-    body: 'AI forecasts your degree class and tells you exactly what GPA you need to hit your target.',
-    icon: 'Target' as const,
-  },
-];
 
 /**
- * UPGRADED per acadegrade-ui-upgrade-prompt.md §1: animated glow background
- * (was flat colors.void), emoji hero art replaced with HeroArt (animated
- * SVG+icon, since assets/lottie/ had no real Lottie files), parallax +
- * scale on inactive slides instead of a hard cut, staggered CTA entrance.
- * Carousel logic/navigation targets unchanged.
+ * REBUILT to match the inspiration reference exactly (image 2,
+ * "WelcomeSplash" panel): gradient icon badge, wordmark, gold status pill,
+ * three feature pills, two CTAs. Per explicit instruction, the two CTAs now
+ * route differently — "Get Started" leads into the new Onboarding flow,
+ * "Sign In" skips it entirely and goes straight to Login.
+ *
+ * Deliberately DARK, not theme-toggled: in the reference, WelcomeSplash is
+ * the one dark panel — everything after it (Onboarding, Auth, Dashboard)
+ * is light. Keeping this screen dark also gives a seamless handoff from
+ * the native splash screen (which is dark, #07090F) with no color flash.
  */
 export default function Welcome() {
   const router = useRouter();
-  const [index, setIndex] = useState(0);
-  const scrollX = useSharedValue(0);
-
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      scrollX.value = e.contentOffset.x;
-    },
-  });
+  const c = colors;
 
   return (
-    <View style={{ flex: 1 }}>
-      <AuthGlow />
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={{ alignItems: 'center', paddingTop: spacing.xl }}>
-          <Logo size={40} showWordmark={false} />
+    <View style={{ flex: 1, backgroundColor: c.void }}>
+      <SafeAreaView style={{ flex: 1, justifyContent: 'space-between', padding: spacing.xl }}>
+        <View />
+
+        <View style={{ alignItems: 'center' }}>
+          <Animated.View entering={FadeInDown.duration(500).springify()}>
+            <LinearGradient
+              colors={['#818CF8', '#6366F1', '#F59E0B']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ width: 96, height: 96, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg, shadowColor: '#6366F1', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 10 }}
+            >
+              <GraduationCap color="#FFFFFF" size={44} strokeWidth={1.8} />
+            </LinearGradient>
+          </Animated.View>
+
+          <Animated.Text entering={FadeInDown.delay(100).duration(500)} style={{ color: c.text, fontSize: 32, fontWeight: '800', marginBottom: spacing.sm }}>
+            {APP_NAME}
+          </Animated.Text>
+
+          <Animated.View entering={FadeInDown.delay(180).duration(500)} style={{ backgroundColor: c.goldDim, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.pill, marginBottom: spacing.xl }}>
+            <Text style={{ color: c.gold, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>EXCELLENCE TRACKED</Text>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(240).duration(500)} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+            <FeaturePill icon={<TrendingUp size={13} color={c.textMuted} />} label="GPA Tracking" c={c} />
+            <FeaturePill icon={<Sparkles size={13} color={c.textMuted} />} label="Smart Insights" c={c} />
+            <FeaturePill icon={<CalendarClock size={13} color={c.textMuted} />} label="Deadlines" c={c} />
+          </Animated.View>
         </View>
 
-        <Animated.ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={scrollHandler}
-          onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
-          scrollEventThrottle={16}
-          style={{ flex: 1 }}
-        >
-          {SLIDES.map((item, i) => (
-            <Slide key={i} item={item} index={i} scrollX={scrollX} />
-          ))}
-        </Animated.ScrollView>
-
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: spacing.xl }}>
-          {SLIDES.map((_, i) => (
-            <View
-              key={i}
-              style={{
-                width: i === index ? 24 : 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: i === index ? colors.primary : colors.border,
-              }}
-            />
-          ))}
-        </View>
-
-        <Animated.View
-          entering={FadeInDown.delay(150).duration(350)}
-          style={{ paddingHorizontal: spacing.xl, gap: spacing.md, paddingBottom: spacing.lg }}
-        >
-          <Button label="Get Started" onPress={() => router.push('/(auth)/register')} fullWidth />
-          <Button
-            label="I already have an account"
-            variant="ghost"
-            onPress={() => router.push('/(auth)/login')}
-            fullWidth
-          />
+        <Animated.View entering={FadeInUp.delay(300).duration(500)} style={{ gap: spacing.md }}>
+          <Button label="Get Started" onPress={() => router.push('/(auth)/onboarding-tour')} fullWidth />
+          <Button label="Sign In" variant="secondary" onPress={() => router.push('/(auth)/login')} fullWidth />
+          <Text style={{ color: c.textFaint, fontSize: 11, textAlign: 'center', marginTop: spacing.xs }}>
+            By continuing, you agree to our Terms
+          </Text>
         </Animated.View>
       </SafeAreaView>
     </View>
   );
 }
 
-function Slide({ item, index, scrollX }: { item: (typeof SLIDES)[number]; index: number; scrollX: Animated.SharedValue<number> }) {
-  const style = useAnimatedStyle(() => {
-    const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
-    const scale = interpolate(scrollX.value, inputRange, [0.85, 1, 0.85], Extrapolation.CLAMP);
-    const opacity = interpolate(scrollX.value, inputRange, [0.4, 1, 0.4], Extrapolation.CLAMP);
-    const translateY = interpolate(scrollX.value, inputRange, [18, 0, 18], Extrapolation.CLAMP);
-    return { transform: [{ scale }, { translateY }], opacity };
-  });
-
+function FeaturePill({ icon, label, c }: { icon: React.ReactNode; label: string; c: typeof colors }) {
   return (
-    <View style={{ width, padding: spacing.xxl, alignItems: 'center', justifyContent: 'center', flex: 1 }}>
-      <Animated.View style={[style, { alignItems: 'center' }]}>
-        <View style={{ marginBottom: spacing.xl }}>
-          <HeroArt icon={item.icon} />
-        </View>
-        <Text style={{ color: colors.text, fontSize: 24, fontWeight: '700', textAlign: 'center', marginBottom: spacing.md }}>
-          {item.title}
-        </Text>
-        <Text style={{ color: colors.textMuted, fontSize: 16, textAlign: 'center', lineHeight: 24 }}>
-          {item.body}
-        </Text>
-      </Animated.View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill }}>
+      {icon}
+      <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </View>
   );
 }

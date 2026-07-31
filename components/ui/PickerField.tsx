@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetTextInput, BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { ChevronDown, Check, Search } from 'lucide-react-native';
-import { colors, radius, spacing } from '@/constants/theme';
+import { lightColors as colors, radius, spacing } from '@/constants/theme';
 
 interface PickerFieldProps {
   label: string;

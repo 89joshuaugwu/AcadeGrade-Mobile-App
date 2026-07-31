@@ -1,26 +1,29 @@
 import { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { colors, spacing, APP_NAME } from '@/constants/theme';
-import { Logo } from '@/components/ui/Logo';
+import { spacing, radius, lightColors as c } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { AuthGlow } from '@/components/ui/AuthGlow';
+import { Logo } from '@/components/ui/Logo';
+import { GoogleIcon } from '@/components/ui/GoogleIcon';
 import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 
 /**
- * UPGRADED per acadegrade-ui-upgrade-prompt.md §1: AuthGlow background
- * (was flat colors.void), form fields wrapped in one GlassCard panel (was
- * a bare ScrollView), staggered FadeInDown entrance per field. All
- * handlers/logic/error-mapping unchanged.
+ * REBUILT to match the AuthPortal reference exactly: light theme, logo
+ * badge + tagline, Login/Sign Up segmented pill (Sign Up navigates straight
+ * to the register route rather than being a real second panel here),
+ * icon-prefixed fields, password eye-toggle, single "Continue with Google"
+ * — Apple sign-in from the reference is intentionally dropped per explicit
+ * instruction (email/password + Google only). Auth handlers unchanged.
  */
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,7 +33,6 @@ export default function Login() {
     setLoading(true);
     try {
       await signInWithEmail(email.trim(), password);
-      // _layout.tsx's auth listener handles navigation once profile resolves
     } catch (e: any) {
       setError(mapAuthError(e.code));
     } finally {
@@ -44,75 +46,103 @@ export default function Login() {
     try {
       await signInWithGoogle();
     } catch (e: any) {
-      setError('Google sign-in failed. Try again.');
+      if (e.code !== 'auth/popup-closed-by-user') setError('Google sign-in failed. Try again.');
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <AuthGlow />
+    <View style={{ flex: 1, backgroundColor: c.void }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: spacing.xl, flexGrow: 1, justifyContent: 'center' }}>
-            <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-              <Logo size={48} showWordmark={false} />
-            </Animated.View>
-            <Animated.View entering={FadeInDown.duration(300)}>
-              <Text style={{ color: colors.text, fontSize: 28, fontWeight: '800', marginBottom: 4 }}>Welcome back</Text>
-              <Text style={{ color: colors.textMuted, fontSize: 15, marginBottom: spacing.xl }}>
-                Sign in to {APP_NAME}
-              </Text>
+            <Animated.View entering={FadeInDown.duration(350)} style={{ alignItems: 'center', marginBottom: spacing.xl }}>
+              <Logo size={56} tagline="Master Your Academic Journey" themeColors={c} />
             </Animated.View>
 
-            <GlassCard elevated>
-              <Animated.View entering={FadeInDown.delay(60).duration(300)}>
-                <Input
-                  label="Email"
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                />
-              </Animated.View>
-              <Animated.View entering={FadeInDown.delay(110).duration(300)}>
-                <Input
-                  label="Password"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                />
-              </Animated.View>
+            <Animated.View entering={FadeInDown.delay(80).duration(350)}>
+              <SegmentedPill active="login" onSelect={(k) => k === 'register' && router.push('/(auth)/register')} />
+            </Animated.View>
 
-              {error && (
-                <Text style={{ color: colors.danger, marginBottom: spacing.md, fontSize: 13 }}>{error}</Text>
-              )}
+            <Animated.View entering={FadeInDown.delay(140).duration(350)} style={{ marginTop: spacing.xl }}>
+              <Input
+                label="Email Address"
+                placeholder="name@university.edu"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+                themeColors={c}
+                leftIcon={<Mail size={17} color={c.textFaint} />}
+              />
+              <Input
+                label="Password"
+                placeholder="••••••••"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                themeColors={c}
+                leftIcon={<Lock size={17} color={c.textFaint} />}
+                rightElement={
+                  <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
+                    {showPassword ? <EyeOff size={18} color={c.textFaint} /> : <Eye size={18} color={c.textFaint} />}
+                  </Pressable>
+                }
+              />
 
-              <Link href="/(auth)/forgot-password" asChild>
-                <Text style={{ color: colors.primaryGlow, fontSize: 13, marginBottom: spacing.lg, alignSelf: 'flex-end' }}>
-                  Forgot password?
+              <Pressable onPress={() => router.push('/(auth)/forgot-password')} style={{ alignSelf: 'flex-end', marginBottom: spacing.lg }}>
+                <Text style={{ color: c.primary, fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+              </Pressable>
+
+              {error && <Text style={{ color: c.danger, marginBottom: spacing.md, fontSize: 13 }}>{error}</Text>}
+
+              <Button label="Sign In to Dashboard" onPress={handleLogin} loading={loading} fullWidth />
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: spacing.lg }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+                <Text style={{ color: c.textFaint, fontSize: 12, marginHorizontal: spacing.sm }}>OR</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+              </View>
+
+              <Pressable
+                onPress={handleGoogle}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}
+              >
+                <GoogleIcon size={18} />
+                <Text style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>Continue with Google</Text>
+              </Pressable>
+
+              <Pressable onPress={() => router.push('/(auth)/register')} style={{ alignItems: 'center', marginTop: spacing.xl }}>
+                <Text style={{ color: c.textMuted, fontSize: 13 }}>
+                  New to AcadeGrade? <Text style={{ color: c.primary, fontWeight: '700' }}>Create Account</Text>
                 </Text>
-              </Link>
-
-              <Animated.View entering={FadeInDown.delay(160).duration(300)}>
-                <Button label="Sign In" onPress={handleLogin} loading={loading} fullWidth />
-                <View style={{ height: spacing.md }} />
-                <Button label="Continue with Google" variant="secondary" onPress={handleGoogle} fullWidth />
-              </Animated.View>
-            </GlassCard>
-
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl }}>
-              <Text style={{ color: colors.textMuted }}>Don't have an account? </Text>
-              <Link href="/(auth)/register">
-                <Text style={{ color: colors.primaryGlow, fontWeight: '600' }}>Sign up</Text>
-              </Link>
-            </View>
+              </Pressable>
+            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
+    </View>
+  );
+}
+
+export function SegmentedPill({ active, onSelect }: { active: 'login' | 'register'; onSelect: (k: 'login' | 'register') => void }) {
+  return (
+    <View style={{ flexDirection: 'row', backgroundColor: c.overlay, borderRadius: radius.pill, padding: 4 }}>
+      {(['login', 'register'] as const).map((key) => {
+        const isActive = key === active;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => onSelect(key)}
+            style={{ flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center', backgroundColor: isActive ? c.primary : 'transparent' }}
+          >
+            <Text style={{ color: isActive ? '#FFFFFF' : c.textMuted, fontWeight: '700', fontSize: 14 }}>
+              {key === 'login' ? 'Login' : 'Sign Up'}
+            </Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

@@ -8,6 +8,7 @@ import type { CourseWithId } from '@/types/course';
 export interface AcademicSnapshot {
   loading: boolean;
   semesters: SemesterWithId[];
+  allCourses: CourseWithId[];
   cgpa: number;
   pi: number;
   totalCredits: number;
@@ -66,6 +67,7 @@ export function useAcademicData(): AcademicSnapshot {
   return {
     loading,
     semesters,
+    allCourses,
     cgpa: cumulative.cgpa,
     pi: cumulative.pi,
     totalCredits: cumulative.totalCredits,

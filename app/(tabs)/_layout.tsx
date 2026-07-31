@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LayoutDashboard, FileText, Sparkles, GraduationCap, Bell } from 'lucide-react-native';
+import { LayoutDashboard, FileText, Sparkles, GraduationCap, Settings } from 'lucide-react-native';
 import { colors, radius, glass } from '@/constants/theme';
 
 export default function TabsLayout() {
@@ -71,7 +71,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, focused }) => <TabIcon focused={focused}><Bell color={color} size={22} /></TabIcon>,
+          tabBarIcon: ({ color, focused }) => <TabIcon focused={focused}><Settings color={color} size={22} /></TabIcon>,
         }}
       />
     </Tabs>

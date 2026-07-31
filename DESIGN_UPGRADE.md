@@ -130,3 +130,69 @@ row), a new Calendar/Events feature (not in the web app at all — genuinely
 new), and re-skinning inspiration images 2–11 (structure reference only,
 need our palette) vs images 12–16 (closest to actual brand already, useful
 as a target reference for Dashboard/Results screens specifically).
+
+## Round 4 — critical nav fix, dependency sync, and light-theme rebuild
+
+### The actual crash (fixed before anything else)
+`app/_layout.tsx`'s redirect effect only sent an already-authenticated,
+already-onboarded user to the dashboard if they happened to already be
+inside the `(auth)` group — never true on a cold app open, where
+`segments` is empty at the bare root. Landed on Expo Router's "Unmatched
+Route" screen forever, silently. Rewritten to redirect based on target
+state instead of current segment.
+
+### Dependency sync
+- `package.json` replaced with the exact confirmed-working version set
+  (Expo 57.0.9, RN 0.86.2, React 19.2.3, Reanimated 4.5.1).
+- `babel.config.js`: Reanimated 4 moved its Babel transform out of
+  `react-native-reanimated/plugin` into its own `react-native-worklets/plugin`
+  package — confirmed against Reanimated's official v3→v4 migration docs
+  before changing this, not guessed.
+
+### Flow restructure + light theme
+Per direct instruction, the auth flow is now Welcome (dark, matches the
+inspiration's one dark panel + gives seamless native-splash continuity) →
+Onboarding (new — didn't meaningfully exist before) → Login/Register/Forgot
+Password (all light, matching the inspiration's AuthPortal panel):
+
+- **Welcome**: "Get Started" → Onboarding. "Sign In" → Login directly,
+  skipping onboarding — per explicit instruction.
+- **Onboarding**: new 3-slide flow (Skip, dot pagination, Continue → last
+  slide leads to Register, "Already have an account? Sign In" escape
+  hatch throughout). Reference uses real photography; substituted with
+  the existing `HeroArt` animated icon since no photo assets exist in
+  this project — flagged, not silently swapped.
+- **Login**: rebuilt to match the AuthPortal reference — segmented
+  Login/Sign Up pill, icon-prefixed fields, password eye-toggle, single
+  "Continue with Google." Apple sign-in from the reference intentionally
+  dropped per instruction (native Apple auth was never wired up, and
+  wasn't asked for).
+- **Register**: simplified per direct request — was a 2-step OTP flow
+  (send → separate verify screen), now ONE form: name, email with an
+  inline "Get Code" button, password, confirm password, and the OTP
+  field, all submitted together. Google signup still bypasses
+  password/OTP entirely (already verified by Google) and jumps to step 2.
+  Same Firestore write shape as every previous version.
+- **Forgot Password**: same card style as Login now, for consistency.
+
+### New/changed components
+- `constants/theme.ts` — added `lightColors`. Existing dark `colors` is
+  untouched and still the default for every screen not rebuilt this round.
+- `lib/store/themeStore.ts` — new. In-memory only (no
+  `@react-native-async-storage` in the current dependency set, so it
+  doesn't persist across cold launches yet — worth adding if that matters).
+- `Input.tsx`, `Logo.tsx` — extended with an optional `themeColors`
+  override, backward-compatible with every existing call site.
+- `PickerField.tsx` — switched to light theme directly (its only consumer,
+  Register step 2, is light now).
+- `GoogleIcon.tsx` — new, was missing.
+- Fixed a real bug found in passing: the Profile tab icon was a Bell
+  (notification icon), not a Settings/gear icon.
+
+### Explicitly NOT done this round — scope was too large for one pass
+Dashboard, Results, Transcript, Insights, and Profile are **still on the
+dark theme** and have not been touched. The BizStock-style "More"
+bottom-sheet nav pattern is not built. These are the next round, in that
+order — Dashboard first, since Round 3 already made progress there
+(CGPAArc rebuilt as a gradient arc) before this round's redirect/flow work
+took priority.

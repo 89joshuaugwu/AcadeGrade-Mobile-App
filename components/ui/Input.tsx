@@ -1,14 +1,29 @@
 import React, { useState } from 'react';
 import { TextInput, View, Text, TextInputProps } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors as darkColors, radius, spacing } from '@/constants/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
+  /** Icon rendered inside the field, left-aligned (e.g. mail/lock icons per the inspiration reference). */
+  leftIcon?: React.ReactNode;
+  /** Element rendered inside the field, right-aligned (e.g. the password show/hide toggle). */
+  rightElement?: React.ReactNode;
+  /** Override token set — pass `lightColors` for screens using the light theme. Defaults to the existing dark palette so every current usage is unaffected. */
+  themeColors?: typeof darkColors;
 }
 
-export function Input({ label, error, onFocus, onBlur, style, ...rest }: InputProps) {
+/**
+ * EXTENDED (backward compatible — every existing `<Input label=.../>` call
+ * across ~10 screens keeps working unchanged): added `leftIcon`,
+ * `rightElement` (for password visibility toggles), and an optional
+ * `themeColors` override so the light-themed screens being rebuilt this
+ * round (Login, Register, Forgot Password) can use the same component
+ * instead of a duplicate.
+ */
+export function Input({ label, error, leftIcon, rightElement, themeColors, onFocus, onBlur, style, ...rest }: InputProps) {
+  const colors = themeColors ?? darkColors;
   const [focused, setFocused] = useState(false);
   const glow = useSharedValue(0);
 
@@ -34,9 +49,12 @@ export function Input({ label, error, onFocus, onBlur, style, ...rest }: InputPr
             shadowColor: colors.primaryGlow,
             shadowRadius: 8,
             shadowOffset: { width: 0, height: 0 },
+            flexDirection: 'row',
+            alignItems: 'center',
           },
         ]}
       >
+        {leftIcon && <View style={{ paddingLeft: 14 }}>{leftIcon}</View>}
         <TextInput
           placeholderTextColor={colors.textFaint}
           onFocus={(e) => {
@@ -50,11 +68,12 @@ export function Input({ label, error, onFocus, onBlur, style, ...rest }: InputPr
             onBlur?.(e);
           }}
           style={[
-            { color: colors.text, fontSize: 16, paddingHorizontal: 14, paddingVertical: 12 },
+            { flex: 1, color: colors.text, fontSize: 16, paddingHorizontal: 14, paddingVertical: 12 },
             style as object,
           ]}
           {...rest}
         />
+        {rightElement && <View style={{ paddingRight: 14 }}>{rightElement}</View>}
       </Animated.View>
       {error && <Text style={{ color: colors.danger, fontSize: 12, marginTop: 4 }}>{error}</Text>}
     </View>

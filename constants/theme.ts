@@ -110,3 +110,50 @@ export const typography = {
 
 export const APP_NAME = 'AcadeGrade';
 export const APP_TAGLINE = "Know where you stand. Know where you're going.";
+
+/**
+ * Light theme — added per direct request to match the inspiration
+ * references (which are predominantly light-mode) and, in the user's own
+ * words, "our logo has this nice mix of colors... it will match our logo."
+ * Same primary/gold/semantic hues as the dark palette above (brand colors
+ * never change between modes) — only surfaces/borders/text invert.
+ *
+ * SCOPE NOTE: existing screens (Dashboard, Results, Transcript, Insights,
+ * Profile) still import `colors` directly and are NOT theme-aware yet —
+ * retrofitting ~15 already-built screens to a dynamic theme is a larger
+ * follow-up. This round wires theme-awareness into the screens being
+ * rebuilt right now (Welcome, Onboarding, Login, Register, Forgot
+ * Password) via `useThemeColors()` below.
+ */
+export const lightColors = {
+  void: '#F7F7FB',
+  deep: '#FFFFFF',
+  surface: '#FFFFFF',
+  overlay: '#F1F1F8',
+  border: '#E4E4EF',
+  borderSubtle: '#EDEDF5',
+
+  primary: '#6366F1',
+  primaryHover: '#4F46E5',
+  primaryGlow: '#6366F1',
+  primaryDim: '#EEEEFD',
+
+  gold: '#F59E0B',
+  goldHover: '#D97706',
+  goldDim: '#FEF3E2',
+
+  success: '#16A34A',
+  successDim: '#EAFBF1',
+  danger: '#DC2626',
+  dangerDim: '#FDECEC',
+  warning: '#D97706',
+  info: '#0284C7',
+
+  text: '#14162B',
+  textMuted: '#6B7085',
+  textFaint: '#A1A5B8',
+  textInverse: '#FFFFFF',
+} as const;
+
+export type ThemeColors = typeof colors;
+
