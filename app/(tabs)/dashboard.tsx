@@ -1,18 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, Share, RefreshControl, Pressable, Dimensions, Image } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, ScrollView, Pressable, Image, RefreshControl, Switch, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { ChevronDown, Share2, Bell, ArrowUpRight } from 'lucide-react-native';
-import Animated, { FadeIn, FadeInDown, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { colors, spacing, APP_NAME } from '@/constants/theme';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { AIPulseBadge } from '@/components/ui/AIPulseBadge';
-import { Badge } from '@/components/ui/Badge';
-import { CGPAArc } from '@/components/dashboard/CGPAArc';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Sparkles, GraduationCap, CheckCircle2, Lightbulb, ChevronRight } from 'lucide-react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import { spacing, radius, lightColors as c } from '@/constants/theme';
 import { TrendChart } from '@/components/dashboard/TrendChart';
-import { BentoGrid, BentoTile, BentoStat } from '@/components/dashboard/BentoGrid';
-import { SmartNudge } from '@/components/dashboard/SmartNudge';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
@@ -21,164 +15,136 @@ import { getGradeColor } from '@/lib/cgpa/gradeScale';
 const { width } = Dimensions.get('window');
 
 /**
- * REBUILT per the inspiration reference (image 14/15): header now shows
- * avatar + name + level + a bell (opens Notifications — no live unread
- * count yet, since no notifications screen/query exists in this codebase
- * to source a real number from; adding a fake count would be worse than
- * no badge), CGPA/PI as a proper segmented pill instead of two floating
- * chips, and a new "Recent Courses" list at the bottom matching the
- * reference exactly. CGPAArc itself rebuilt separately (see that file).
+ * REBUILT to match the inspiration reference exactly (image 4,
+ * "UserDashboard" panel) rather than the previous radial-gauge layout:
+ * greeting header, gradient hero card (Current GPA + trend badges),
+ * Completed/Credits stat pair, a dismissible "New to AcadeGrade?" tour
+ * nudge, Recent Grades list, GPA Trend chart. Light theme throughout,
+ * matching every other screen rebuilt this round.
  */
 export default function Dashboard() {
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
-  const { semesters, allCourses, cgpa, pi, totalCredits, totalCourses, currentSemesterGPA, atRiskCount } = useAcademicData();
+  const { semesters, allCourses, cgpa, totalCredits, totalCourses, loading } = useAcademicData();
   const [refreshing, setRefreshing] = useState(false);
-  const [outlookExpanded, setOutlookExpanded] = useState(false);
-  const [hasGeneratedInsight] = useState(false);
+  const [tourDismissed, setTourDismissed] = useState(!!profile?.mobileOnboardingCompleted);
 
-  const gradeMode = profile?.gradeMode ?? 'cgpa';
-  const primaryValue = gradeMode === 'cgpa' ? cgpa : pi;
-  const primaryLabel = gradeMode === 'cgpa' ? 'CGPA' : 'PI';
   const trendData = semesters.map((s, i) => ({ x: i + 1, gpa: s.gpa, pi: s.pi }));
-
-  const recentCourses = useMemo(
-    () => [...allCourses].sort((a, b) => ((b.updatedAt as any)?.toMillis?.() ?? 0) - ((a.updatedAt as any)?.toMillis?.() ?? 0)).slice(0, 3),
+  const recentGrades = useMemo(
+    () => [...allCourses].filter((x) => x.grade).sort((a, b) => ((b.updatedAt as any)?.toMillis?.() ?? 0) - ((a.updatedAt as any)?.toMillis?.() ?? 0)).slice(0, 3),
     [allCourses]
   );
 
-  async function toggleMetric(mode: 'cgpa' | 'pi') {
-    if (!firebaseUser || mode === gradeMode) return;
-    Haptics.selectionAsync();
-    await db.collection('users').doc(firebaseUser.uid).update({ gradeMode: mode });
+  const semesterDelta = semesters.length >= 2 ? semesters[semesters.length - 1].gpa - semesters[semesters.length - 2].gpa : 0;
+
+  async function handleToggleTour(value: boolean) {
+    setTourDismissed(!value);
+    if (firebaseUser) await db.collection('users').doc(firebaseUser.uid).update({ mobileOnboardingCompleted: !value });
   }
 
-  async function handleShare() {
-    await Share.share({ message: `My ${primaryLabel} on ${APP_NAME} is ${primaryValue.toFixed(2)}/5.0.` });
-  }
+  const firstName = profile?.fullName?.split(' ')[0] ?? 'Student';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 600); }} tintColor={colors.primary} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 500); }} tintColor={c.primary} />}
       >
-        {/* HEADER — avatar, name, level, bell, share */}
+        {/* HEADER */}
         <Animated.View entering={FadeIn.duration(300)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View>
+            <Text style={{ color: c.text, fontSize: 22, fontWeight: '800' }}>Hello, {firstName}!</Text>
+            <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>Your academic journey is looking strong.</Text>
+          </View>
+          <Pressable onPress={() => router.push('/(tabs)/profile')}>
             {profile?.avatarUrl ? (
-              <Image source={{ uri: profile.avatarUrl }} style={{ width: 42, height: 42, borderRadius: 21, borderWidth: 1.5, borderColor: colors.border }} />
+              <Image source={{ uri: profile.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
             ) : (
-              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: colors.primaryDim, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: colors.primary }}>
-                <Text style={{ color: colors.primaryGlow, fontWeight: '800', fontSize: 15 }}>
-                  {(profile?.fullName ?? 'S').charAt(0)}
-                </Text>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: c.primary, fontWeight: '800' }}>{firstName.charAt(0)}</Text>
               </View>
             )}
-            <View>
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800' }}>
-                {profile?.fullName?.split(' ')[0] ?? 'Student'}
-              </Text>
-              <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                {profile?.department ?? APP_NAME} · {profile?.currentLevel ?? ''} Level
-              </Text>
-            </View>
-          </View>
-
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <IconButton icon={<Bell color={colors.textMuted} size={17} />} onPress={() => router.push('/(tabs)/profile')} />
-            <IconButton icon={<Share2 color={colors.textMuted} size={17} />} onPress={handleShare} />
-          </View>
+          </Pressable>
         </Animated.View>
 
-        <SmartNudge cgpa={primaryValue} atRiskCount={atRiskCount} hasGeneratedInsight={hasGeneratedInsight} />
-
-        {/* HERO — gradient arc on glass, segmented CGPA/PI pill */}
-        <GlassCard aiActive style={{ alignItems: 'center', marginBottom: spacing.sm, paddingVertical: spacing.xl }}>
-          <CGPAArc value={primaryValue} label={primaryLabel} />
-          <SegmentedToggle
-            options={[{ key: 'cgpa', label: 'CGPA' }, { key: 'pi', label: 'True Mastery (PI)' }]}
-            active={gradeMode}
-            onChange={(k) => toggleMetric(k as 'cgpa' | 'pi')}
-          />
-        </GlassCard>
-
-        <BentoGrid>
-          <BentoTile span="half" delayMs={0}>
-            <BentoStat label="Total Credits" value={totalCredits} />
-          </BentoTile>
-          <BentoTile span="half" delayMs={40}>
-            <BentoStat label="Semester GPA" value={currentSemesterGPA.toFixed(2)} color={colors.primaryGlow} />
-          </BentoTile>
-          <BentoTile span="half" delayMs={80}>
-            <BentoStat label="Courses Completed" value={totalCourses} />
-          </BentoTile>
-          <BentoTile span="half" delayMs={120} aiActive={atRiskCount > 0}>
-            <BentoStat label="At Risk" value={atRiskCount} color={atRiskCount > 0 ? colors.danger : colors.text} />
-          </BentoTile>
-
-          {trendData.length > 1 && (
-            <BentoTile span="full" delayMs={160}>
-              <Text style={{ color: colors.text, fontWeight: '700', marginBottom: spacing.sm, fontSize: 13 }}>
-                Performance Trend
-              </Text>
-              <TrendChart data={trendData} width={width - spacing.lg * 2 - 32} height={160} />
-            </BentoTile>
-          )}
-        </BentoGrid>
-
-        <View style={{ height: spacing.sm }} />
-
-        {/* ACADEMIND AI CARD */}
-        <Pressable onPress={() => { Haptics.selectionAsync(); setOutlookExpanded((v) => !v); }}>
-          <GlassCard aiActive>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <AIPulseBadge label="AcadeMind" />
-              <ExpandIcon expanded={outlookExpanded} />
+        {/* GRADIENT HERO CARD */}
+        <Animated.View entering={FadeInDown.delay(60).duration(350)}>
+          <LinearGradient
+            colors={['#F59E0B', '#8B5CF6', '#6366F1']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={{ borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' }}>Current GPA</Text>
+              <Sparkles size={18} color="#FFFFFF" />
             </View>
-            <Text style={{ color: colors.text, fontWeight: '700', marginTop: spacing.sm, marginBottom: 4 }}>
-              Degree Outlook
-            </Text>
-            {outlookExpanded ? (
-              <Animated.View entering={FadeIn.duration(250)}>
-                <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 20, marginBottom: spacing.sm }}>
-                  Open Insights for a full written analysis, risk breakdown, and the What-If calculator —
-                  refreshes are limited to once every 12 hours to keep the analysis meaningful.
-                </Text>
-                <Pressable onPress={() => router.push('/(tabs)/insights')} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ color: colors.primaryGlow, fontSize: 13, fontWeight: '700' }}>View Full Insights</Text>
-                  <ArrowUpRight color={colors.primaryGlow} size={14} />
-                </Pressable>
-              </Animated.View>
-            ) : (
-              <Text style={{ color: colors.textFaint, fontSize: 12 }}>Tap to preview</Text>
-            )}
-          </GlassCard>
-        </Pressable>
-
-        {/* RECENT COURSES — new, matching the inspiration reference */}
-        {recentCourses.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(200).duration(350)} style={{ marginTop: spacing.lg }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-              <Text style={{ color: colors.text, fontWeight: '700', fontSize: 15 }}>Recent Courses</Text>
-              <Pressable onPress={() => router.push('/(tabs)/results')}>
-                <Text style={{ color: colors.primaryGlow, fontSize: 12, fontWeight: '700' }}>View All</Text>
-              </Pressable>
+            <Text style={{ color: '#FFFFFF', fontSize: 40, fontWeight: '800', marginTop: 4 }}>{cgpa.toFixed(2)}</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: spacing.sm }}>
+              <Pill label={`Top of ${totalCourses} courses`} />
+              {semesterDelta !== 0 && <Pill label={`${semesterDelta > 0 ? '+' : ''}${semesterDelta.toFixed(1)} this semester`} />}
             </View>
+          </LinearGradient>
+        </Animated.View>
+
+        {/* STAT PAIR */}
+        <Animated.View entering={FadeInDown.delay(100).duration(350)} style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
+          <StatCard icon={<GraduationCap size={16} color={c.primary} />} label="Completed" value={totalCourses} />
+          <StatCard icon={<CheckCircle2 size={16} color={c.success} />} label="Credits" value={totalCredits} />
+        </Animated.View>
+
+        {/* TOUR NUDGE */}
+        {!tourDismissed && (
+          <Animated.View entering={FadeInDown.delay(140).duration(350)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: c.primaryDim, borderWidth: 1, borderColor: c.primary, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg }}>
+            <Lightbulb size={18} color={c.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.text, fontWeight: '700', fontSize: 13 }}>New to AcadeGrade?</Text>
+              <Text style={{ color: c.textMuted, fontSize: 12 }}>Take a 2-minute tour to set up your courses.</Text>
+            </View>
+            <Switch value={!tourDismissed} onValueChange={handleToggleTour} trackColor={{ true: c.primary, false: c.border }} thumbColor="#FFFFFF" />
+          </Animated.View>
+        )}
+
+        {/* RECENT GRADES */}
+        <Animated.View entering={FadeInDown.delay(180).duration(350)} style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+            <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>Recent Grades</Text>
+            <Pressable onPress={() => router.push('/(tabs)/results')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700' }}>View All</Text>
+              <ChevronRight size={14} color={c.primary} />
+            </Pressable>
+          </View>
+          {recentGrades.length === 0 ? (
+            <Text style={{ color: c.textFaint, fontSize: 13 }}>No graded courses yet.</Text>
+          ) : (
             <View style={{ gap: 8 }}>
-              {recentCourses.map((c) => (
-                <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: spacing.md }}>
-                  <View style={{ flex: 1, paddingRight: spacing.sm }}>
-                    <Text style={{ color: colors.text, fontWeight: '600', fontSize: 13 }} numberOfLines={1}>{c.title || c.code}</Text>
-                    <Text style={{ color: colors.textFaint, fontSize: 11, marginTop: 2 }}>{c.code} · {c.units} units</Text>
+              {recentGrades.map((course) => {
+                const gradeColor = getGradeColor(course.grade!);
+                return (
+                  <View key={course.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${gradeColor}18`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                      <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 13 }}>{course.grade}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: c.text, fontWeight: '600', fontSize: 13 }} numberOfLines={1}>{course.title || course.code}</Text>
+                      <Text style={{ color: c.textFaint, fontSize: 11 }}>{course.grade} · {course.units} Credits</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 14 }}>{course.totalScore ?? '—'}/100</Text>
+                      <Text style={{ color: c.textFaint, fontSize: 10 }}>Score</Text>
+                    </View>
                   </View>
-                  {c.grade && <Badge label={c.grade} color={getGradeColor(c.grade)} />}
-                </View>
-              ))}
+                );
+              })}
             </View>
+          )}
+        </Animated.View>
+
+        {/* GPA TREND */}
+        {trendData.length > 1 && (
+          <Animated.View entering={FadeInDown.delay(220).duration(350)} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
+            <Text style={{ color: c.text, fontWeight: '700', fontSize: 14, marginBottom: spacing.sm }}>GPA Trend</Text>
+            <TrendChart data={trendData} width={width - spacing.lg * 2 - 32} height={150} themeColors={c} />
           </Animated.View>
         )}
       </ScrollView>
@@ -186,48 +152,22 @@ export default function Dashboard() {
   );
 }
 
-function IconButton({ icon, onPress }: { icon: React.ReactNode; onPress: () => void }) {
+function Pill({ label }: { label: string }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border }}
-    >
-      {icon}
-    </Pressable>
+    <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 }}>
+      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '600' }}>{label}</Text>
+    </View>
   );
 }
 
-function ExpandIcon({ expanded }: { expanded: boolean }) {
-  const rotation = useSharedValue(expanded ? 180 : 0);
-  useEffect(() => {
-    rotation.value = withTiming(expanded ? 180 : 0, { duration: 200 });
-  }, [expanded]);
-  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
-    <Animated.View style={style}>
-      <ChevronDown color={colors.textMuted} size={18} />
-    </Animated.View>
-  );
-}
-
-function SegmentedToggle({ options, active, onChange }: { options: { key: string; label: string }[]; active: string; onChange: (key: string) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', backgroundColor: colors.void, borderRadius: 999, padding: 4, marginTop: spacing.md, borderWidth: 1, borderColor: colors.border }}>
-      {options.map((opt) => {
-        const isActive = opt.key === active;
-        return (
-          <Pressable
-            key={opt.key}
-            onPress={() => onChange(opt.key)}
-            style={{
-              paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999,
-              backgroundColor: isActive ? colors.primary : 'transparent',
-            }}
-          >
-            <Text style={{ color: isActive ? '#FFFFFF' : colors.textMuted, fontSize: 12, fontWeight: '700' }}>{opt.label}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={{ flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+        {icon}
+        <Text style={{ color: c.textMuted, fontSize: 12 }}>{label}</Text>
+      </View>
+      <Text style={{ color: c.text, fontSize: 22, fontWeight: '800' }}>{value}</Text>
     </View>
   );
 }
