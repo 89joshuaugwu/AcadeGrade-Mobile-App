@@ -155,6 +155,7 @@ export default function RootLayout() {
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.void }} onLayout={onLayoutRootView}>
         <QueryClientProvider client={queryClient}>
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.void } }}>
+            <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
           </Stack>
