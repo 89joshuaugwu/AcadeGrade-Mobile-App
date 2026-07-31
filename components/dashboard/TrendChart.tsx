@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Polyline, Line, Text as SvgText } from 'react-native-svg';
-import { colors } from '@/constants/theme';
+import { colors as darkColors } from '@/constants/theme';
 
 interface TrendChartProps {
   data: { x: number; gpa: number; pi: number }[];
   width: number;
   height?: number;
+  themeColors?: typeof darkColors;
 }
 
 /**
@@ -19,7 +20,8 @@ interface TrendChartProps {
  * mismatched native module (real crash risk at runtime, not just an npm
  * warning), this renders the same two-line GPA/PI comparison with plain SVG.
  */
-export function TrendChart({ data, width, height = 160 }: TrendChartProps) {
+export function TrendChart({ data, width, height = 160, themeColors }: TrendChartProps) {
+  const colors = themeColors ?? darkColors;
   if (data.length < 2) return null;
 
   const padding = { top: 10, bottom: 24, left: 32, right: 10 };
@@ -54,18 +56,18 @@ export function TrendChart({ data, width, height = 160 }: TrendChartProps) {
         <Polyline points={gpaPoints} fill="none" stroke={colors.primary} strokeWidth={2.5} />
       </Svg>
       <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
-        <Legend color={colors.primary} label="GPA" />
-        <Legend color={colors.gold} label="PI" dashed />
+        <Legend color={colors.primary} label="GPA" textColor={colors.textMuted} />
+        <Legend color={colors.gold} label="PI" dashed textColor={colors.textMuted} />
       </View>
     </View>
   );
 }
 
-function Legend({ color, label, dashed }: { color: string; label: string; dashed?: boolean }) {
+function Legend({ color, label, dashed, textColor }: { color: string; label: string; dashed?: boolean; textColor: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
       <View style={{ width: 12, height: 2, backgroundColor: color, opacity: dashed ? 0.7 : 1 }} />
-      <Text style={{ color: colors.textMuted, fontSize: 10 }}>{label}</Text>
+      <Text style={{ color: textColor, fontSize: 10 }}>{label}</Text>
     </View>
   );
 }

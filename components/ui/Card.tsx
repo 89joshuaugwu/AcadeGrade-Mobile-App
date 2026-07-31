@@ -1,8 +1,14 @@
 import React from 'react';
 import { View, ViewProps } from 'react-native';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors as darkColors, radius, spacing } from '@/constants/theme';
 
-export function Card({ style, children, ...rest }: ViewProps) {
+interface CardProps extends ViewProps {
+  themeColors?: typeof darkColors;
+}
+
+/** EXTENDED with optional themeColors override (backward compatible — every existing call keeps working unchanged). */
+export function Card({ style, children, themeColors, ...rest }: CardProps) {
+  const colors = themeColors ?? darkColors;
   return (
     <View
       style={[

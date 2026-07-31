@@ -1,9 +1,8 @@
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { GraduationCap, TrendingUp, Sparkles, CalendarClock } from 'lucide-react-native';
-import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { TrendingUp, Sparkles, CalendarClock } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { spacing, radius, APP_NAME, colors } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 
@@ -29,15 +28,15 @@ export default function Welcome() {
         <View />
 
         <View style={{ alignItems: 'center' }}>
-          <Animated.View entering={FadeInDown.duration(500).springify()}>
-            <LinearGradient
-              colors={['#818CF8', '#6366F1', '#F59E0B']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ width: 96, height: 96, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg, shadowColor: '#6366F1', shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, elevation: 10 }}
-            >
-              <GraduationCap color="#FFFFFF" size={44} strokeWidth={1.8} />
-            </LinearGradient>
+          <Animated.View
+            entering={FadeInDown.duration(500).springify()}
+            style={{ marginBottom: spacing.lg, shadowColor: '#6366F1', shadowOpacity: 0.5, shadowRadius: 28, shadowOffset: { width: 0, height: 8 }, elevation: 10 }}
+          >
+            <Image
+              source={require('../../assets/logo.png')}
+              style={{ width: 120, height: 120 }}
+              resizeMode="contain"
+            />
           </Animated.View>
 
           <Animated.Text entering={FadeInDown.delay(100).duration(500)} style={{ color: c.text, fontSize: 32, fontWeight: '800', marginBottom: spacing.sm }}>

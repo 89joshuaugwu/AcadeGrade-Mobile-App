@@ -5,13 +5,14 @@ import { useRouter } from 'expo-router';
 import { Swipeable } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { Plus, ChevronRight, Trash2 } from 'lucide-react-native';
-import { colors, spacing, radius } from '@/constants/theme';
+import { lightColors as colors, spacing, radius } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
 
+/** Converted to light theme this round — structure/logic unchanged. */
 export default function ResultsList() {
   const router = useRouter();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
@@ -40,7 +41,7 @@ export default function ResultsList() {
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.md }}
         ListEmptyComponent={
           !loading ? (
-            <Card style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
+            <Card themeColors={colors} style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
               <Text style={{ fontSize: 40, marginBottom: spacing.md }}>📚</Text>
               <Text style={{ color: colors.textMuted, textAlign: 'center' }}>
                 No semesters yet. Add your first one to start tracking your GPA.
@@ -67,6 +68,7 @@ export default function ResultsList() {
             )}
           >
             <Card
+              themeColors={colors}
               onTouchEnd={() => router.push(`/(tabs)/results/${item.id}`)}
               style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
             >
@@ -77,7 +79,7 @@ export default function ResultsList() {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Text style={{ color: colors.primaryGlow, fontWeight: '800', fontSize: 18 }}>{item.gpa.toFixed(2)}</Text>
+                <Text style={{ color: colors.primary, fontWeight: '800', fontSize: 18 }}>{item.gpa.toFixed(2)}</Text>
                 <ChevronRight color={colors.textFaint} size={18} />
               </View>
             </Card>
