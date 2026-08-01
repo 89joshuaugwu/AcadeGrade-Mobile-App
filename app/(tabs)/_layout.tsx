@@ -1,7 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { LayoutDashboard, FileText, Sparkles, GraduationCap, MoreHorizontal, Settings, Bell, ChevronRight } from 'lucide-react-native';
 import { colors, radius, glass, spacing, lightColors } from '@/constants/theme';
@@ -29,30 +28,23 @@ export default function TabsLayout() {
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textMuted,
           tabBarShowLabel: true,
-          tabBarBackground: () => (
-            // Changed radius.pill to specific top corner radii
-            <View style={{ flex: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
-              <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.7)' }]} />
-            </View>
-          ),
+          // Removed tabBarBackground BlurView completely for a solid white look
           tabBarStyle: {
+            position: 'absolute', 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
             height: 64,
-            // Removed position absolute, left, right, and bottom properties
-            backgroundColor: 'transparent',
-            borderTopWidth: 1,
-            borderColor: glass.borderTop,
-            
-            // Set only the top corners to be rounded
-            borderTopLeftRadius: 24,
+            backgroundColor: '#FFFFFF', // Solid bright white
+            borderTopWidth: 1, 
+            borderColor: lightColors.borderSubtle || glass.borderTop, 
+            borderTopLeftRadius: 24, // Curved top corners
             borderTopRightRadius: 24,
-            
-            // Adjusted shadow to point slightly upwards (-4) instead of downwards
-            elevation: 8,
-            shadowColor: '#000',
-            shadowOpacity: 0.1,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: -4 },
+            elevation: 16,
+            shadowColor: '#000', 
+            shadowOpacity: 0.08, 
+            shadowRadius: 16, 
+            shadowOffset: { width: 0, height: -4 }, // Shadow points up
           },
           tabBarItemStyle: { paddingTop: 8 },
           tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
