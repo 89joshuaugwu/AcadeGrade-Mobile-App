@@ -30,16 +30,29 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: colors.textMuted,
           tabBarShowLabel: true,
           tabBarBackground: () => (
-            <View style={{ flex: 1, borderRadius: radius.pill, overflow: 'hidden' }}>
-              <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: glass.wash }]} />
+            // Changed radius.pill to specific top corner radii
+            <View style={{ flex: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
+              <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+              <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255, 255, 255, 0.7)' }]} />
             </View>
           ),
           tabBarStyle: {
-            position: 'absolute', left: 16, right: 16, bottom: 20, height: 64,
-            borderRadius: radius.pill, backgroundColor: 'transparent', borderTopWidth: 0,
-            borderWidth: 1, borderColor: glass.borderTop, elevation: 8,
-            shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+            height: 64,
+            // Removed position absolute, left, right, and bottom properties
+            backgroundColor: 'transparent',
+            borderTopWidth: 1,
+            borderColor: glass.borderTop,
+            
+            // Set only the top corners to be rounded
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            
+            // Adjusted shadow to point slightly upwards (-4) instead of downwards
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOpacity: 0.1,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: -4 },
           },
           tabBarItemStyle: { paddingTop: 8 },
           tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
@@ -68,6 +81,7 @@ export default function TabsLayout() {
         />
         {/* Reachable via the More sheet, hidden from the tab bar itself */}
         <Tabs.Screen name="profile" options={{ href: null }} />
+        <Tabs.Screen name="notifications" options={{ href: null }} />
       </Tabs>
 
       <BottomSheetModal
@@ -78,7 +92,7 @@ export default function TabsLayout() {
       >
         <BottomSheetView style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}>
           <Text style={{ color: lightColors.text, fontSize: 16, fontWeight: '800', marginBottom: spacing.md }}>More</Text>
-          <MoreRow icon={<Bell size={18} color={lightColors.primary} />} label="Notifications" onPress={() => closeAnd(() => router.push('/notifications'))} />
+          <MoreRow icon={<Bell size={18} color={lightColors.primary} />} label="Notifications" onPress={() => closeAnd(() => router.push('/(tabs)/notifications'))} />
           <MoreRow icon={<Settings size={18} color={lightColors.primary} />} label="Settings" onPress={() => closeAnd(() => router.push('/(tabs)/profile'))} />
         </BottomSheetView>
       </BottomSheetModal>
