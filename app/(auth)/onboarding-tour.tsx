@@ -98,7 +98,7 @@ function Slide({ slide, index, scrollX }: { slide: (typeof SLIDES)[number]; inde
     <View style={{ width, flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'center' }}>
       <Animated.View style={style} entering={FadeIn.duration(300)}>
         <View style={{ backgroundColor: c.overlay, borderRadius: radius.xl, height: 280, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl, overflow: 'hidden' }}>
-          <HeroArt icon={slide.icon} size={110} color={c.primary} />
+          <HeroArt icon={slide.icon} size={110} color={c.primary} useAcademindLogo={slide.icon === 'Sparkles'} />
         </View>
         <Text style={{ color: c.text, fontSize: 24, fontWeight: '800', marginBottom: spacing.sm, textAlign: 'center' }}>{slide.title}</Text>
         <Text style={{ color: c.textMuted, fontSize: 14, textAlign: 'center', lineHeight: 21 }}>{slide.body}</Text>

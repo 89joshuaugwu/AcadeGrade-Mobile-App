@@ -4,11 +4,14 @@ import Svg, { Circle } from 'react-native-svg';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay, Easing } from 'react-native-reanimated';
 import * as LucideIcons from 'lucide-react-native';
 import { colors } from '@/constants/theme';
+import { AcadeMindMark } from './AcadeMindMark';
 
 interface HeroArtProps {
   icon: keyof typeof LucideIcons;
   size?: number;
   color?: string;
+  /** Renders the AcadeMind logo instead of the lucide icon — for the AI-themed onboarding slide. */
+  useAcademindLogo?: boolean;
 }
 
 /**
@@ -21,7 +24,7 @@ interface HeroArtProps {
  * float/breathe animated icon. No new dependency, matches the prompt's own
  * "SVG built from the existing icon set" option.
  */
-export function HeroArt({ icon, size = 96, color = colors.primaryGlow }: HeroArtProps) {
+export function HeroArt({ icon, size = 96, color = colors.primaryGlow, useAcademindLogo }: HeroArtProps) {
   const Icon = LucideIcons[icon] as React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   const float = useSharedValue(0);
   const pulse = useSharedValue(0);
@@ -61,7 +64,11 @@ export function HeroArt({ icon, size = 96, color = colors.primaryGlow }: HeroArt
         }}
       >
         <Animated.View style={floatStyle}>
-          {Icon ? <Icon size={size * 0.42} color={color} strokeWidth={1.75} /> : null}
+          {useAcademindLogo ? (
+            <AcadeMindMark size={size * 0.5} />
+          ) : Icon ? (
+            <Icon size={size * 0.42} color={color} strokeWidth={1.75} />
+          ) : null}
         </Animated.View>
       </View>
     </View>

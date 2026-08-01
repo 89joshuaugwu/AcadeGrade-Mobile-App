@@ -3,10 +3,11 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, Switch, Dimen
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Sparkles, GraduationCap, CheckCircle2, Lightbulb, ChevronRight } from 'lucide-react-native';
+import { GraduationCap, CheckCircle2, Lightbulb, ChevronRight } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { spacing, radius, lightColors as c } from '@/constants/theme';
 import { TrendChart } from '@/components/dashboard/TrendChart';
+import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
@@ -77,7 +78,7 @@ export default function Dashboard() {
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '600' }}>Current GPA</Text>
-              <Sparkles size={18} color="#FFFFFF" />
+              <AcadeMindMark size={18} />
             </View>
             <Text style={{ color: '#FFFFFF', fontSize: 40, fontWeight: '800', marginTop: 4 }}>{cgpa.toFixed(2)}</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: spacing.sm }}>

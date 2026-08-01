@@ -1,10 +1,11 @@
 import { View, Text, Pressable, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { TrendingUp, Sparkles, CalendarClock } from 'lucide-react-native';
+import { TrendingUp, CalendarClock } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { spacing, radius, APP_NAME, colors } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
+import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 
 /**
  * REBUILT to match the inspiration reference exactly (image 2,
@@ -49,7 +50,7 @@ export default function Welcome() {
 
           <Animated.View entering={FadeInDown.delay(240).duration(500)} style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
             <FeaturePill icon={<TrendingUp size={13} color={c.textMuted} />} label="GPA Tracking" c={c} />
-            <FeaturePill icon={<Sparkles size={13} color={c.textMuted} />} label="Smart Insights" c={c} />
+            <FeaturePill icon={<AcadeMindMark size={13} />} label="Smart Insights" c={c} />
             <FeaturePill icon={<CalendarClock size={13} color={c.textMuted} />} label="Deadlines" c={c} />
           </Animated.View>
         </View>
