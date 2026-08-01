@@ -4,6 +4,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { colors } from '@/constants/theme';
 import { onAuthStateChange, configureGoogleSignIn } from '@/lib/firebase/auth';
@@ -153,13 +154,16 @@ export default function RootLayout() {
   return (
     <RootErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.void }} onLayout={onLayoutRootView}>
-        <QueryClientProvider client={queryClient}>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.void } }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-        </QueryClientProvider>
+        <BottomSheetModalProvider>
+          <QueryClientProvider client={queryClient}>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.void } }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="notifications" options={{ presentation: 'modal' }} />
+            </Stack>
+          </QueryClientProvider>
+        </BottomSheetModalProvider>
       </GestureHandlerRootView>
     </RootErrorBoundary>
   );
