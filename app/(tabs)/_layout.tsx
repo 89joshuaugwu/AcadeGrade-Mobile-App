@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { LayoutDashboard, FileText, Sparkles, GraduationCap, Settings } from 'lucide-react-native';
+import { LayoutDashboard, FileText, Sparkles, GraduationCap, Settings, Bell } from 'lucide-react-native';
 import { colors, radius, glass } from '@/constants/theme';
 
 export default function TabsLayout() {
@@ -65,6 +65,13 @@ export default function TabsLayout() {
         options={{
           title: 'Transcript',
           tabBarIcon: ({ color, focused }) => <TabIcon focused={focused}><GraduationCap color={color} size={22} /></TabIcon>,
+        }}
+      />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Notifications',
+          tabBarIcon: ({ color, focused }) => <TabIcon focused={focused}><Bell color={color} size={22} /></TabIcon>,
         }}
       />
       <Tabs.Screen
