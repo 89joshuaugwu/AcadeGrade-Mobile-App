@@ -36,9 +36,19 @@ export function useAcademicData(): AcademicSnapshot {
       .collection('users')
       .doc(uid)
       .collection('semesters')
-      .orderBy('createdAt', 'asc')
+      // FIXED — was `.orderBy('createdAt', 'asc')`. Firestore's orderBy
+      // silently EXCLUDES documents that don't have the ordered field at
+      // all. Web's semester-creation code (`setDocument` helper) only ever
+      // writes `updatedAt`, never `createdAt` — so every semester created
+      // via the web app was invisible to this query. This is almost
+      // certainly why real academic data entered on web wasn't showing up
+      // on mobile at all. Removed the Firestore-level ordering entirely and
+      // sort client-side by level/semester instead, matching web's actual
+      // `useSemesters.ts` (`orderBy('level', 'asc')`) — and unlike a
+      // Firestore orderBy, a client-side sort never excludes a document.
       .onSnapshot(async (snap) => {
-        const sems = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as SemesterWithId[];
+        const sems = (snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as SemesterWithId[])
+          .sort((a, b) => (a.level !== b.level ? a.level - b.level : a.semester - b.semester));
         setSemesters(sems);
 
         const courseLists = await Promise.all(
