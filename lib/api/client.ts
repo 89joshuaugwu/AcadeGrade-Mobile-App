@@ -83,11 +83,15 @@ export interface ExtractedCourse {
 }
 
 export const resultsApi = {
-  /** Uploads a base64-encoded photo/PDF of a result slip; Gemini multimodal parses it. */
-  extract: (base64File: string, mimeType: string) =>
+  /** Uploads a base64-encoded photo/PDF of a result slip; Gemini multimodal parses it.
+   *  FIXED: web's real route (`app/api/results/extract/route.ts`) reads
+   *  `base64Data` from the request body — this previously sent `file`,
+   *  a field name the route never reads, so every extract call was
+   *  silently returning "Missing file data" regardless of what was sent. */
+  extract: (base64Data: string, mimeType: string) =>
     request<{ courses: ExtractedCourse[] }>('/api/results/extract', {
       method: 'POST',
-      body: { file: base64File, mimeType },
+      body: { base64Data, mimeType },
     }),
 };
 
@@ -103,25 +107,45 @@ export const transcriptApi = {
 };
 
 // ── AI Insights ─────────────────────────────────────────────────────────
+// FIXED: every method here previously sent the wrong request body and
+// typed a response shape that doesn't exist on the real endpoint —
+// confirmed by reading `app/api/ai/{insights,forecast,whatif}/route.ts`
+// directly, not assumed. This is almost certainly why Written Analysis,
+// Forecast, and What-If all appeared broken/empty in practice.
 export interface InsightsResponse {
-  summary: string;
-  riskCourses: { code: string; grade: string }[];
-  generatedAt: string;
-  cooldownEndsAt: string;
+  strengths: string[];
+  concerns: string[];
+  recommendations: string[];
+  degreeOutlook: string;
+}
+
+export interface ForecastResponse {
+  slope: number;
+  projected: [number, number];
+  projectedPi: [number, number];
+  projectedCgpa: [number, number];
+  riskScore: number;
+  trendLabel: string;
+}
+
+export interface WhatIfResponse {
+  requiredGPA: number;
+  requiredAvgScore: number;
+  feasibilityNote: string;
 }
 
 export const aiApi = {
-  insights: (force = false) =>
-    request<InsightsResponse>('/api/ai/insights', { method: 'POST', body: { force } }),
-  forecast: (piHistory: number[]) =>
-    request<{ projectedCGPA: number; projectionPoints: { label: string; value: number }[] }>(
-      '/api/ai/forecast',
-      { method: 'POST', body: { piHistory } }
-    ),
-  whatIf: (targetCGPA: number, remainingSemesters: number, creditLoad: number) =>
-    request<{ requiredGPA: number; achievable: boolean }>('/api/ai/whatif', {
+  /** Web sends `{ forceRegenerate, semesterData }`, not `{ force }`. */
+  insights: (forceRegenerate: boolean, semesterData: unknown) =>
+    request<InsightsResponse>('/api/ai/insights', { method: 'POST', body: { forceRegenerate, semesterData } }),
+  /** Web requires BOTH `piHistory` and `cgpaHistory` — sending only one silently produces a degraded/wrong forecast. */
+  forecast: (piHistory: number[], cgpaHistory: number[]) =>
+    request<ForecastResponse>('/api/ai/forecast', { method: 'POST', body: { piHistory, cgpaHistory } }),
+  /** Web requires `currentCGPA` and `totalCredits` too — omitting them returns a 400. */
+  whatIf: (currentCGPA: number, totalCredits: number, targetCGPA: number, remainingSemesters: number, creditLoad: number) =>
+    request<WhatIfResponse>('/api/ai/whatif', {
       method: 'POST',
-      body: { targetCGPA, remainingSemesters, creditLoad },
+      body: { currentCGPA, totalCredits, targetCGPA, remainingSemesters, creditLoad },
     }),
 };
 
