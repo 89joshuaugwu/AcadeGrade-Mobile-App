@@ -14,7 +14,7 @@ export interface AcademicSnapshot {
   totalCredits: number;
   totalCourses: number;
   currentSemesterGPA: number;
-  atRiskCount: number; // courses graded E or F, per 2_student_features.md §1
+  atRiskCount: number; // totalScore < 50, matching web's actual definition
 }
 
 /**
@@ -72,7 +72,10 @@ export function useAcademicData(): AcademicSnapshot {
 
   const cumulative = computeCumulativeCGPA(semesters);
   const currentSemester = semesters[semesters.length - 1];
-  const atRiskCount = allCourses.filter((c) => c.grade === 'E' || c.grade === 'F').length;
+  // FIXED — was `c.grade === 'E' || c.grade === 'F'` (effectively totalScore
+  // < 45). Web's actual definition (`dashboard/page.tsx`, `insights/page.tsx`)
+  // is `totalScore < 50`, which also flags D grades in the 45–49 range.
+  const atRiskCount = allCourses.filter((c) => (c.totalScore ?? 0) < 50).length;
 
   return {
     loading,
