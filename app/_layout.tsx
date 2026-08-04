@@ -11,6 +11,7 @@ import { onAuthStateChange, configureGoogleSignIn } from '@/lib/firebase/auth';
 import { db } from '@/lib/firebase/client';
 import { registerFcmToken } from '@/lib/firebase/fcm';
 import { useAuthStore } from '@/lib/store/authStore';
+import { useThemeStore } from '@/lib/store/themeStore';
 import { RootErrorBoundary } from '@/components/RootErrorBoundary';
 import type { UserWithId } from '@/types/user';
 
