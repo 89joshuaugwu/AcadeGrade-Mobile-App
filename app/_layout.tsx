@@ -54,7 +54,6 @@ export default function RootLayout() {
   useEffect(() => {
     console.log('[AcadeGrade] Root layout mounted (attempt', retryKey + 1, '), configuring Google Sign-In...');
     configureGoogleSignIn();
-    useThemeStore.getState().hydrate();
 
     safetyTimer.current = setTimeout(() => {
       console.warn('[AcadeGrade] Auth state never resolved within', READY_SAFETY_TIMEOUT_MS, 'ms — forcing splash to hide.');
