@@ -7,7 +7,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { ArrowLeft, Plus, Camera, Trash2, X } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 import { spacing } from '@/constants/theme';
@@ -240,31 +239,8 @@ export default function SemesterDetail() {
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
-            <Swipeable
-              overshootRight={false}
-              rightThreshold={36}
-              renderRightActions={() => (
-                <Pressable
-                  accessibilityLabel={`Delete ${item.code}`}
-                  onPress={() => deleteCourse(item.id)}
-                  style={{
-                    width: 78,
-                    marginLeft: spacing.sm,
-                    borderRadius: 14,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: colors.dangerDim,
-                    borderWidth: 1,
-                    borderColor: colors.danger,
-                  }}
-                >
-                  <Trash2 color={colors.danger} size={19} />
-                  <Text style={{ color: colors.danger, fontSize: 10, fontWeight: '800', marginTop: 4 }}>Delete</Text>
-                </Pressable>
-              )}
-            >
-              <Pressable onPress={() => { setEditingCourse(item); setModalOpen(true); }}>
-                <Card themeColors={colors} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Card themeColors={colors} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Pressable onPress={() => { setEditingCourse(item); setModalOpen(true); }} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: colors.text, fontWeight: '700' }}>{item.code} · {item.units} units</Text>
                     <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>{item.title}</Text>
@@ -277,9 +253,11 @@ export default function SemesterDetail() {
                   >
                     <Text style={{ color: getGradeColor(item.grade ?? 'F'), fontWeight: '800' }}>{item.isAR ? 'AR' : item.grade}</Text>
                   </View>
-                </Card>
-              </Pressable>
-            </Swipeable>
+                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${item.code}`} onPress={() => deleteCourse(item.id)} hitSlop={8} style={{ width: 34, height: 34, marginLeft: spacing.sm, alignItems: 'center', justifyContent: 'center' }}>
+                  <Trash2 color={colors.textFaint} size={18} />
+                </Pressable>
+              </Card>
           </Animated.View>
         )}
       />

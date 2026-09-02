@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BookOpen, Camera, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
@@ -208,13 +207,9 @@ function SemesterCard({
   const borderColor = !semester.isComplete ? colors.success : expanded ? colors.primary : colors.border;
 
   return (
-    <Swipeable
-      overshootRight={false}
-      rightThreshold={38}
-      renderRightActions={() => <DeleteAction label="Semester" onPress={onDeleteSemester} />}
-    >
-      <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor, backgroundColor: colors.deep, overflow: 'hidden' }}>
-        <Pressable onPress={onToggle} style={{ padding: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor, backgroundColor: colors.deep, overflow: 'hidden' }}>
+        <View style={{ padding: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={onToggle} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
           {!semester.isComplete && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: colors.success, marginRight: spacing.sm }} />}
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.text, fontWeight: '800', fontSize: 13 }}>{semester.label}</Text>
@@ -228,7 +223,17 @@ function SemesterCard({
             </View>
           )}
           <ChevronDown size={17} color={colors.textFaint} style={{ marginLeft: spacing.sm, transform: [{ rotate: expanded ? '180deg' : '0deg' }] }} />
-        </Pressable>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Delete ${semester.label}`}
+            hitSlop={8}
+            onPress={onDeleteSemester}
+            style={{ width: 34, height: 34, marginLeft: spacing.sm, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Trash2 color={colors.textFaint} size={17} />
+          </Pressable>
+        </View>
 
         {expanded && (
           <Animated.View entering={FadeInDown.duration(180)} style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, padding: spacing.md, paddingTop: spacing.sm }}>
@@ -241,31 +246,29 @@ function SemesterCard({
                   <Text style={{ color: colors.textFaint, fontSize: 9, width: 42, textAlign: 'right' }}>SCORE</Text>
                 </View>
                 {courses.map((course) => (
-                  <Swipeable
-                    key={course.id}
-                    overshootRight={false}
-                    rightThreshold={30}
-                    renderRightActions={() => <DeleteAction label="Delete" compact onPress={() => onDeleteCourse(course)} />}
-                  >
-                    <Pressable
-                      onPress={onOpen}
+                    <View
+                      key={course.id}
                       style={{ minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm, marginBottom: 5, borderRadius: 10, backgroundColor: colors.surface, borderWidth: 1, borderColor: course.totalScore != null && course.totalScore < 50 ? colors.danger : colors.borderSubtle }}
                     >
-                      <View style={{ flex: 1.8, paddingRight: spacing.sm }}>
-                        <Text style={{ color: colors.text, fontWeight: '800', fontSize: 10 }}>{course.code}</Text>
-                        <Text style={{ color: colors.textMuted, fontSize: 9, marginTop: 2 }} numberOfLines={1}>{course.title}</Text>
-                      </View>
-                      <Text style={{ color: colors.textMuted, fontSize: 10, width: 32, textAlign: 'center' }}>{course.units}</Text>
-                      <View style={{ width: 36, alignItems: 'center' }}>
-                        <View style={{ minWidth: 22, paddingHorizontal: 5, paddingVertical: 4, borderRadius: 6, backgroundColor: `${getGradeColor(course.grade ?? 'F')}1F` }}>
-                          <Text style={{ color: getGradeColor(course.grade ?? 'F'), textAlign: 'center', fontWeight: '900', fontSize: 9 }}>{course.isAR ? 'AR' : course.grade}</Text>
+                      <Pressable onPress={onOpen} style={{ flex: 1, minHeight: 46, flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ flex: 1.8, paddingRight: spacing.sm }}>
+                          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 10 }}>{course.code}</Text>
+                          <Text style={{ color: colors.textMuted, fontSize: 9, marginTop: 2 }} numberOfLines={1}>{course.title}</Text>
                         </View>
-                      </View>
-                      <Text style={{ color: course.totalScore != null && course.totalScore < 50 ? colors.danger : colors.textMuted, fontWeight: '800', fontSize: 10, width: 42, textAlign: 'right' }}>
-                        {course.isAR ? '—' : course.totalScore == null ? '—' : `${course.totalScore}%`}
-                      </Text>
-                    </Pressable>
-                  </Swipeable>
+                        <Text style={{ color: colors.textMuted, fontSize: 10, width: 32, textAlign: 'center' }}>{course.units}</Text>
+                        <View style={{ width: 36, alignItems: 'center' }}>
+                          <View style={{ minWidth: 22, paddingHorizontal: 5, paddingVertical: 4, borderRadius: 6, backgroundColor: `${getGradeColor(course.grade ?? 'F')}1F` }}>
+                            <Text style={{ color: getGradeColor(course.grade ?? 'F'), textAlign: 'center', fontWeight: '900', fontSize: 9 }}>{course.isAR ? 'AR' : course.grade}</Text>
+                          </View>
+                        </View>
+                        <Text style={{ color: course.totalScore != null && course.totalScore < 50 ? colors.danger : colors.textMuted, fontWeight: '800', fontSize: 10, width: 42, textAlign: 'right' }}>
+                          {course.isAR ? '—' : course.totalScore == null ? '—' : `${course.totalScore}%`}
+                        </Text>
+                      </Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${course.code}`} hitSlop={8} onPress={() => onDeleteCourse(course)} style={{ width: 30, height: 34, marginLeft: 5, alignItems: 'center', justifyContent: 'center' }}>
+                        <Trash2 color={colors.textFaint} size={15} />
+                      </Pressable>
+                    </View>
                 ))}
               </>
             ) : (
@@ -282,20 +285,5 @@ function SemesterCard({
           </Animated.View>
         )}
       </View>
-    </Swipeable>
-  );
-}
-
-function DeleteAction({ label, compact, onPress }: { label: string; compact?: boolean; onPress: () => void }) {
-  const colors = useThemeColors();
-  return (
-    <Pressable
-      accessibilityLabel={`Delete ${label.toLowerCase()}`}
-      onPress={onPress}
-      style={{ width: compact ? 66 : 78, marginLeft: spacing.sm, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.dangerDim, borderWidth: 1, borderColor: colors.danger }}
-    >
-      <Trash2 color={colors.danger} size={compact ? 16 : 19} />
-      <Text style={{ color: colors.danger, fontSize: 9, fontWeight: '900', marginTop: 4 }}>{compact ? 'Delete' : label}</Text>
-    </Pressable>
   );
 }
