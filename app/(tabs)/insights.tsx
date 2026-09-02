@@ -204,7 +204,7 @@ export default function Insights() {
               <Pressable
                 key={item.id}
                 onPress={() => setTab(item.id)}
-                style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: active ? colors.primary : 'transparent' }}
+                style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: active ? colors.primaryHover : 'transparent' }}
               >
                 <Text numberOfLines={1} style={{ color: active ? '#FFFFFF' : colors.textMuted, fontSize: 10, fontWeight: '900' }}>{item.label}</Text>
               </Pressable>

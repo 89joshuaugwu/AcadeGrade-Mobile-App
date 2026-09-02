@@ -25,3 +25,8 @@ export function lookupGrade(
 export function getGradeColor(grade: Grade): string {
   return gradeColors[grade];
 }
+
+/** Accessible label color for a solid grade-color background. */
+export function getGradeForeground(grade: Grade): string {
+  return grade === 'F' ? '#FFFFFF' : '#07090F';
+}

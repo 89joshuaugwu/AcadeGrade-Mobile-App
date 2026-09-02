@@ -167,7 +167,7 @@ export default function RootLayout() {
             setReady(false);
             setRetryKey((k) => k + 1);
           }}
-          style={{ backgroundColor: themeColors.primary, borderRadius: 12, height: 48, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' }}
+          style={{ backgroundColor: themeColors.primaryHover, borderRadius: 12, height: 48, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' }}
         >
           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Retry</Text>
         </Pressable>

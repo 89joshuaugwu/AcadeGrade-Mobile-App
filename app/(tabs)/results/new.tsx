@@ -63,8 +63,8 @@ export default function NewSemester() {
                   onPress={() => setLevel(l)}
                   style={{
                     paddingVertical: 10, paddingHorizontal: 16, borderRadius: radius.pill,
-                    backgroundColor: level === l ? colors.primary : colors.overlay,
-                    borderWidth: 1, borderColor: level === l ? colors.primary : colors.border,
+                    backgroundColor: level === l ? colors.primaryHover : colors.overlay,
+                    borderWidth: 1, borderColor: level === l ? colors.primaryGlow : colors.border,
                   }}
                 >
                   <Text style={{ color: level === l ? '#fff' : colors.text, fontWeight: '600' }}>{l}L</Text>
@@ -80,8 +80,8 @@ export default function NewSemester() {
                   onPress={() => setSemesterNum(s as 1 | 2)}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: radius.md, alignItems: 'center',
-                    backgroundColor: semesterNum === s ? colors.primary : colors.overlay,
-                    borderWidth: 1, borderColor: semesterNum === s ? colors.primary : colors.border,
+                    backgroundColor: semesterNum === s ? colors.primaryHover : colors.overlay,
+                    borderWidth: 1, borderColor: semesterNum === s ? colors.primaryGlow : colors.border,
                   }}
                 >
                   <Text style={{ color: semesterNum === s ? '#fff' : colors.text, fontWeight: '600' }}>

@@ -139,7 +139,7 @@ export function SegmentedPill({ active, onSelect }: { active: 'login' | 'registe
           <Pressable
             key={key}
             onPress={() => onSelect(key)}
-            style={{ flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center', backgroundColor: isActive ? c.primary : 'transparent' }}
+            style={{ flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center', backgroundColor: isActive ? c.primaryHover : 'transparent' }}
           >
             <Text style={{ color: isActive ? '#FFFFFF' : c.textMuted, fontWeight: '700', fontSize: 14 }}>
               {key === 'login' ? 'Login' : 'Sign Up'}

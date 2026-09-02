@@ -18,7 +18,7 @@ import { ResultScannerModal } from '@/components/results/ResultScannerModal';
 import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 import { computeCourseMetrics, computeSemesterGPA } from '@/lib/cgpa/calculator';
-import { getGradeColor } from '@/lib/cgpa/gradeScale';
+import { getGradeColor, getGradeForeground } from '@/lib/cgpa/gradeScale';
 import { resultsApi } from '@/lib/api/client';
 import type { CourseWithId, CourseInput } from '@/types/course';
 import type { SemesterWithId } from '@/types/semester';
@@ -631,7 +631,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
                     paddingVertical: 11,
                     alignItems: 'center',
                     borderRadius: 9,
-                    backgroundColor: units === value ? colors.primary : colors.surface,
+                    backgroundColor: units === value ? colors.primaryHover : colors.surface,
                     borderWidth: 1,
                     borderColor: units === value ? colors.primaryGlow : colors.border,
                   }}
@@ -661,7 +661,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
               <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.md }}>
                 {(['A', 'B', 'C', 'D', 'E', 'F'] as const).map((letter) => (
                   <Pressable key={letter} onPress={() => setGrade(letter)} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 8, backgroundColor: grade === letter ? getGradeColor(letter) : colors.surface, borderWidth: 1, borderColor: grade === letter ? getGradeColor(letter) : colors.border }}>
-                    <Text style={{ color: grade === letter ? '#fff' : colors.textMuted, fontWeight: '800' }}>{letter}</Text>
+                    <Text style={{ color: grade === letter ? getGradeForeground(letter) : colors.textMuted, fontWeight: '800' }}>{letter}</Text>
                   </Pressable>
                 ))}
               </View>

@@ -57,7 +57,7 @@ export class RootErrorBoundary extends React.Component<Props, State> {
           </ScrollView>
           <Pressable
             onPress={() => this.setState({ error: null })}
-            style={{ marginTop: 20, backgroundColor: '#6366F1', borderRadius: 12, height: 48, alignItems: 'center', justifyContent: 'center' }}
+            style={{ marginTop: 20, backgroundColor: '#4F46E5', borderRadius: 12, height: 48, alignItems: 'center', justifyContent: 'center' }}
           >
             <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Try Again</Text>
           </Pressable>

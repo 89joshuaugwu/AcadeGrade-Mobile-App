@@ -179,7 +179,7 @@ export default function Profile() {
                 <Text style={{ color: c.primary, fontSize: 30, fontWeight: '800' }}>{profile?.fullName?.[0] ?? '?'}</Text>
               </View>
             )}
-            <View style={{ position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.void }}>
+            <View style={{ position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: c.primaryHover, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.void }}>
               {uploading ? <Text style={{ color: '#fff', fontSize: 10 }}>…</Text> : <Camera size={13} color="#fff" />}
             </View>
           </Pressable>
