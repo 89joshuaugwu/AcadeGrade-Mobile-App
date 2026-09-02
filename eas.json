@@ -9,7 +9,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://acadegrade.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID": "380362341267-na0lm35fvh9nf1ei0ga9ns3ds69eqna7.apps.googleusercontent.com"
+        "EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID": "380362341267-bi3akdpp264t7ki0fbrkmkooh3qf2dtu.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -19,7 +19,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://acadegrade.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID": "380362341267-na0lm35fvh9nf1ei0ga9ns3ds69eqna7.apps.googleusercontent.com"
+        "EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID": "380362341267-bi3akdpp264t7ki0fbrkmkooh3qf2dtu.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -29,7 +29,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://acadegrade.vercel.app",
-        "EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID": "380362341267-na0lm35fvh9nf1ei0ga9ns3ds69eqna7.apps.googleusercontent.com"
+        "EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID": "380362341267-bi3akdpp264t7ki0fbrkmkooh3qf2dtu.apps.googleusercontent.com"
       }
     }
   },
@@ -37,4 +37,3 @@
     "production": {}
   }
 }
-

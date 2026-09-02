@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, Modal, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, FlatList, Modal, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,13 +7,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { ArrowLeft, Plus, Camera, ImageIcon, FileUp, Trash2, X, Sparkles } from 'lucide-react-native';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { ArrowLeft, Plus, Camera, Trash2, X } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 import { spacing } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
+import { ResultScannerModal } from '@/components/results/ResultScannerModal';
 import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 import { computeCourseMetrics, computeSemesterGPA } from '@/lib/cgpa/calculator';
@@ -35,16 +36,27 @@ import { useThemeColors } from '@/lib/store/themeStore';
 export default function SemesterDetail() {
   const colors = useThemeColors();
   const router = useRouter();
-  const { semesterId } = useLocalSearchParams<{ semesterId: string }>();
+  const { semesterId, action } = useLocalSearchParams<{ semesterId: string; action?: string }>();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const [courses, setCourses] = useState<CourseWithId[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [scanMenuOpen, setScanMenuOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [reviewCourses, setReviewCourses] = useState<CourseInput[] | null>(null);
+  const [savingScan, setSavingScan] = useState(false);
   const [editingCourse, setEditingCourse] = useState<CourseWithId | null>(null);
   const [completing, setCompleting] = useState(false);
+
+  function markInsightsStale() {
+    if (!uid) return;
+    db.collection('analytics').doc(uid).set({ insightsStale: true }, { merge: true }).catch(() => undefined);
+  }
+
+  useEffect(() => {
+    if (action === 'add') setModalOpen(true);
+    if (action === 'scan') setScannerOpen(true);
+  }, [action]);
 
   useEffect(() => {
     if (!uid || !semesterId) return;
@@ -82,6 +94,7 @@ export default function SemesterDetail() {
         gpa: semResult.gpa, pi: semResult.pi, creditLoaded: semResult.creditLoaded,
         isComplete: true, updatedAt: firestore.FieldValue.serverTimestamp(),
       });
+      markInsightsStale();
       router.back();
     } catch (e: any) {
       Alert.alert('Could not complete semester', e?.message ?? 'Please try again.');
@@ -97,12 +110,12 @@ export default function SemesterDetail() {
       { text: 'Delete', style: 'destructive', onPress: async () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(courseId).delete();
+        markInsightsStale();
       } },
     ]);
   }
 
   async function runExtraction(base64Data: string, mimeType: string) {
-    setScanMenuOpen(false);
     setOcrLoading(true);
     setOcrError(null);
     try {
@@ -127,14 +140,6 @@ export default function SemesterDetail() {
     }
   }
 
-  async function scanWithCamera() {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.7 });
-    if (result.canceled || !result.assets[0].base64) return;
-    await runExtraction(result.assets[0].base64, 'image/jpeg');
-  }
-
   async function scanFromGallery() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return;
@@ -152,15 +157,24 @@ export default function SemesterDetail() {
 
   async function saveReviewedCourses() {
     if (!uid || !semesterId || !reviewCourses) return;
+    setSavingScan(true);
     const batch = db.batch();
-    reviewCourses.forEach((c) => {
-      const computed = computeCourseMetrics(c);
-      const ref = db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc();
-      batch.set(ref, { ...computed, createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp() });
-    });
-    await batch.commit();
-    setReviewCourses(null);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      reviewCourses.forEach((c) => {
+        const computed = computeCourseMetrics(c);
+        const ref = db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc();
+        batch.set(ref, { ...computed, createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp() });
+      });
+      await batch.commit();
+      markInsightsStale();
+      setReviewCourses(null);
+      setScannerOpen(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error: any) {
+      Alert.alert('Could not save scanned courses', error?.message ?? 'Please try again.');
+    } finally {
+      setSavingScan(false);
+    }
   }
 
   return (
@@ -189,7 +203,7 @@ export default function SemesterDetail() {
               label={ocrLoading ? 'Scanning…' : 'Scan Results'}
               variant="secondary"
               icon={<Camera color={colors.text} size={16} />}
-              onPress={() => setScanMenuOpen(true)}
+              onPress={() => setScannerOpen(true)}
               loading={ocrLoading}
               fullWidth
             />
@@ -219,49 +233,75 @@ export default function SemesterDetail() {
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
-            <Card themeColors={colors} onTouchEnd={() => { setEditingCourse(item); setModalOpen(true); }} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>{item.code} — {item.units} units</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>{item.title}</Text>
-              </View>
-              <View
-                style={{
-                  width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: `${getGradeColor(item.grade ?? 'F')}18`, marginRight: spacing.sm,
-                }}
-              >
-                <Text style={{ color: getGradeColor(item.grade ?? 'F'), fontWeight: '800' }}>{item.isAR ? 'AR' : item.grade}</Text>
-              </View>
-              <Pressable onPress={() => deleteCourse(item.id)} hitSlop={8}>
-                <Trash2 color={colors.textFaint} size={18} />
+            <Swipeable
+              overshootRight={false}
+              rightThreshold={36}
+              renderRightActions={() => (
+                <Pressable
+                  accessibilityLabel={`Delete ${item.code}`}
+                  onPress={() => deleteCourse(item.id)}
+                  style={{
+                    width: 78,
+                    marginLeft: spacing.sm,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.dangerDim,
+                    borderWidth: 1,
+                    borderColor: colors.danger,
+                  }}
+                >
+                  <Trash2 color={colors.danger} size={19} />
+                  <Text style={{ color: colors.danger, fontSize: 10, fontWeight: '800', marginTop: 4 }}>Delete</Text>
+                </Pressable>
+              )}
+            >
+              <Pressable onPress={() => { setEditingCourse(item); setModalOpen(true); }}>
+                <Card themeColors={colors} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontWeight: '700' }}>{item.code} · {item.units} units</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>{item.title}</Text>
+                  </View>
+                  <View
+                    style={{
+                      minWidth: 34, height: 32, paddingHorizontal: 8, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: `${getGradeColor(item.grade ?? 'F')}18`, marginLeft: spacing.sm,
+                    }}
+                  >
+                    <Text style={{ color: getGradeColor(item.grade ?? 'F'), fontWeight: '800' }}>{item.isAR ? 'AR' : item.grade}</Text>
+                  </View>
+                </Card>
               </Pressable>
-            </Card>
+            </Swipeable>
           </Animated.View>
         )}
       />
 
-      {/* SCAN SOURCE MENU */}
-      <Modal visible={scanMenuOpen} transparent animationType="fade">
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(20,22,43,0.5)', justifyContent: 'flex-end' }} onPress={() => setScanMenuOpen(false)}>
-          <Pressable onPress={(e) => e.stopPropagation()}>
-            <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: spacing.xxl }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <AcadeMindMark size={18} />
-                  <Text style={{ color: colors.text, fontWeight: '800', fontSize: 16 }}>Scan Result Slip</Text>
-                </View>
-                <Pressable onPress={() => setScanMenuOpen(false)} hitSlop={8}><X size={20} color={colors.textMuted} /></Pressable>
-              </View>
-              <Text style={{ color: colors.textMuted, fontSize: 12, marginBottom: spacing.lg }}>
-                AcadeMind reads your courses automatically — nothing is saved until you review and confirm.
-              </Text>
-              <ScanOption icon={<Camera size={20} color={colors.primary} />} label="Take Photo" subtitle="Live capture with your camera" onPress={scanWithCamera} />
-              <ScanOption icon={<ImageIcon size={20} color={colors.primary} />} label="Choose from Gallery" subtitle="Pick an existing photo" onPress={scanFromGallery} />
-              <ScanOption icon={<FileUp size={20} color={colors.primary} />} label="Upload Document" subtitle="PDF or image file" onPress={scanDocument} />
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <ResultScannerModal
+        visible={scannerOpen}
+        loading={ocrLoading}
+        error={ocrError}
+        courses={reviewCourses}
+        saving={savingScan}
+        onClose={() => {
+          if (ocrLoading || savingScan) return;
+          setScannerOpen(false);
+          setReviewCourses(null);
+          setOcrError(null);
+        }}
+        onCapture={runExtraction}
+        onGallery={scanFromGallery}
+        onDocument={scanDocument}
+        onConfirm={saveReviewedCourses}
+        onReset={() => {
+          setReviewCourses(null);
+          setOcrError(null);
+        }}
+        onManual={() => {
+          setScannerOpen(false);
+          setModalOpen(true);
+        }}
+      />
 
       <AddCourseModal
         visible={modalOpen}
@@ -277,113 +317,172 @@ export default function SemesterDetail() {
             createdAt: firestore.FieldValue.serverTimestamp(),
             updatedAt: firestore.FieldValue.serverTimestamp(),
           }, { merge: true });
+          markInsightsStale();
           setModalOpen(false);
           setEditingCourse(null);
         }}
       />
 
-      <Modal visible={!!reviewCourses} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.void, padding: spacing.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <Sparkles size={16} color={colors.gold} />
-            <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>Review scanned courses</Text>
-          </View>
-          <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: spacing.lg }}>
-            Confirm these before saving — AI extraction can misread scores. Nothing is saved automatically.
-          </Text>
-          <ScrollView style={{ marginBottom: spacing.lg }}>
-            {reviewCourses?.map((c, i) => (
-              <Card key={i} themeColors={colors} style={{ marginBottom: spacing.sm }}>
-                <Text style={{ color: colors.text, fontWeight: '700' }}>{c.code} — {c.title}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                  {c.units} units · CA {c.caScore ?? '—'} / Exam {c.examScore ?? '—'}
-                </Text>
-              </Card>
-            ))}
-          </ScrollView>
-          <Button label={`Save ${reviewCourses?.length ?? 0} Courses`} onPress={saveReviewedCourses} fullWidth />
-          <View style={{ height: spacing.sm }} />
-          <Button label="Discard" variant="ghost" onPress={() => setReviewCourses(null)} fullWidth />
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
 
-function ScanOption({ icon, label, subtitle, onPress }: { icon: React.ReactNode; label: string; subtitle: string; onPress: () => void }) {
-  const colors = useThemeColors();
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }}
-    >
-      <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.primaryDim, alignItems: 'center', justifyContent: 'center' }}>
-        {icon}
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>{label}</Text>
-        <Text style={{ color: colors.textFaint, fontSize: 11 }}>{subtitle}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
-function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: boolean; onClose: () => void; onSave: (input: CourseInput) => void; initialCourse: CourseWithId | null }) {
+function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: boolean; onClose: () => void; onSave: (input: CourseInput) => Promise<void>; initialCourse: CourseWithId | null }) {
   const colors = useThemeColors();
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
-  const [units, setUnits] = useState('3');
-  const [caScore, setCaScore] = useState('');
-  const [examScore, setExamScore] = useState('');
+  const [units, setUnits] = useState(3);
+  const [score, setScore] = useState('');
   const [grade, setGrade] = useState<CourseInput['grade']>();
+  const [inputMode, setInputMode] = useState<'score' | 'grade'>('score');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
     setCode(initialCourse?.code ?? '');
     setTitle(initialCourse?.title ?? '');
-    setUnits(String(initialCourse?.units ?? 3));
-    setCaScore(initialCourse?.caScore == null ? '' : String(initialCourse.caScore));
-    setExamScore(initialCourse?.examScore == null ? '' : String(initialCourse.examScore));
+    setUnits(initialCourse?.units ?? 3);
+    setScore(initialCourse?.totalScore == null ? '' : String(initialCourse.totalScore));
     setGrade(initialCourse?.grade ?? undefined);
+    setInputMode(initialCourse?.totalScore == null && initialCourse?.grade ? 'grade' : 'score');
+    setError(null);
   }, [visible, initialCourse]);
 
-  const ca = caScore ? Number(caScore) : null;
-  const exam = examScore ? Number(examScore) : null;
-  const preview = computeCourseMetrics({ code, title, units: Number(units) || 0, caScore: ca, examScore: exam, grade });
+  const numericScore = score === '' ? null : Number(score);
+  const ca = inputMode === 'score' && numericScore != null ? Number((numericScore * 0.3).toFixed(1)) : null;
+  const exam = inputMode === 'score' && numericScore != null ? Number((numericScore * 0.7).toFixed(1)) : null;
+  const preview = computeCourseMetrics({ code, title, units, caScore: ca, examScore: exam, grade: inputMode === 'grade' ? grade : undefined });
+
+  async function submit() {
+    if (!code.trim() || !title.trim()) {
+      setError('Enter both the course code and course title.');
+      return;
+    }
+    if (inputMode === 'score' && (numericScore == null || Number.isNaN(numericScore) || numericScore < 0 || numericScore > 100)) {
+      setError('Enter a total score between 0 and 100.');
+      return;
+    }
+    if (inputMode === 'grade' && !grade) {
+      setError('Select a letter grade.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({
+        id: initialCourse?.id,
+        code: code.trim().toUpperCase(),
+        title: title.trim(),
+        units,
+        caScore: ca,
+        examScore: exam,
+        grade: inputMode === 'grade' ? grade : undefined,
+        estimated: inputMode === 'score',
+      });
+    } catch (saveError: any) {
+      setError(saveError?.message ?? 'Could not save this course.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.void, padding: spacing.lg }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-          <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>{initialCourse ? 'Edit Course' : 'Add Course'}</Text>
-          <Pressable onPress={onClose} hitSlop={8}><X size={22} color={colors.textMuted} /></Pressable>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.72)' }}
+      >
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View
+          style={{
+            maxHeight: '78%',
+            backgroundColor: colors.deep,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            borderWidth: 1,
+            borderColor: colors.border,
+            paddingTop: spacing.sm,
+          }}
+        >
+          <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md }} />
+          <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
+              <View>
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>{initialCourse ? 'Edit Course' : 'Add Course'}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }}>Quick entry · you can edit this later</Text>
+              </View>
+              <Pressable onPress={onClose} hitSlop={8}><X size={22} color={colors.textMuted} /></Pressable>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <View style={{ flex: 0.8 }}>
+                <Input label="Course code" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="CSC301" themeColors={colors} />
+              </View>
+              <View style={{ flex: 1.8 }}>
+                <Input label="Course title" value={title} onChangeText={setTitle} placeholder="Software Engineering" themeColors={colors} />
+              </View>
+            </View>
+
+            <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 7 }}>Credit units</Text>
+            <View style={{ flexDirection: 'row', gap: 7, marginBottom: spacing.md }}>
+              {[1, 2, 3, 4, 5, 6].map((value) => (
+                <Pressable
+                  key={value}
+                  onPress={() => setUnits(value)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    alignItems: 'center',
+                    borderRadius: 9,
+                    backgroundColor: units === value ? colors.primary : colors.surface,
+                    borderWidth: 1,
+                    borderColor: units === value ? colors.primaryGlow : colors.border,
+                  }}
+                >
+                  <Text style={{ color: units === value ? '#FFFFFF' : colors.textMuted, fontWeight: '800' }}>{value}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 10, padding: 3, marginBottom: spacing.md }}>
+              {(['score', 'grade'] as const).map((mode) => (
+                <Pressable
+                  key={mode}
+                  onPress={() => setInputMode(mode)}
+                  style={{ flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 8, backgroundColor: inputMode === mode ? colors.overlay : 'transparent' }}
+                >
+                  <Text style={{ color: inputMode === mode ? colors.text : colors.textMuted, fontWeight: '800', fontSize: 12 }}>
+                    {mode === 'score' ? 'Total Score' : 'Letter Grade'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            {inputMode === 'score' ? (
+              <Input label="Score (0–100)" value={score} onChangeText={setScore} keyboardType="decimal-pad" placeholder="75" themeColors={colors} />
+            ) : (
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.md }}>
+                {(['A', 'B', 'C', 'D', 'E', 'F'] as const).map((letter) => (
+                  <Pressable key={letter} onPress={() => setGrade(letter)} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 8, backgroundColor: grade === letter ? getGradeColor(letter) : colors.surface, borderWidth: 1, borderColor: grade === letter ? getGradeColor(letter) : colors.border }}>
+                    <Text style={{ color: grade === letter ? '#fff' : colors.textMuted, fontWeight: '800' }}>{letter}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            {(numericScore != null || grade) && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderRadius: 10, backgroundColor: colors.surface, marginBottom: spacing.md }}>
+                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Live preview</Text>
+                <Text style={{ color: getGradeColor(preview.grade), fontWeight: '800' }}>{preview.grade} · {preview.gradePoint.toFixed(1)} points</Text>
+              </View>
+            )}
+
+            {!!error && <Text style={{ color: colors.danger, fontSize: 12, marginBottom: spacing.md }}>{error}</Text>}
+            <Button label={initialCourse ? 'Update Course' : 'Save Course'} onPress={submit} loading={saving} fullWidth themeColors={colors} />
+          </ScrollView>
         </View>
-        <Input label="Course code" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="CSC 499" themeColors={colors} />
-        <Input label="Title" value={title} onChangeText={setTitle} placeholder="Final Year Project" themeColors={colors} />
-        <Input label="Units" value={units} onChangeText={setUnits} keyboardType="number-pad" themeColors={colors} />
-        <Input label="CA score (max 30)" value={caScore} onChangeText={setCaScore} keyboardType="number-pad" themeColors={colors} />
-        <Input label="Exam score (max 70)" value={examScore} onChangeText={setExamScore} keyboardType="number-pad" themeColors={colors} />
-
-        <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 6 }}>Letter grade (use when scores are unavailable)</Text>
-        <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.lg }}>
-          {(['A', 'B', 'C', 'D', 'E', 'F'] as const).map((letter) => (
-            <Pressable key={letter} onPress={() => setGrade(letter)} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, backgroundColor: grade === letter ? getGradeColor(letter) : colors.overlay, borderWidth: 1, borderColor: grade === letter ? getGradeColor(letter) : colors.border }}>
-              <Text style={{ color: grade === letter ? '#fff' : colors.textMuted, fontWeight: '800' }}>{letter}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {(ca !== null && exam !== null) && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }}>
-            <Text style={{ color: colors.textMuted }}>Live preview:</Text>
-            <Text style={{ color: getGradeColor(preview.grade), fontWeight: '800', fontSize: 16 }}>
-              {preview.grade} ({preview.gradePoint} pts)
-            </Text>
-          </View>
-        )}
-
-        <Button label={initialCourse ? 'Update Course' : 'Save Course'} onPress={() => onSave({ id: initialCourse?.id, code, title, units: Number(units) || 0, caScore: ca, examScore: exam, grade })} fullWidth />
-      </SafeAreaView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

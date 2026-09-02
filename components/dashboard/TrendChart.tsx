@@ -8,6 +8,7 @@ interface TrendChartProps {
   width: number;
   height?: number;
   themeColors?: ThemeColors;
+  visibleMetrics?: ('gpa' | 'pi')[];
 }
 
 /**
@@ -20,9 +21,11 @@ interface TrendChartProps {
  * mismatched native module (real crash risk at runtime, not just an npm
  * warning), this renders the same two-line GPA/PI comparison with plain SVG.
  */
-export function TrendChart({ data, width, height = 160, themeColors }: TrendChartProps) {
+export function TrendChart({ data, width, height = 160, themeColors, visibleMetrics }: TrendChartProps) {
   const colors = themeColors ?? darkColors;
   if (data.length < 2) return null;
+  const showGpa = !visibleMetrics || visibleMetrics.includes('gpa');
+  const showPi = !visibleMetrics || visibleMetrics.includes('pi');
 
   const padding = { top: 10, bottom: 24, left: 32, right: 10 };
   const chartW = width - padding.left - padding.right;
@@ -52,12 +55,12 @@ export function TrendChart({ data, width, height = 160, themeColors }: TrendChar
             </SvgText>
           </React.Fragment>
         ))}
-        <Polyline points={piPoints} fill="none" stroke={colors.gold} strokeWidth={2} strokeDasharray="4,4" />
-        <Polyline points={gpaPoints} fill="none" stroke={colors.primary} strokeWidth={2.5} />
+        {showPi && <Polyline points={piPoints} fill="none" stroke={colors.gold} strokeWidth={2.5} strokeDasharray="4,4" />}
+        {showGpa && <Polyline points={gpaPoints} fill="none" stroke={colors.primary} strokeWidth={2.5} />}
       </Svg>
       <View style={{ flexDirection: 'row', gap: 16, marginTop: 4 }}>
-        <Legend color={colors.primary} label="GPA" textColor={colors.textMuted} />
-        <Legend color={colors.gold} label="PI" dashed textColor={colors.textMuted} />
+        {showGpa && <Legend color={colors.primary} label="CGPA" textColor={colors.textMuted} />}
+        {showPi && <Legend color={colors.gold} label="PI" dashed textColor={colors.textMuted} />}
       </View>
     </View>
   );

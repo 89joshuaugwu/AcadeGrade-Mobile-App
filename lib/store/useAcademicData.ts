@@ -8,6 +8,7 @@ import type { CourseWithId } from '@/types/course';
 export interface AcademicSnapshot {
   loading: boolean;
   semesters: SemesterWithId[];
+  coursesBySemester: Record<string, CourseWithId[]>;
   allCourses: CourseWithId[];
   cgpa: number;
   pi: number;
@@ -89,16 +90,19 @@ export function useAcademicData(): AcademicSnapshot {
 
   const allCourses = useMemo(() => Object.values(coursesBySemester).flat(), [coursesBySemester]);
 
-  const cumulative = computeCumulativeCGPA(semesters);
+  const completedSemesters = semesters.filter((semester) => semester.isComplete);
+  const cumulative = computeCumulativeCGPA(completedSemesters);
   const currentSemester = semesters[semesters.length - 1];
   // FIXED — was `c.grade === 'E' || c.grade === 'F'` (effectively totalScore
   // < 45). Web's actual definition (`dashboard/page.tsx`, `insights/page.tsx`)
   // is `totalScore < 50`, which also flags D grades in the 45–49 range.
-  const atRiskCount = allCourses.filter((c) => (c.totalScore ?? 0) < 50).length;
+  const completedCourses = completedSemesters.flatMap((semester) => coursesBySemester[semester.id] ?? []);
+  const atRiskCount = completedCourses.filter((course) => !course.isAR && course.totalScore != null && course.totalScore < 50).length;
 
   return {
     loading,
     semesters,
+    coursesBySemester,
     allCourses,
     cgpa: cumulative.cgpa,
     pi: cumulative.pi,
