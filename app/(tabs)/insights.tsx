@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, AlertTriangle, RefreshCw, Target } from 'lucide-react-native';
@@ -17,6 +17,9 @@ import { aiApi, type ForecastResponse, type InsightsResponse, type WhatIfRespons
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import type { CourseWithId } from '@/types/course';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { TrendChart } from '@/components/dashboard/TrendChart';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 type TabType = 'forecast' | 'whatif' | 'risk' | 'analysis';
 const TABS: { id: TabType; label: string }[] = [
@@ -147,7 +150,7 @@ export default function Insights() {
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingTop: 0, paddingBottom: 120 }}>
         {tab === 'forecast' && (
-          <ForecastTab forecast={forecast} loading={forecastLoading} onRefresh={() => loadForecast(true)} hasHistory={piHistory.length > 0} />
+          <ForecastTab forecast={forecast} loading={forecastLoading} onRefresh={() => loadForecast(true)} hasHistory={piHistory.length > 0} piHistory={piHistory} cgpaHistory={cgpaHistory} />
         )}
         {tab === 'whatif' && <WhatIfTab currentCGPA={cgpa} totalCredits={totalCredits} />}
         {tab === 'risk' && <RiskTab courses={flaggedCourses} />}
@@ -159,7 +162,7 @@ export default function Insights() {
   );
 }
 
-function ForecastTab({ forecast, loading, onRefresh, hasHistory }: { forecast: ForecastResponse | null; loading: boolean; onRefresh: () => void; hasHistory: boolean }) {
+function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpaHistory }: { forecast: ForecastResponse | null; loading: boolean; onRefresh: () => void; hasHistory: boolean; piHistory: number[]; cgpaHistory: number[] }) {
   const colors = useThemeColors();
   if (!hasHistory) {
     return <EmptyState message="Complete at least one semester to unlock your forecast." />;
@@ -168,6 +171,14 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory }: { forecast: F
   if (!forecast) return <EmptyState message="No forecast yet." onRetry={onRefresh} />;
 
   const trend = forecast.slope > 0.02 ? 'up' : forecast.slope < -0.02 ? 'down' : 'flat';
+  const chartData = [
+    ...piHistory.map((value, index) => ({ x: index + 1, pi: value, gpa: cgpaHistory[index] ?? value })),
+    ...(forecast.projectedPi ?? []).map((value, index) => ({
+      x: piHistory.length + index + 1,
+      pi: value,
+      gpa: forecast.projectedCgpa?.[index] ?? value,
+    })),
+  ];
 
   return (
     <Animated.View entering={FadeInDown.duration(300)}>
@@ -191,6 +202,13 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory }: { forecast: F
           </View>
         </View>
       </Card>
+      {chartData.length > 1 && (
+        <Card themeColors={colors} style={{ marginBottom: spacing.md }}>
+          <Text style={{ color: colors.text, fontWeight: '800', fontSize: 14, marginBottom: 2 }}>Performance projection</Text>
+          <Text style={{ color: colors.textFaint, fontSize: 11, marginBottom: spacing.sm }}>Your completed history with the next two semesters projected.</Text>
+          <TrendChart data={chartData} width={screenWidth - spacing.lg * 2 - 32} height={170} themeColors={colors} />
+        </Card>
+      )}
       <Pressable onPress={onRefresh} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm }}>
         <RefreshCw size={13} color={colors.primary} />
         <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>{loading ? 'Refreshing…' : 'Refresh Forecast'}</Text>
@@ -207,6 +225,7 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
   const [result, setResult] = useState<WhatIfResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -218,9 +237,12 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
     if (loading || cooldown > 0) return;
     setLoading(true);
     setCooldown(30);
+    setError(null);
     try {
       const data = await aiApi.whatIf(currentCGPA, totalCredits, targetCGPA, Number(remainingSemesters) || 1, Number(creditLoad) || 15);
       setResult(data);
+    } catch (e: any) {
+      setError(e?.message ?? 'Could not calculate this scenario.');
     } finally {
       setLoading(false);
     }
@@ -243,6 +265,7 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
           </View>
         </View>
         <Button label={cooldown > 0 ? `Try again in ${cooldown}s` : 'Calculate'} onPress={calculate} loading={loading} disabled={cooldown > 0} fullWidth />
+        {error && <Text style={{ color: colors.danger, fontSize: 12, marginTop: spacing.sm }}>{error}</Text>}
       </Card>
 
       {result && (

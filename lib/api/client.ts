@@ -136,6 +136,8 @@ export interface ForecastResponse {
   projectedCgpa: [number, number];
   riskScore: number;
   trendLabel: string;
+  trendDirection?: 'improving' | 'declining' | 'stable';
+  lastUpdated?: unknown;
 }
 
 export interface WhatIfResponse {
