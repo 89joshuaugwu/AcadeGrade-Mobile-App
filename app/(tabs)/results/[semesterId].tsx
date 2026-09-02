@@ -4,10 +4,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Clipboard from 'expo-clipboard';
 import { File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { ArrowLeft, Plus, Camera, Trash2, X } from 'lucide-react-native';
+import { ArrowLeft, Plus, Camera, Trash2, X, Download, Share2, Copy, BookOpen, CheckCircle2 } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 import { spacing } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
@@ -20,6 +21,7 @@ import { computeCourseMetrics, computeSemesterGPA } from '@/lib/cgpa/calculator'
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { resultsApi } from '@/lib/api/client';
 import type { CourseWithId, CourseInput } from '@/types/course';
+import type { SemesterWithId } from '@/types/semester';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 
@@ -39,6 +41,7 @@ export default function SemesterDetail() {
   const { semesterId, action } = useLocalSearchParams<{ semesterId: string; action?: string }>();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const showToast = useToastStore((state) => state.show);
+  const [semester, setSemester] = useState<SemesterWithId | null>(null);
   const [courses, setCourses] = useState<CourseWithId[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -48,6 +51,10 @@ export default function SemesterDetail() {
   const [savingScan, setSavingScan] = useState(false);
   const [editingCourse, setEditingCourse] = useState<CourseWithId | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [codeModal, setCodeModal] = useState<'import' | 'share' | null>(null);
+  const [shareCode, setShareCode] = useState('');
+  const [codeInput, setCodeInput] = useState('');
+  const [codeWorking, setCodeWorking] = useState(false);
 
   function markInsightsStale() {
     if (!uid) return;
@@ -61,16 +68,28 @@ export default function SemesterDetail() {
 
   useEffect(() => {
     if (!uid || !semesterId) return;
-    return db
+    const unsubscribeSemester = db
+      .collection('users').doc(uid)
+      .collection('semesters').doc(semesterId)
+      .onSnapshot((snap) => {
+        if (snap.exists()) setSemester({ id: snap.id, ...(snap.data() as any) } as SemesterWithId);
+      });
+    const unsubscribeCourses = db
       .collection('users').doc(uid)
       .collection('semesters').doc(semesterId)
       .collection('courses')
       .onSnapshot((snap) => {
         setCourses(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as CourseWithId[]);
       });
+    return () => {
+      unsubscribeSemester();
+      unsubscribeCourses();
+    };
   }, [uid, semesterId]);
 
-  const metrics = courses.map((c) => computeCourseMetrics({ ...c, grade: c.grade ?? undefined }));
+  const metrics = courses
+    .filter((course) => !course.pending)
+    .map((c) => computeCourseMetrics({ ...c, grade: c.grade ?? undefined }));
   const semResult = computeSemesterGPA(metrics);
 
   useEffect(() => {
@@ -183,75 +202,165 @@ export default function SemesterDetail() {
     }
   }
 
+  async function generateShareCode() {
+    if (!uid) return;
+    if (courses.length < 3) {
+      showToast({ type: 'info', title: 'Add at least 3 courses', message: 'A course code shares course names and units only—never your scores.' });
+      return;
+    }
+    setCodeWorking(true);
+    try {
+      let generated = '';
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const candidate = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, 'X');
+        const existing = await db.collection('shareCodes').doc(candidate).get();
+        if (!existing.exists()) {
+          generated = candidate;
+          break;
+        }
+      }
+      if (!generated) throw new Error('Could not reserve a unique code. Please try again.');
+      await db.collection('shareCodes').doc(generated).set({
+        code: generated,
+        authorId: uid,
+        useCount: 0,
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        courses: courses.map(({ code, title, units }) => ({ code, title, units })),
+      });
+      setShareCode(generated);
+      setCodeModal('share');
+      showToast({ type: 'success', title: 'Course code ready', message: 'Only course names and units are included.' });
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not create code', message: error?.message ?? 'Please try again.' });
+    } finally {
+      setCodeWorking(false);
+    }
+  }
+
+  async function importCourseCode() {
+    if (!uid || !semesterId) return;
+    const normalized = codeInput.trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(normalized)) {
+      showToast({ type: 'warning', title: 'Enter a valid code', message: 'Course codes contain exactly 6 letters or numbers.' });
+      return;
+    }
+    setCodeWorking(true);
+    try {
+      const codeRef = db.collection('shareCodes').doc(normalized);
+      const snapshot = await codeRef.get();
+      const shared = snapshot.data();
+      if (!snapshot.exists() || !Array.isArray(shared?.courses)) throw new Error('That course code was not found.');
+
+      const existingCodes = new Set(courses.map((course) => course.code.trim().toUpperCase()));
+      const incoming = shared.courses
+        .filter((course: any) => course && typeof course.code === 'string' && typeof course.title === 'string' && Number.isFinite(Number(course.units)))
+        .filter((course: any) => !existingCodes.has(course.code.trim().toUpperCase()))
+        .slice(0, 50);
+      if (!incoming.length) throw new Error('Every course in this code is already in your semester.');
+
+      const batch = db.batch();
+      incoming.forEach((course: any) => {
+        const ref = db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc();
+        batch.set(ref, {
+          code: course.code.trim().toUpperCase(), title: course.title.trim(), units: Math.max(1, Math.min(6, Number(course.units))),
+          caScore: null, examScore: null, totalScore: null, grade: null, gradePoint: 0, piPoint: 0,
+          estimated: false, pending: true,
+          createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp(),
+        });
+      });
+      batch.update(codeRef, { useCount: firestore.FieldValue.increment(1) });
+      await batch.commit();
+      setCodeInput('');
+      setCodeModal(null);
+      showToast({ type: 'success', title: `${incoming.length} courses imported`, message: 'Tap each course to add its score or grade.' });
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Import failed', message: error?.message ?? 'Please try again.' });
+    } finally {
+      setCodeWorking(false);
+    }
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
-      <View style={{ padding: spacing.lg }}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginBottom: spacing.md }}>
-          <ArrowLeft size={22} color={colors.text} />
-        </Pressable>
-
-        <Animated.View entering={FadeInDown.duration(300)}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: spacing.md }}>
-            <View>
-              <Text style={{ color: colors.textMuted, fontSize: 12, fontWeight: '600' }}>SEMESTER GPA</Text>
-              <Text style={{ color: colors.primary, fontSize: 32, fontWeight: '800' }}>{semResult.gpa.toFixed(2)}</Text>
-            </View>
-            <Text style={{ color: colors.textMuted, fontSize: 12 }}>{semResult.creditLoaded} units · {semResult.courseCount} courses</Text>
-          </View>
-        </Animated.View>
-
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <View style={{ flex: 1 }}>
-            <Button label="Add Course" icon={<Plus color="#fff" size={16} />} onPress={() => setModalOpen(true)} fullWidth />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Button
-              label={ocrLoading ? 'Scanning…' : 'Scan Results'}
-              variant="secondary"
-              icon={<Camera color={colors.text} size={16} />}
-              onPress={() => setScannerOpen(true)}
-              loading={ocrLoading}
-              fullWidth
-            />
-          </View>
-        </View>
-        <View style={{ marginTop: spacing.sm }}>
-          <Button label="Complete semester" variant="ghost" onPress={completeSemester} loading={completing} fullWidth />
-        </View>
-
-        {ocrError && (
-          <Animated.Text entering={FadeIn.duration(200)} style={{ color: colors.danger, fontSize: 12, marginTop: spacing.sm }}>
-            {ocrError}
-          </Animated.Text>
-        )}
-      </View>
-
       <FlatList
         data={courses}
         keyExtractor={(c) => c.id}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.sm }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: 120, gap: spacing.sm }}
+        ListHeaderComponent={
+          <View style={{ paddingBottom: spacing.lg }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
+              <Pressable onPress={() => router.back()} accessibilityLabel="Back to results" hitSlop={10} style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+                <ArrowLeft size={20} color={colors.text} />
+              </Pressable>
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
+                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900' }} numberOfLines={1}>{semester?.label ?? 'Semester results'}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>{semester?.session || 'Course record'}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 99, backgroundColor: semester?.isComplete ? colors.successDim : `${colors.warning}18` }}>
+                {semester?.isComplete && <CheckCircle2 size={12} color={colors.success} />}
+                <Text style={{ color: semester?.isComplete ? colors.success : colors.warning, fontSize: 9, fontWeight: '900' }}>{semester?.isComplete ? 'COMPLETE' : 'IN PROGRESS'}</Text>
+              </View>
+            </View>
+
+            <View style={{ padding: spacing.lg, borderRadius: 20, backgroundColor: colors.deep, borderWidth: 1, borderColor: colors.primaryDim }}>
+              <Text style={{ color: colors.textFaint, fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>SEMESTER GPA</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
+                <Text style={{ color: colors.primaryGlow, fontSize: 38, lineHeight: 43, fontWeight: '900', fontVariant: ['tabular-nums'] }}>{semResult.gpa.toFixed(2)}</Text>
+                <Text style={{ color: colors.textFaint, fontSize: 12, marginLeft: 5, marginBottom: 6 }}>/ 5.00</Text>
+              </View>
+              <View style={{ flexDirection: 'row', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
+                <Metric label="Courses" value={String(courses.length)} colors={colors} />
+                <Metric label="Graded" value={String(metrics.length)} colors={colors} />
+                <Metric label="Credits" value={String(semResult.creditLoaded)} colors={colors} />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+              <View style={{ flex: 1 }}><Button label="Add course" icon={<Plus color="#fff" size={16} />} onPress={() => setModalOpen(true)} fullWidth themeColors={colors} /></View>
+              <View style={{ flex: 1 }}><Button label={ocrLoading ? 'Scanning…' : 'Scan result'} variant="secondary" icon={<Camera color={colors.text} size={16} />} onPress={() => setScannerOpen(true)} loading={ocrLoading} fullWidth themeColors={colors} /></View>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+              <CodeAction icon={<Download size={16} color={colors.primary} />} label="Import code" onPress={() => setCodeModal('import')} colors={colors} />
+              <CodeAction icon={<Share2 size={16} color={colors.primary} />} label={codeWorking ? 'Creating…' : 'Share courses'} onPress={generateShareCode} colors={colors} />
+            </View>
+
+            <View style={{ marginTop: spacing.sm }}>
+              <Button label={semester?.isComplete ? 'Semester completed' : 'Complete semester'} variant="ghost" icon={semester?.isComplete ? <CheckCircle2 size={16} color={colors.success} /> : undefined} onPress={completeSemester} loading={completing} disabled={semester?.isComplete} fullWidth themeColors={colors} />
+            </View>
+
+            {ocrError && <Animated.Text entering={FadeIn.duration(200)} style={{ color: colors.danger, fontSize: 12, marginTop: spacing.sm }}>{ocrError}</Animated.Text>}
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xl, marginBottom: 2 }}>
+              <View>
+                <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Courses</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 2 }}>Tap a course to edit its score or grade</Text>
+              </View>
+              <BookOpen size={18} color={colors.textFaint} />
+            </View>
+          </View>
+        }
         ListEmptyComponent={
-          <Card themeColors={colors} style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
-            <Text style={{ color: colors.textMuted, textAlign: 'center' }}>
-              No courses yet. Add one manually or scan a result slip.
-            </Text>
-          </Card>
+          <View style={{ alignItems: 'center', paddingVertical: spacing.xxl, borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, backgroundColor: colors.surface }}>
+            <Plus size={26} color={colors.primary} />
+            <Text style={{ color: colors.text, fontWeight: '800', marginTop: spacing.sm }}>No courses yet</Text>
+            <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 11, marginTop: 4 }}>Add one manually, import a class code, or scan your result.</Text>
+          </View>
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
-              <Card themeColors={colors} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Card themeColors={colors} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md }}>
                 <Pressable onPress={() => { setEditingCourse(item); setModalOpen(true); }} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: colors.text, fontWeight: '700' }}>{item.code} · {item.units} units</Text>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>{item.title}</Text>
+                    <Text style={{ color: colors.text, fontWeight: '800', fontSize: 13 }}>{item.code}</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }} numberOfLines={1}>{item.title} · {item.units} units</Text>
                   </View>
-                  <View
-                    style={{
-                      minWidth: 34, height: 32, paddingHorizontal: 8, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                      backgroundColor: `${getGradeColor(item.grade ?? 'F')}18`, marginLeft: spacing.sm,
-                    }}
-                  >
-                    <Text style={{ color: getGradeColor(item.grade ?? 'F'), fontWeight: '800' }}>{item.isAR ? 'AR' : item.grade}</Text>
+                  <View style={{ alignItems: 'flex-end', marginLeft: spacing.sm }}>
+                    <View style={{ minWidth: item.pending ? 65 : 34, height: 30, paddingHorizontal: 8, borderRadius: 9, alignItems: 'center', justifyContent: 'center', backgroundColor: item.pending ? `${colors.warning}18` : `${getGradeColor(item.grade ?? 'F')}18` }}>
+                      <Text style={{ color: item.pending ? colors.warning : getGradeColor(item.grade ?? 'F'), fontWeight: '900', fontSize: item.pending ? 9 : 13 }}>{item.pending ? 'ADD SCORE' : item.isAR ? 'AR' : item.grade}</Text>
+                    </View>
+                    {!item.pending && item.totalScore != null && <Text style={{ color: colors.textFaint, fontSize: 9, marginTop: 3 }}>{item.totalScore}%</Text>}
                   </View>
                 </Pressable>
                 <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${item.code}`} onPress={() => deleteCourse(item.id)} hitSlop={8} style={{ width: 34, height: 34, marginLeft: spacing.sm, alignItems: 'center', justifyContent: 'center' }}>
@@ -288,6 +397,20 @@ export default function SemesterDetail() {
         }}
       />
 
+      <CourseCodeModal
+        mode={codeModal}
+        shareCode={shareCode}
+        codeInput={codeInput}
+        working={codeWorking}
+        onCodeChange={(value) => setCodeInput(value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+        onClose={() => { if (!codeWorking) setCodeModal(null); }}
+        onImport={importCourseCode}
+        onCopy={async () => {
+          await Clipboard.setStringAsync(shareCode);
+          showToast({ type: 'success', title: 'Code copied' });
+        }}
+      />
+
       <AddCourseModal
         visible={modalOpen}
         initialCourse={editingCourse}
@@ -299,6 +422,7 @@ export default function SemesterDetail() {
           const courseRef = input.id ? courseCollection.doc(input.id) : courseCollection.doc();
           await courseRef.set({
             ...computed,
+            pending: false,
             createdAt: firestore.FieldValue.serverTimestamp(),
             updatedAt: firestore.FieldValue.serverTimestamp(),
           }, { merge: true });
@@ -310,6 +434,75 @@ export default function SemesterDetail() {
       />
 
     </SafeAreaView>
+  );
+}
+
+function Metric({ label, value, colors }: { label: string; value: string; colors: ReturnType<typeof useThemeColors> }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900', fontVariant: ['tabular-nums'] }}>{value}</Text>
+      <Text style={{ color: colors.textFaint, fontSize: 9, marginTop: 2 }}>{label}</Text>
+    </View>
+  );
+}
+
+function CodeAction({ icon, label, onPress, colors }: { icon: React.ReactNode; label: string; onPress: () => void; colors: ReturnType<typeof useThemeColors> }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={{ flex: 1, minHeight: 46, flexDirection: 'row', gap: 7, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+    >
+      {icon}
+      <Text style={{ color: colors.text, fontSize: 11, fontWeight: '800' }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, onClose, onImport, onCopy }: {
+  mode: 'import' | 'share' | null;
+  shareCode: string;
+  codeInput: string;
+  working: boolean;
+  onCodeChange: (value: string) => void;
+  onClose: () => void;
+  onImport: () => void;
+  onCopy: () => void;
+}) {
+  const colors = useThemeColors();
+  return (
+    <Modal visible={mode !== null} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.7)' }}>
+        <Pressable style={{ flex: 1 }} onPress={onClose} />
+        <View style={{ backgroundColor: colors.deep, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xxl }}>
+          <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flex: 1, paddingRight: spacing.md }}>
+              <Text style={{ color: colors.text, fontSize: 19, fontWeight: '900' }}>{mode === 'share' ? 'Share course list' : 'Import course list'}</Text>
+              <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 17, marginTop: 4 }}>
+                {mode === 'share' ? 'Classmates receive course names and units only. Your grades and scores stay private.' : 'Enter a classmate’s 6-character code. Imported courses wait for you to enter private scores.'}
+              </Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={8}><X size={21} color={colors.textFaint} /></Pressable>
+          </View>
+
+          {mode === 'share' ? (
+            <View style={{ marginTop: spacing.xl }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primaryDim }}>
+                <Text selectable style={{ flex: 1, color: colors.primaryGlow, fontSize: 27, fontWeight: '900', letterSpacing: 5, textAlign: 'center', fontVariant: ['tabular-nums'] }}>{shareCode}</Text>
+                <Pressable onPress={onCopy} accessibilityLabel="Copy course code" style={{ width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryDim }}>
+                  <Copy size={18} color={colors.primary} />
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={{ marginTop: spacing.xl }}>
+              <Input label="Course code" value={codeInput} onChangeText={onCodeChange} autoCapitalize="characters" maxLength={6} placeholder="ABC123" themeColors={colors} style={{ textAlign: 'center', fontSize: 22, fontWeight: '900', letterSpacing: 5 }} />
+              <Button label="Import courses" icon={<Download size={16} color="#FFFFFF" />} onPress={onImport} loading={working} disabled={codeInput.length !== 6} fullWidth themeColors={colors} />
+            </View>
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 }
 

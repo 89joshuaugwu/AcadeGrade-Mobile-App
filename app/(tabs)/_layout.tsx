@@ -2,9 +2,9 @@ import { useRef, useCallback } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { View, Text, Pressable } from 'react-native';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { LayoutDashboard, FileText, GraduationCap, MoreHorizontal, Settings, Bell, ChevronRight } from 'lucide-react-native';
+import { LayoutDashboard, FileText, GraduationCap, MoreHorizontal, Settings, Bell, ChevronRight, Moon, Sun, Smartphone } from 'lucide-react-native';
 import { spacing } from '@/constants/theme';
-import { useThemeColors } from '@/lib/store/themeStore';
+import { useThemeColors, useThemeStore, type ThemeMode } from '@/lib/store/themeStore';
 import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 
 /**
@@ -18,6 +18,8 @@ import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
  */
 export default function TabsLayout() {
   const colors = useThemeColors();
+  const themeMode = useThemeStore((state) => state.mode);
+  const setThemeMode = useThemeStore((state) => state.setMode);
   const router = useRouter();
   const sheetRef = useRef<BottomSheetModal>(null);
 
@@ -58,7 +60,8 @@ export default function TabsLayout() {
 
       <BottomSheetModal
         ref={sheetRef}
-        snapPoints={['32%']}
+        snapPoints={['32%', '52%']}
+        enableDynamicSizing={false}
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.border }}
       >
@@ -66,9 +69,28 @@ export default function TabsLayout() {
           <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800', marginBottom: spacing.md }}>More</Text>
           <MoreRow colors={colors} icon={<Bell size={18} color={colors.primary} />} label="Notifications" onPress={() => closeAnd(() => router.push('/(tabs)/notifications'))} />
           <MoreRow colors={colors} icon={<Settings size={18} color={colors.primary} />} label="Settings" onPress={() => closeAnd(() => router.push('/(tabs)/profile'))} />
+
+          <View style={{ marginTop: spacing.xl, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
+            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Quick appearance</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 3, marginBottom: spacing.sm }}>Swipe this sheet up anytime to change the app theme.</Text>
+            <View style={{ flexDirection: 'row', gap: 7 }}>
+              <ThemeChip mode="light" active={themeMode === 'light'} label="Light" icon={<Sun size={15} color={themeMode === 'light' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
+              <ThemeChip mode="dark" active={themeMode === 'dark'} label="Dark" icon={<Moon size={15} color={themeMode === 'dark' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
+              <ThemeChip mode="system" active={themeMode === 'system'} label="System" icon={<Smartphone size={15} color={themeMode === 'system' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
+            </View>
+          </View>
         </BottomSheetView>
       </BottomSheetModal>
     </>
+  );
+}
+
+function ThemeChip({ mode, active, label, icon, onPress, colors }: { mode: ThemeMode; active: boolean; label: string; icon: React.ReactNode; onPress: (mode: ThemeMode) => void; colors: ReturnType<typeof useThemeColors> }) {
+  return (
+    <Pressable onPress={() => onPress(mode)} style={{ flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: active ? colors.primary : colors.overlay, borderWidth: 1, borderColor: active ? colors.primaryGlow : colors.border }}>
+      {icon}
+      <Text style={{ color: active ? '#FFFFFF' : colors.textMuted, fontSize: 9, fontWeight: '800' }}>{label}</Text>
+    </Pressable>
   );
 }
 

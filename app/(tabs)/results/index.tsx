@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { BookOpen, Camera, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
+import { BookOpen, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -37,20 +36,11 @@ export default function ResultsList() {
     }
   }, [expandedId, orderedSemesters]);
 
-  function openAction(semesterId: string, action?: 'add' | 'scan') {
+  function openAction(semesterId: string, action?: 'add') {
     router.push({
       pathname: '/(tabs)/results/[semesterId]',
       params: { semesterId, ...(action ? { action } : {}) },
     });
-  }
-
-  function openScanner() {
-    const destination = orderedSemesters.find((semester) => !semester.isComplete) ?? orderedSemesters[0];
-    if (!destination) {
-      Alert.alert('Create a semester first', 'A result scan needs a semester where the detected courses can be saved.');
-      return;
-    }
-    openAction(destination.id, 'scan');
   }
 
   function confirmDeleteSemester(semester: SemesterWithId) {
@@ -106,70 +96,62 @@ export default function ResultsList() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
-      <FlatList
-        data={orderedSemesters}
-        keyExtractor={(semester) => semester.id}
+      <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120, gap: spacing.sm }}
-        ListHeaderComponent={
-          <View style={{ paddingTop: spacing.md, paddingBottom: spacing.md }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <View style={{ flex: 1, paddingRight: spacing.md }}>
-                <Text style={{ color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }}>Results Hub</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }} numberOfLines={1}>
-                  {[profile?.university, profile?.department].filter(Boolean).join(' · ') || 'Your academic record'}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityLabel="Scan a result slip"
-                onPress={openScanner}
-                style={{ width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
-              >
-                <Camera size={19} color={colors.text} />
-              </Pressable>
-            </View>
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }}
+      >
+        <View style={{ paddingBottom: spacing.lg }}>
+          <Text style={{ color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }}>Results Hub</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }} numberOfLines={1}>
+            {[profile?.university, profile?.department].filter(Boolean).join(' · ') || 'Your academic record'}
+          </Text>
 
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
-              <StatCard value={cgpa.toFixed(2)} label="CGPA" color={colors.primaryGlow} />
-              <StatCard value={String(semesters.length)} label="Semesters" color={colors.info} />
-              <StatCard value={String(totalCredits)} label="Credits" color={colors.success} />
-            </View>
-
-            <Pressable
-              onPress={() => router.push('/(tabs)/results/new')}
-              style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.deep }}
-            >
-              <Plus size={16} color={colors.primary} />
-              <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>New semester</Text>
-            </Pressable>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+            <StatCard value={cgpa.toFixed(2)} label="CGPA" color={colors.primaryGlow} />
+            <StatCard value={String(semesters.length)} label="Semesters" color={colors.info} />
+            <StatCard value={String(totalCredits)} label="Credits" color={colors.success} />
           </View>
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
-              <BookOpen size={32} color={colors.primary} />
-              <Text style={{ color: colors.text, fontWeight: '800', marginTop: spacing.md }}>No semesters yet</Text>
-              <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 4, paddingHorizontal: spacing.xl }}>
-                Create your first semester, then add courses manually or scan a result slip.
-              </Text>
-            </View>
-          ) : null
-        }
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 45).duration(260)} layout={LinearTransition.duration(200)}>
-            <SemesterCard
-              semester={item}
-              courses={coursesBySemester[item.id] ?? []}
-              expanded={expandedId === item.id}
-              onToggle={() => setExpandedId((current) => current === item.id ? null : item.id)}
-              onOpen={() => openAction(item.id)}
-              onAdd={() => openAction(item.id, 'add')}
-              onDeleteSemester={() => confirmDeleteSemester(item)}
-              onDeleteCourse={(course) => confirmDeleteCourse(item.id, course)}
-            />
-          </Animated.View>
+
+          <Pressable
+            onPress={() => router.push('/(tabs)/results/new')}
+            style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primaryDim }}
+          >
+            <Plus size={16} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>New semester</Text>
+          </Pressable>
+        </View>
+
+        {loading && !orderedSemesters.length ? (
+          <View style={{ paddingVertical: spacing.xxxl, alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.sm }}>Loading your results…</Text>
+          </View>
+        ) : !orderedSemesters.length ? (
+          <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+            <BookOpen size={32} color={colors.primary} />
+            <Text style={{ color: colors.text, fontWeight: '800', marginTop: spacing.md }}>No semesters yet</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 4, paddingHorizontal: spacing.xl }}>
+              Create your first semester, then add courses manually or scan a result slip.
+            </Text>
+          </View>
+        ) : (
+          <View style={{ gap: spacing.sm }}>
+            {orderedSemesters.map((item) => (
+              <SemesterCard
+                key={item.id}
+                semester={item}
+                courses={coursesBySemester[item.id] ?? []}
+                expanded={expandedId === item.id}
+                onToggle={() => setExpandedId((current) => current === item.id ? null : item.id)}
+                onOpen={() => openAction(item.id)}
+                onAdd={() => openAction(item.id, 'add')}
+                onDeleteSemester={() => confirmDeleteSemester(item)}
+                onDeleteCourse={(course) => confirmDeleteCourse(item.id, course)}
+              />
+            ))}
+          </View>
         )}
-      />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -236,7 +218,7 @@ function SemesterCard({
         </View>
 
         {expanded && (
-          <Animated.View entering={FadeInDown.duration(180)} style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, padding: spacing.md, paddingTop: spacing.sm }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.borderSubtle, padding: spacing.md, paddingTop: spacing.sm }}>
             {courses.length > 0 ? (
               <>
                 <View style={{ flexDirection: 'row', paddingHorizontal: spacing.sm, paddingBottom: 6 }}>
@@ -282,7 +264,7 @@ function SemesterCard({
             <Pressable onPress={onAdd} style={{ marginTop: spacing.sm, paddingVertical: 11, borderRadius: 9, alignItems: 'center', borderWidth: 1, borderColor: colors.primary }}>
               <Text style={{ color: colors.primaryGlow, fontSize: 11, fontWeight: '800' }}>＋ Add Course</Text>
             </Pressable>
-          </Animated.View>
+          </View>
         )}
       </View>
   );

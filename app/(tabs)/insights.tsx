@@ -28,8 +28,8 @@ type ProjectionMode = 'pi' | 'cgpa';
 const TABS: { id: TabType; label: string }[] = [
   { id: 'forecast', label: 'Forecast' },
   { id: 'whatif', label: 'What-If' },
-  { id: 'risk', label: 'Risk Analysis' },
-  { id: 'analysis', label: 'Written Analysis' },
+  { id: 'risk', label: 'Risk' },
+  { id: 'analysis', label: 'Written' },
 ];
 
 function timestampToMillis(value: any): number | null {
@@ -197,24 +197,24 @@ export default function Insights() {
         </View>
       </View>
 
-      <View style={{ height: 48 }}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 6 }}>
+      <View style={{ marginHorizontal: spacing.lg, marginTop: spacing.sm, padding: 4, flexDirection: 'row', borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
           {TABS.map((item) => {
             const active = tab === item.id;
             return (
               <Pressable
                 key={item.id}
                 onPress={() => setTab(item.id)}
-                style={{ justifyContent: 'center', paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: active ? colors.primary : colors.surface, borderWidth: 1, borderColor: active ? colors.primaryGlow : colors.border }}
+                style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: active ? colors.primary : 'transparent' }}
               >
-                <Text style={{ color: active ? '#FFFFFF' : colors.textMuted, fontSize: 11, fontWeight: '800' }}>{item.label}</Text>
+                <Text numberOfLines={1} style={{ color: active ? '#FFFFFF' : colors.textMuted, fontSize: 10, fontWeight: '900' }}>{item.label}</Text>
               </Pressable>
             );
           })}
-        </ScrollView>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <RateLimitGuide tab={tab} />
+
         {!!requestError && (
           <NoticeCard icon={<AlertTriangle size={16} color={colors.warning} />} color={colors.warning} title="AcadeMind update" body={`${requestError}${retryCooldown > 0 ? ` Try again in ${retryCooldown}s.` : ''}`} />
         )}
@@ -249,6 +249,22 @@ export default function Insights() {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function RateLimitGuide({ tab }: { tab: TabType }) {
+  const colors = useThemeColors();
+  const copy: Record<TabType, string> = {
+    forecast: 'Forecasts are cached for an hour. You can generate up to 2 new forecasts per hour and 8 per day.',
+    whatif: 'Adjust freely, then request guidance when ready. AI guidance allows 3 requests per 5 minutes and 20 per day.',
+    risk: 'Risk analysis uses your saved results and forecast, so viewing this tab does not consume an AI request.',
+    analysis: 'Written analysis stays available from cache. Regeneration unlocks after 12 hours and is limited to 3 per day.',
+  };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: spacing.sm, marginBottom: spacing.md, borderRadius: 12, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: `${colors.primary}35` }}>
+      <Clock3 size={14} color={colors.primary} style={{ marginTop: 1 }} />
+      <Text style={{ flex: 1, color: colors.textMuted, fontSize: 10, lineHeight: 15, marginLeft: 8 }}>{copy[tab]}</Text>
+    </View>
   );
 }
 

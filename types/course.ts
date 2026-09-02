@@ -18,6 +18,8 @@ export interface Course {
   piPoint: number;
   estimated: boolean;
   isAR?: boolean;
+  /** Imported course definition awaiting the student's private score/grade. */
+  pending?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

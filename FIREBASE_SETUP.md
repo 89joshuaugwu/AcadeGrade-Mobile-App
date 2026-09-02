@@ -46,11 +46,25 @@ Use the alias and passwords supplied by EAS. If development, preview, and produc
 
 After adding the SHA certificates, download a fresh `google-services.json` from the Firebase Android app. It should contain an Android OAuth entry with `client_type: 1` in addition to the Web client with `client_type: 3`.
 
+The two files currently in this repository still contain only `client_type: 3`. Until a refreshed file contains `client_type: 1` plus a `certificate_hash`, native Android Google Sign-In can fail with status code `10` / `DEVELOPER_ERROR` even though the SHA values appear in Firebase Console.
+
 Replace both copies in this project:
 
 ```text
 google-services.json
 android/app/google-services.json
+```
+
+Verify the refreshed file before rebuilding:
+
+```powershell
+Select-String -LiteralPath '.\google-services.json' -Pattern '"client_type": 1|certificate_hash'
+```
+
+The command must return both an Android OAuth client and its certificate hash. Then copy that exact file to `android/app/google-services.json` and confirm both files have the same hash:
+
+```powershell
+Get-FileHash '.\google-services.json', '.\android\app\google-services.json'
 ```
 
 For iOS, keep `GoogleService-Info.plist` matched to `com.acadegrade.appname`. Its reversed client ID remains the `iosUrlScheme` in `app.json`.

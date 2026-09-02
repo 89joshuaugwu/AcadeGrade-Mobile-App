@@ -119,6 +119,14 @@ export function ResultScannerModal({
           showsVerticalScrollIndicator={false}
         >
           {!hasResults && (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', padding: spacing.sm, marginBottom: spacing.md, borderRadius: 12, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: `${colors.primary}35` }}>
+              <Sparkles size={14} color={colors.primary} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, color: colors.textMuted, fontSize: 10, lineHeight: 15, marginLeft: 8 }}>
+                AI scanning allows 5 result files per 15 minutes and 20 per day. Retakes only count after a file is submitted for analysis.
+              </Text>
+            </View>
+          )}
+          {!hasResults && (
             <View
               style={{
                 height: 276,

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { PickerField } from '@/components/ui/PickerField';
 import { SegmentedPill } from './login';
-import { signUpWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import { getGoogleSignInErrorMessage, signUpWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 import { authApi } from '@/lib/api/client';
@@ -102,7 +102,8 @@ export default function Register() {
       if (cred.user.displayName) setFullName(cred.user.displayName);
       setStep(2);
     } catch (e: any) {
-      if (e.code !== 'auth/popup-closed-by-user') setError('Failed to authenticate with Google');
+      const message = getGoogleSignInErrorMessage(e);
+      if (message) setError(message);
     } finally {
       setLoading(false);
     }

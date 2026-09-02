@@ -4,8 +4,15 @@
  * on native (01_CONTEXT.md §7) — uses @react-native-google-signin instead,
  * then exchanges the native credential with Firebase.
  */
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import {
+  EmailAuthProvider,
+  FirebaseAuthTypes,
+  getAuth,
+  GoogleAuthProvider,
+  reauthenticateWithCredential,
+  signInWithCredential,
+} from '@react-native-firebase/auth';
 import { firebaseAuth } from './client';
 
 /**
@@ -52,31 +59,50 @@ export async function signUpWithEmail(email: string, password: string) {
 }
 
 export async function signInWithGoogle() {
-  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  const response = await GoogleSignin.signIn();
-  if (response.type !== 'success' || !response.data.idToken) {
-    throw new Error('Google sign-in was cancelled or did not return an ID token.');
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const response = await GoogleSignin.signIn();
+    if (response.type !== 'success' || !response.data.idToken) {
+      const cancelled = new Error('Google sign-in was cancelled.') as Error & { code?: string };
+      cancelled.code = statusCodes.SIGN_IN_CANCELLED;
+      throw cancelled;
+    }
+    const googleCredential = GoogleAuthProvider.credential(response.data.idToken);
+    return signInWithCredential(getAuth(), googleCredential);
+  } catch (error: any) {
+    console.error('[AcadeGrade] Google sign-in failed:', { code: error?.code, message: error?.message });
+    throw error;
   }
-  const { idToken } = response.data;
-  const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-  return firebaseAuth.signInWithCredential(googleCredential);
 }
 
 export async function reauthenticateWithGoogle() {
-  const user = firebaseAuth.currentUser;
+  const user = getAuth().currentUser;
   if (!user) throw new Error('No authenticated user');
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
   if (response.type !== 'success' || !response.data.idToken) {
     throw new Error('Google re-authentication was cancelled.');
   }
-  return user.reauthenticateWithCredential(auth.GoogleAuthProvider.credential(response.data.idToken));
+  return reauthenticateWithCredential(user, GoogleAuthProvider.credential(response.data.idToken));
 }
 
 export async function reauthenticateWithPassword(password: string) {
-  const user = firebaseAuth.currentUser;
+  const user = getAuth().currentUser;
   if (!user?.email) throw new Error('No email sign-in is linked to this account');
-  return user.reauthenticateWithCredential(auth.EmailAuthProvider.credential(user.email, password));
+  return reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+}
+
+export function getGoogleSignInErrorMessage(error: any): string | null {
+  const code = String(error?.code ?? '');
+  if (code === statusCodes.SIGN_IN_CANCELLED || code === 'auth/popup-closed-by-user') return null;
+  if (code === statusCodes.IN_PROGRESS) return 'Google sign-in is already open.';
+  if (code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) return 'Google Play Services is unavailable or needs an update.';
+  if (code === '10' || code === 'DEVELOPER_ERROR') {
+    return 'Google setup is incomplete. Refresh google-services.json after adding this build’s SHA fingerprints, then rebuild the app.';
+  }
+  if (code === 'auth/account-exists-with-different-credential') return 'An account already exists with this email. Sign in using its original method first.';
+  if (code === 'auth/invalid-credential') return 'Google returned an invalid credential. Refresh the Firebase Android configuration and rebuild.';
+  return error?.message ? `Google sign-in failed: ${error.message}` : 'Google sign-in failed. Please try again.';
 }
 
 export async function signOut() {

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { GoogleIcon } from '@/components/ui/GoogleIcon';
-import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import { getGoogleSignInErrorMessage, signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 import { useThemeColors } from '@/lib/store/themeStore';
 
 /**
@@ -48,7 +48,8 @@ export default function Login() {
     try {
       await signInWithGoogle();
     } catch (e: any) {
-      if (e.code !== 'auth/popup-closed-by-user') setError('Google sign-in failed. Try again.');
+      const message = getGoogleSignInErrorMessage(e);
+      if (message) setError(message);
     } finally {
       setLoading(false);
     }
