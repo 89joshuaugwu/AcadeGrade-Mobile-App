@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "AcadeGrade",
+    "slug": "acadegrade-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "acadegrade",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#07090F",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.acadegrade.appname",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSCameraUsageDescription": "AcadeGrade uses your camera to scan result slips and extract courses automatically.",
+        "NSPhotoLibraryUsageDescription": "AcadeGrade needs photo access to upload a result slip or set your profile avatar."
+      }
+    },
+    "android": {
+      "package": "com.acadegrade.app",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#07090F"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AcadeGrade uses your camera to scan result slips."
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.380362341267-na0lm35fvh9nf1ei0ga9ns3ds69eqna7"
+        }
+      ],
+      "expo-asset",
+      "expo-image",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#07090F"
+        }
+      ],
+      "expo-status-bar"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "400f09c4-64fa-4219-9088-4d98658cc1b7"
+      }
+    }
+  }
+}
