@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TextInput, View, Text, TextInputProps } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { colors as darkColors, radius, spacing, type ThemeColors } from '@/constants/theme';
@@ -24,7 +24,6 @@ interface InputProps extends TextInputProps {
  */
 export function Input({ label, error, leftIcon, rightElement, themeColors, onFocus, onBlur, style, ...rest }: InputProps) {
   const colors = themeColors ?? darkColors;
-  const [focused, setFocused] = useState(false);
   const glow = useSharedValue(0);
 
   const borderStyle = useAnimatedStyle(() => ({
@@ -58,12 +57,10 @@ export function Input({ label, error, leftIcon, rightElement, themeColors, onFoc
         <TextInput
           placeholderTextColor={colors.textFaint}
           onFocus={(e) => {
-            setFocused(true);
             glow.value = withTiming(1, { duration: 180 });
             onFocus?.(e);
           }}
           onBlur={(e) => {
-            setFocused(false);
             glow.value = withTiming(0, { duration: 180 });
             onBlur?.(e);
           }}

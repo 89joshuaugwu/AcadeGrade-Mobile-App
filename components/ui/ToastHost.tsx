@@ -26,6 +26,9 @@ export function ToastHost() {
     <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 9999, elevation: 30 }}>
       <Animated.View
         key={toast.id}
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={[toast.title, toast.message].filter(Boolean).join('. ')}
         entering={FadeInDown.springify().damping(18)}
         exiting={FadeOutUp.duration(180)}
         style={{

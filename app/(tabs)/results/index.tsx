@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { BookOpen, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useAcademicData } from '@/lib/store/useAcademicData';
@@ -10,6 +9,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
+import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import type { CourseWithId } from '@/types/course';
 import type { SemesterWithId } from '@/types/semester';
@@ -20,6 +20,7 @@ export default function ResultsList() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid);
   const profile = useAuthStore((state) => state.profile);
   const showToast = useToastStore((state) => state.show);
+  const showConfirm = useConfirmDialogStore((state) => state.show);
   const { semesters, coursesBySemester, cgpa, totalCredits, loading } = useAcademicData();
   const orderedSemesters = useMemo(() => [...semesters].reverse(), [semesters]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -45,53 +46,47 @@ export default function ResultsList() {
 
   function confirmDeleteSemester(semester: SemesterWithId) {
     if (!uid) return;
-    Alert.alert(
-      'Delete semester?',
-      `${semester.label} and every course inside it will be permanently removed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete semester',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const semesterRef = db.collection('users').doc(uid).collection('semesters').doc(semester.id);
-              const courses = await semesterRef.collection('courses').get();
-              const batch = db.batch();
-              courses.docs.forEach((course) => batch.delete(course.ref));
-              batch.delete(semesterRef);
-              await batch.commit();
-              markInsightsStale();
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              showToast({ type: 'success', title: 'Semester deleted', message: `${semester.label} and its courses were removed.` });
-            } catch (error: any) {
-              Alert.alert('Could not delete semester', error?.message ?? 'Please try again.');
-            }
-          },
-        },
-      ],
-    );
+    showConfirm({
+      title: 'Delete this semester?',
+      message: `${semester.label} and every course inside it will be permanently removed.`,
+      confirmLabel: 'Delete semester',
+      cancelLabel: 'Keep semester',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          const semesterRef = db.collection('users').doc(uid).collection('semesters').doc(semester.id);
+          const courses = await semesterRef.collection('courses').get();
+          const batch = db.batch();
+          courses.docs.forEach((course) => batch.delete(course.ref));
+          batch.delete(semesterRef);
+          await batch.commit();
+          markInsightsStale();
+          showToast({ type: 'success', title: 'Semester deleted', message: `${semester.label} and its courses were removed.` });
+        } catch (error: any) {
+          showToast({ type: 'error', title: 'Could not delete semester', message: error?.message ?? 'Please try again.' });
+        }
+      },
+    });
   }
 
   function confirmDeleteCourse(semesterId: string, course: CourseWithId) {
     if (!uid) return;
-    Alert.alert('Delete course?', `${course.code} — ${course.title} will be removed.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete course',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(course.id).delete();
-            markInsightsStale();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            showToast({ type: 'success', title: 'Course deleted', message: `${course.code} was removed.` });
-          } catch (error: any) {
-            Alert.alert('Could not delete course', error?.message ?? 'Please try again.');
-          }
-        },
+    showConfirm({
+      title: 'Delete this course?',
+      message: `${course.code} — ${course.title} will be removed from this semester.`,
+      confirmLabel: 'Delete course',
+      cancelLabel: 'Keep course',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(course.id).delete();
+          markInsightsStale();
+          showToast({ type: 'success', title: 'Course deleted', message: `${course.code} was removed.` });
+        } catch (error: any) {
+          showToast({ type: 'error', title: 'Could not delete course', message: error?.message ?? 'Please try again.' });
+        }
       },
-    ]);
+    });
   }
 
   return (

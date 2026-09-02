@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, Modal, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, Modal, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,6 +24,7 @@ import type { CourseWithId, CourseInput } from '@/types/course';
 import type { SemesterWithId } from '@/types/semester';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
+import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -41,6 +42,7 @@ export default function SemesterDetail() {
   const { semesterId, action } = useLocalSearchParams<{ semesterId: string; action?: string }>();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const showToast = useToastStore((state) => state.show);
+  const showConfirm = useConfirmDialogStore((state) => state.show);
   const [semester, setSemester] = useState<SemesterWithId | null>(null);
   const [courses, setCourses] = useState<CourseWithId[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -105,12 +107,12 @@ export default function SemesterDetail() {
   async function completeSemester() {
     if (!uid || !semesterId) return;
     if (!courses.length) {
-      Alert.alert('Add courses first', 'A semester needs at least one course before it can be completed.');
+      showToast({ type: 'warning', title: 'Add courses first', message: 'A semester needs at least one course before it can be completed.' });
       return;
     }
     const pendingCount = courses.filter((course) => course.pending).length;
     if (pendingCount > 0) {
-      Alert.alert('Scores still needed', `Add a score or grade to ${pendingCount} imported course${pendingCount === 1 ? '' : 's'} before completing this semester.`);
+      showToast({ type: 'warning', title: 'Scores still needed', message: `Add a score or grade to ${pendingCount} imported course${pendingCount === 1 ? '' : 's'} before completing this semester.` });
       return;
     }
     setCompleting(true);
@@ -123,7 +125,7 @@ export default function SemesterDetail() {
       showToast({ type: 'success', title: 'Semester completed', message: 'Dashboard and transcript totals have been updated.' });
       router.back();
     } catch (e: any) {
-      Alert.alert('Could not complete semester', e?.message ?? 'Please try again.');
+      showToast({ type: 'error', title: 'Could not complete semester', message: e?.message ?? 'Please try again.' });
     } finally {
       setCompleting(false);
     }
@@ -131,15 +133,25 @@ export default function SemesterDetail() {
 
   async function deleteCourse(courseId: string) {
     if (!uid || !semesterId) return;
-    Alert.alert('Delete course?', 'This removes the course from the semester.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-        await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(courseId).delete();
-        markInsightsStale();
-        showToast({ type: 'success', title: 'Course deleted' });
-      } },
-    ]);
+    const course = courses.find((item) => item.id === courseId);
+    showConfirm({
+      title: 'Delete this course?',
+      message: course
+        ? `${course.code} — ${course.title} will be removed from this semester.`
+        : 'This course will be removed from the semester.',
+      confirmLabel: 'Delete course',
+      cancelLabel: 'Keep course',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(courseId).delete();
+          markInsightsStale();
+          showToast({ type: 'success', title: 'Course deleted', message: course ? `${course.code} was removed.` : undefined });
+        } catch (error: any) {
+          showToast({ type: 'error', title: 'Could not delete course', message: error?.message ?? 'Please try again.' });
+        }
+      },
+    });
   }
 
   async function runExtraction(base64Data: string, mimeType: string) {
@@ -201,7 +213,7 @@ export default function SemesterDetail() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showToast({ type: 'success', title: 'Scanned courses saved', message: `${reviewCourses.length} courses were added to this semester.` });
     } catch (error: any) {
-      Alert.alert('Could not save scanned courses', error?.message ?? 'Please try again.');
+      showToast({ type: 'error', title: 'Could not save scanned courses', message: error?.message ?? 'Please try again.' });
     } finally {
       setSavingScan(false);
     }

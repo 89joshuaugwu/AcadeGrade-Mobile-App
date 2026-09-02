@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Switch, Image, Alert, Pressable, Modal } from 'react-native';
+import { View, Text, ScrollView, Switch, Image, Pressable, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -20,6 +20,7 @@ import { unregisterFcmToken, requestNotificationPermission, registerFcmToken } f
 import { userApi, transcriptApi } from '@/lib/api/client';
 import { useThemeStore } from '@/lib/store/themeStore';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 
 interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
@@ -56,6 +57,7 @@ export default function Profile() {
   const profile = useAuthStore((s) => s.profile);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
+  const showToast = useToastStore((s) => s.show);
   const { cgpa, totalCredits, atRiskCount } = useAcademicData();
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -87,9 +89,9 @@ export default function Profile() {
     const granted = await requestNotificationPermission();
     if (granted) {
       await registerFcmToken(uid);
-      Alert.alert('Notifications enabled', 'You will receive important academic updates here.');
+      showToast({ type: 'success', title: 'Notifications enabled', message: 'You will receive important academic updates here.' });
     } else {
-      Alert.alert('Notifications are off', 'Enable notifications for AcadeGrade in your device settings to receive updates.');
+      showToast({ type: 'warning', title: 'Notifications are off', message: 'Enable notifications for AcadeGrade in your device settings to receive updates.' });
     }
   }
 
@@ -123,7 +125,7 @@ export default function Profile() {
         await Sharing.shareAsync(fileUri, { mimeType: 'application/pdf', dialogTitle: 'AcadeGrade Transcript' });
       }
     } catch (e: any) {
-      Alert.alert('Failed', e.message ?? 'Could not generate transcript.');
+      showToast({ type: 'error', title: 'Export failed', message: e.message ?? 'Could not generate transcript.' });
     } finally {
       setExporting(false);
     }
@@ -154,7 +156,7 @@ export default function Profile() {
       setDeleteSheetOpen(false);
       await signOut();
     } catch (e: any) {
-      Alert.alert('Could not delete account', e?.message ?? 'Please verify your credentials and try again.');
+      showToast({ type: 'error', title: 'Could not delete account', message: e?.message ?? 'Please verify your credentials and try again.' });
     } finally {
       setDeleting(false);
     }

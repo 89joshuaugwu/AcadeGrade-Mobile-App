@@ -1,20 +1,21 @@
 import 'react-native-gesture-handler';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { colors } from '@/constants/theme';
 import { onAuthStateChange, configureGoogleSignIn } from '@/lib/firebase/auth';
 import { db } from '@/lib/firebase/client';
 import { registerFcmToken, onForegroundMessage, onTokenRefresh } from '@/lib/firebase/fcm';
 import { useAuthStore } from '@/lib/store/authStore';
-import { useResolvedThemeMode, useThemeStore } from '@/lib/store/themeStore';
+import { useResolvedThemeMode, useThemeColors, useThemeStore } from '@/lib/store/themeStore';
 import { RootErrorBoundary } from '@/components/RootErrorBoundary';
 import { ToastHost } from '@/components/ui/ToastHost';
+import { ConfirmDialogHost } from '@/components/ui/ConfirmDialogHost';
+import { useToastStore } from '@/lib/store/toastStore';
 import type { UserWithId } from '@/types/user';
 
 import '../global.css';
@@ -55,14 +56,16 @@ export default function RootLayout() {
   const hydrateTheme = useThemeStore((s) => s.hydrate);
   const themeHydrated = useThemeStore((s) => s.hydrated);
   const resolvedTheme = useResolvedThemeMode();
+  const themeColors = useThemeColors();
+  const showToast = useToastStore((s) => s.show);
 
   useEffect(() => {
     hydrateTheme();
   }, [hydrateTheme]);
 
   useEffect(() => onForegroundMessage((title, body) => {
-    Alert.alert(title, body);
-  }), []);
+    showToast({ type: 'info', title, message: body, duration: 5000 });
+  }), [showToast]);
 
   useEffect(() => {
     console.log('[AcadeGrade] Root layout mounted (attempt', retryKey + 1, '), configuring Google Sign-In...');
@@ -118,7 +121,7 @@ export default function RootLayout() {
       if (unsubDoc) unsubDoc();
       if (unsubToken) unsubToken();
     };
-  }, [retryKey]);
+  }, [retryKey, setFirebaseUser, setProfile, setResolving]);
 
   const onLayoutRootView = useCallback(async () => {
     if (ready) await SplashScreen.hideAsync();
@@ -144,17 +147,17 @@ export default function RootLayout() {
     } else if (profile) {
       if (!inTabsGroup) router.replace('/(tabs)/dashboard');
     }
-  }, [ready, themeHydrated, timedOut, firebaseUser, profile, segments]);
+  }, [ready, themeHydrated, timedOut, firebaseUser, profile, router, segments]);
 
   if (!ready || !themeHydrated) return null;
 
   if (timedOut) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.void, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <Text style={{ color: '#E8EDFF', fontSize: 18, fontWeight: '700', marginBottom: 10, textAlign: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: themeColors.void, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        <Text style={{ color: themeColors.text, fontSize: 18, fontWeight: '700', marginBottom: 10, textAlign: 'center' }}>
           Taking longer than expected
         </Text>
-        <Text style={{ color: '#8892B0', fontSize: 14, textAlign: 'center', marginBottom: 20, lineHeight: 20 }}>
+        <Text style={{ color: themeColors.textMuted, fontSize: 14, textAlign: 'center', marginBottom: 20, lineHeight: 20 }}>
           Couldn't confirm your sign-in status. Check your connection, or this may be a Firebase
           configuration issue — see the console/logcat output for details.
         </Text>
@@ -164,7 +167,7 @@ export default function RootLayout() {
             setReady(false);
             setRetryKey((k) => k + 1);
           }}
-          style={{ backgroundColor: colors.primary, borderRadius: 12, height: 48, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' }}
+          style={{ backgroundColor: themeColors.primary, borderRadius: 12, height: 48, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' }}
         >
           <Text style={{ color: '#FFFFFF', fontWeight: '600' }}>Retry</Text>
         </Pressable>
@@ -174,15 +177,16 @@ export default function RootLayout() {
 
   return (
     <RootErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.void }} onLayout={onLayoutRootView}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: themeColors.void }} onLayout={onLayoutRootView}>
         <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
         <BottomSheetModalProvider>
           <QueryClientProvider client={queryClient}>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.void } }}>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: themeColors.void } }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
             </Stack>
+            <ConfirmDialogHost />
             <ToastHost />
           </QueryClientProvider>
         </BottomSheetModalProvider>

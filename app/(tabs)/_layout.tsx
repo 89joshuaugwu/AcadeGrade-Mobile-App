@@ -1,9 +1,10 @@
 import { useRef, useCallback } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { View, Text, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { LayoutDashboard, FileText, GraduationCap, MoreHorizontal, Settings, Bell, ChevronRight, Moon, Sun, Smartphone } from 'lucide-react-native';
-import { spacing } from '@/constants/theme';
+import { radius, spacing } from '@/constants/theme';
 import { useThemeColors, useThemeStore, type ThemeMode } from '@/lib/store/themeStore';
 import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 
@@ -21,6 +22,7 @@ export default function TabsLayout() {
   const themeMode = useThemeStore((state) => state.mode);
   const setThemeMode = useThemeStore((state) => state.setMode);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const sheetRef = useRef<BottomSheetModal>(null);
 
   const openMore = useCallback(() => sheetRef.current?.present(), []);
@@ -35,22 +37,23 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: colors.textMuted,
           tabBarShowLabel: true,
           tabBarStyle: {
-            position: 'absolute', left: 0, right: 0, bottom: 0, height: 64,
+            position: 'absolute', left: 0, right: 0, bottom: 0, height: 64 + insets.bottom,
+            paddingBottom: Math.max(insets.bottom, 5),
             backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.borderSubtle,
             borderTopLeftRadius: 24, borderTopRightRadius: 24,
             elevation: 16, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: -4 },
           },
-          tabBarItemStyle: { paddingTop: 8 },
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
+          tabBarItemStyle: { paddingTop: 7 },
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
         }}
       >
-        <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} /> }} />
-        <Tabs.Screen name="results" options={{ title: 'Results', tabBarIcon: ({ color, size }) => <FileText color={color} size={size} /> }} />
-        <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: () => <AcadeMindMark size={22} /> }} />
-        <Tabs.Screen name="transcript" options={{ title: 'Transcript', tabBarIcon: ({ color, size }) => <GraduationCap color={color} size={size} /> }} />
+        <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><LayoutDashboard color={color} size={size - 1} /></TabIcon> }} />
+        <Tabs.Screen name="results" options={{ title: 'Results', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><FileText color={color} size={size - 1} /></TabIcon> }} />
+        <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ focused }) => <TabIcon focused={focused} colors={colors}><View style={{ opacity: focused ? 1 : 0.48 }}><AcadeMindMark size={20} /></View></TabIcon> }} />
+        <Tabs.Screen name="transcript" options={{ title: 'Transcript', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><GraduationCap color={color} size={size - 1} /></TabIcon> }} />
         <Tabs.Screen
           name="more"
-          options={{ title: 'More', tabBarIcon: ({ color, size }) => <MoreHorizontal color={color} size={size} /> }}
+          options={{ title: 'More', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><MoreHorizontal color={color} size={size - 1} /></TabIcon> }}
           listeners={{ tabPress: (e) => { e.preventDefault(); openMore(); } }}
         />
         {/* Reachable via routing/the More sheet, hidden from the tab bar itself */}
@@ -82,6 +85,27 @@ export default function TabsLayout() {
         </BottomSheetView>
       </BottomSheetModal>
     </>
+  );
+}
+
+function TabIcon({ focused, children, colors }: { focused: boolean; children: React.ReactNode; colors: ReturnType<typeof useThemeColors> }) {
+  return (
+    <View
+      style={{
+        minWidth: 38,
+        height: 29,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: radius.pill,
+        backgroundColor: focused ? colors.primaryDim : 'transparent',
+        borderWidth: focused ? 1 : 0,
+        borderColor: focused ? `${colors.primary}45` : 'transparent',
+        transform: [{ scale: focused ? 1 : 0.94 }],
+      }}
+    >
+      {children}
+    </View>
   );
 }
 

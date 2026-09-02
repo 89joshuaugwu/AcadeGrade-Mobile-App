@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { Alert, Image, Pressable, ScrollView, Share, Switch, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Share, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -15,6 +15,7 @@ import { transcriptApi } from '@/lib/api/client';
 import { db } from '@/lib/firebase/client';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
+import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 
 interface SharedTranscript {
@@ -47,6 +48,7 @@ export default function Transcript() {
   const firebaseUser = useAuthStore((state) => state.firebaseUser);
   const profile = useAuthStore((state) => state.profile);
   const showToast = useToastStore((state) => state.show);
+  const showConfirm = useConfirmDialogStore((state) => state.show);
   const { semesters, coursesBySemester } = useAcademicData();
   const [includePhoto, setIncludePhoto] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -102,10 +104,10 @@ export default function Transcript() {
         await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: 'Share AcadeGrade Transcript' });
         showToast({ type: 'success', title: 'Transcript generated', message: 'Your PDF is ready to share or save.' });
       } else {
-        Alert.alert('Transcript generated', `Saved temporarily at ${file.uri}`);
+        showToast({ type: 'success', title: 'Transcript generated', message: `Saved temporarily at ${file.uri}`, duration: 5000 });
       }
     } catch (error: any) {
-      Alert.alert('Could not generate transcript', error?.message ?? 'Please try again.');
+      showToast({ type: 'error', title: 'Could not generate transcript', message: error?.message ?? 'Please try again.' });
     } finally {
       setGenerating(false);
     }
@@ -119,7 +121,7 @@ export default function Transcript() {
       await Clipboard.setStringAsync(result.shareUrl);
       showToast({ type: 'success', title: 'Share link copied', message: 'The public link remains active for 30 days.' });
     } catch (error: any) {
-      Alert.alert('Could not create link', error?.message ?? 'Please try again.');
+      showToast({ type: 'error', title: 'Could not create link', message: error?.message ?? 'Please try again.' });
     } finally {
       setSharing(false);
     }
@@ -132,26 +134,22 @@ export default function Transcript() {
   }
 
   function revokeLink(link: SharedTranscript) {
-    Alert.alert(
-      'Delete shared link?',
-      'Anyone with this link will immediately lose access to the shared transcript.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete link',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await db.collection('shared_transcripts').doc(link.id).delete();
-              if (shareUrl?.endsWith(link.id)) setShareUrl(null);
-              showToast({ type: 'success', title: 'Shared link deleted' });
-            } catch (error: any) {
-              Alert.alert('Could not delete link', error?.message ?? 'Please try again.');
-            }
-          },
-        },
-      ],
-    );
+    showConfirm({
+      title: 'Delete this shared link?',
+      message: 'Anyone with this link will immediately lose access to the shared transcript.',
+      confirmLabel: 'Delete link',
+      cancelLabel: 'Keep link',
+      tone: 'danger',
+      onConfirm: async () => {
+        try {
+          await db.collection('shared_transcripts').doc(link.id).delete();
+          if (shareUrl?.endsWith(link.id)) setShareUrl(null);
+          showToast({ type: 'success', title: 'Shared link deleted' });
+        } catch (error: any) {
+          showToast({ type: 'error', title: 'Could not delete link', message: error?.message ?? 'Please try again.' });
+        }
+      },
+    });
   }
 
   const photoUrl = profile?.avatarUrl || firebaseUser?.photoURL || null;
