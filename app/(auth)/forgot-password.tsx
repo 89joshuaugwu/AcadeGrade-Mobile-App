@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Mail, KeyRound, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { spacing, lightColors as c } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { SuccessCheck } from '@/components/ui/SuccessCheck';
 import { authApi } from '@/lib/api/client';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 type Step = 'email' | 'reset';
 
@@ -21,6 +22,7 @@ type Step = 'email' | 'reset';
  * features." OTP/reset API calls unchanged.
  */
 export default function ForgotPassword() {
+  const c = useThemeColors();
   const router = useRouter();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');

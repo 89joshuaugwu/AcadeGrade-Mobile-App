@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import firestore from '@react-native-firebase/firestore';
 import database from '@react-native-firebase/database';
 import { ArrowLeft, Bell, CheckCheck, TrendingUp, GraduationCap, Info } from 'lucide-react-native';
-import { lightColors as colors, spacing, radius } from '@/constants/theme';
+import { spacing, radius } from '@/constants/theme';
+import { useThemeColors } from '@/lib/store/themeStore';
+import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 
 interface NotificationItem {
@@ -13,7 +16,7 @@ interface NotificationItem {
   body: string;
   type?: 'semesterSaved' | 'degreeClass' | 'aiInsights' | 'system';
   read: boolean;
-  createdAt: number;
+  createdAt?: { toMillis?: () => number } | number;
 }
 
 const ICONS: Record<string, React.ComponentType<any>> = {
@@ -33,32 +36,42 @@ const ICONS: Record<string, React.ComponentType<any>> = {
 export default function Notifications() {
   const router = useRouter();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
+  const colors = useThemeColors();
   const [items, setItems] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
     if (!uid) return;
-    const ref = database().ref(`notifications/${uid}`).orderByChild('createdAt').limitToLast(50);
-    const onValue = ref.on('value', (snap) => {
-      const val = snap.val() ?? {};
-      const list = Object.entries(val).map(([id, v]: [string, any]) => ({ id, ...v })) as NotificationItem[];
-      setItems(list.sort((a, b) => b.createdAt - a.createdAt));
+    const ref = db.collection('notifications').doc(uid).collection('items')
+      .orderBy('createdAt', 'desc').limit(50);
+    return ref.onSnapshot((snap) => {
+      setItems(snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<NotificationItem, 'id'>) })));
     });
-    return () => ref.off('value', onValue);
   }, [uid]);
 
   async function markAsRead(id: string) {
     if (!uid) return;
-    await database().ref(`notifications/${uid}/${id}/read`).set(true);
+    const item = items.find((notification) => notification.id === id);
+    await db.collection('notifications').doc(uid).collection('items').doc(id).update({ read: true });
+    if (item && !item.read) {
+      await database().ref(`notif_counts/${uid}/unread`).set(Math.max(0, unreadCount - 1));
+    }
   }
 
   async function markAllRead() {
     if (!uid) return;
-    const updates: Record<string, boolean> = {};
-    items.forEach((n) => { if (!n.read) updates[`notifications/${uid}/${n.id}/read`] = true; });
-    if (Object.keys(updates).length > 0) await database().ref().update(updates);
+    const batch = firestore().batch();
+    items.filter((n) => !n.read).forEach((n) => {
+      batch.update(db.collection('notifications').doc(uid).collection('items').doc(n.id), { read: true });
+    });
+    if (items.some((n) => !n.read)) await batch.commit();
+    await database().ref(`notif_counts/${uid}/unread`).set(0);
   }
 
   const unreadCount = items.filter((n) => !n.read).length;
+  const formatDate = useMemo(() => (value: NotificationItem['createdAt']) => {
+    const millis = typeof value === 'number' ? value : value?.toMillis?.() ?? 0;
+    return millis ? new Date(millis).toLocaleDateString() : '';
+  }, []);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
@@ -103,7 +116,8 @@ export default function Notifications() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13 }}>{item.title}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>{item.body}</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: 2 }}>{item.body ?? (item as any).message}</Text>
+                {!!item.createdAt && <Text style={{ color: colors.textFaint, fontSize: 10, marginTop: 5 }}>{formatDate(item.createdAt)}</Text>}
               </View>
               {!item.read && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, marginTop: 4 }} />}
             </Pressable>

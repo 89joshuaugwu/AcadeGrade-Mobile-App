@@ -17,6 +17,7 @@ export interface Course {
   gradePoint: number;
   piPoint: number;
   estimated: boolean;
+  isAR?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -51,6 +52,7 @@ export interface CourseMetrics {
   gradePoint: number;
   piPoint: number;
   estimated: boolean;
+  isAR?: boolean;
 }
 
 export interface CatalogCourse {

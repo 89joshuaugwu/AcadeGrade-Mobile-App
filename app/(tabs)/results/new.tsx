@@ -5,16 +5,18 @@ import { useRouter } from 'expo-router';
 import firestore from '@react-native-firebase/firestore';
 import { ArrowLeft, GraduationCap } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { lightColors as colors, spacing, radius } from '@/constants/theme';
+import { spacing, radius } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
 import { STUDENT_LEVELS } from '@/types/user';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 /** Converted to light theme + polish this round. Firestore write shape unchanged. */
 export default function NewSemester() {
+  const colors = useThemeColors();
   const router = useRouter();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const [level, setLevel] = useState<number>(100);

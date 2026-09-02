@@ -47,6 +47,7 @@ export function computeCourseMetrics(course: CourseInput): CourseMetrics {
     gradePoint,
     piPoint,
     estimated,
+    isAR: course.isAR,
   };
 }
 
@@ -74,6 +75,7 @@ export function computeSemesterGPA(courses: CourseMetrics[]): SemesterResult {
   };
 
   for (const course of courses) {
+    if (course.isAR) continue;
     totalWeightedGP += course.gradePoint * course.units;
     totalWeightedPI += course.piPoint * course.units;
     totalUnits += course.units;

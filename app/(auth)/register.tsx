@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import firestore from '@react-native-firebase/firestore';
 import { User, Mail, Lock, Eye, EyeOff, KeyRound, Check } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { spacing, radius, lightColors as c } from '@/constants/theme';
+import { spacing, radius } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
@@ -17,6 +17,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { authApi } from '@/lib/api/client';
 import { NIGERIAN_UNIVERSITIES, ACADEMIC_DEPARTMENTS, ACADEMIC_PROGRAMMES } from '@/lib/data/academic-data';
 import type { RegisterFormData, StudentLevel } from '@/types/user';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 type AuthMethod = 'email' | 'google';
 const DEFAULT_UNIVERSITY = 'ESUT Agbani';
@@ -32,6 +33,7 @@ const DEFAULT_UNIVERSITY = 'ESUT Agbani';
  * every previous version — that part was never wrong.
  */
 export default function Register() {
+  const c = useThemeColors();
   const router = useRouter();
   const { firebaseUser } = useAuthStore();
   const [step, setStep] = useState<1 | 2 | 3>(1);

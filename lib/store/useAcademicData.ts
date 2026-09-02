@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 import { computeCumulativeCGPA } from '@/lib/cgpa/calculator';
@@ -26,11 +26,19 @@ export interface AcademicSnapshot {
 export function useAcademicData(): AcademicSnapshot {
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const [semesters, setSemesters] = useState<SemesterWithId[]>([]);
-  const [allCourses, setAllCourses] = useState<CourseWithId[]>([]);
+  const [coursesBySemester, setCoursesBySemester] = useState<Record<string, CourseWithId[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setSemesters([]);
+      setCoursesBySemester({});
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const courseUnsubs: Record<string, () => void> = {};
 
     const unsub = db
       .collection('users')
@@ -46,29 +54,40 @@ export function useAcademicData(): AcademicSnapshot {
       // sort client-side by level/semester instead, matching web's actual
       // `useSemesters.ts` (`orderBy('level', 'asc')`) — and unlike a
       // Firestore orderBy, a client-side sort never excludes a document.
-      .onSnapshot(async (snap) => {
+      .onSnapshot((snap) => {
         const sems = (snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as SemesterWithId[])
           .sort((a, b) => (a.level !== b.level ? a.level - b.level : a.semester - b.semester));
         setSemesters(sems);
 
-        const courseLists = await Promise.all(
-          sems.map((s) =>
-            db
-              .collection('users')
-              .doc(uid)
-              .collection('semesters')
-              .doc(s.id)
-              .collection('courses')
-              .get()
-              .then((cs) => cs.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as CourseWithId[])
-          )
-        );
-        setAllCourses(courseLists.flat());
+        const activeSemesterIds = new Set(sems.map((s) => s.id));
+        Object.keys(courseUnsubs).forEach((semesterId) => {
+          if (!activeSemesterIds.has(semesterId)) {
+            courseUnsubs[semesterId]();
+            delete courseUnsubs[semesterId];
+          }
+        });
+
+        sems.forEach((semester) => {
+          if (courseUnsubs[semester.id]) return;
+          courseUnsubs[semester.id] = db
+            .collection('users').doc(uid).collection('semesters').doc(semester.id).collection('courses')
+            .onSnapshot((courseSnap) => {
+              setCoursesBySemester((current) => ({
+                ...current,
+                [semester.id]: courseSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as CourseWithId[],
+              }));
+            });
+        });
         setLoading(false);
       });
 
-    return unsub;
+    return () => {
+      unsub();
+      Object.values(courseUnsubs).forEach((unsubscribe) => unsubscribe());
+    };
   }, [uid]);
+
+  const allCourses = useMemo(() => Object.values(coursesBySemester).flat(), [coursesBySemester]);
 
   const cumulative = computeCumulativeCGPA(semesters);
   const currentSemester = semesters[semesters.length - 1];

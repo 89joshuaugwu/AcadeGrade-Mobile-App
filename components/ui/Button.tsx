@@ -2,13 +2,14 @@ import React from 'react';
 import { Pressable, Text, ActivityIndicator, PressableProps } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { colors, radius } from '@/constants/theme';
+import { colors, radius, type ThemeColors } from '@/constants/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   label: string;
   variant?: Variant;
+  themeColors?: ThemeColors;
   loading?: boolean;
   fullWidth?: boolean;
   icon?: React.ReactNode;
@@ -16,16 +17,15 @@ interface ButtonProps extends Omit<PressableProps, 'style'> {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const variantStyles: Record<Variant, { bg: string; text: string; border?: string }> = {
-  primary: { bg: colors.primary, text: '#FFFFFF' },
-  secondary: { bg: colors.surface, text: colors.text, border: colors.border },
-  ghost: { bg: 'transparent', text: colors.primaryGlow },
-  danger: { bg: colors.danger, text: '#FFFFFF' },
-};
-
-export function Button({ label, variant = 'primary', loading, fullWidth, icon, disabled, onPress, ...rest }: ButtonProps) {
+export function Button({ label, variant = 'primary', loading, fullWidth, icon, disabled, onPress, themeColors, ...rest }: ButtonProps) {
   const scale = useSharedValue(1);
-  const style = variantStyles[variant];
+  const c: ThemeColors = themeColors ?? colors;
+  const style = {
+    primary: { bg: c.primary, text: '#FFFFFF' },
+    secondary: { bg: c.surface, text: c.text, border: c.border },
+    ghost: { bg: 'transparent', text: c.primaryGlow },
+    danger: { bg: c.danger, text: '#FFFFFF' },
+  }[variant];
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

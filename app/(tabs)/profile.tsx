@@ -1,25 +1,27 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Switch, Image, Alert, Pressable } from 'react-native';
+import { View, Text, ScrollView, Switch, Image, Alert, Pressable, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
-import database from '@react-native-firebase/database';
 import {
   Camera, GraduationCap, BadgeCheck, Star, CalendarDays, BellRing,
-  User as UserIcon, ShieldCheck, FileDown, LogOut, ChevronRight,
+  User as UserIcon, ShieldCheck, LogOut, ChevronRight, Palette,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { spacing, radius, lightColors as c } from '@/constants/theme';
+import { spacing, radius } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { db } from '@/lib/firebase/client';
-import { signOut } from '@/lib/firebase/auth';
-import { unregisterFcmToken } from '@/lib/firebase/fcm';
+import { signOut, reauthenticateWithGoogle, reauthenticateWithPassword } from '@/lib/firebase/auth';
+import { unregisterFcmToken, requestNotificationPermission, registerFcmToken } from '@/lib/firebase/fcm';
 import { userApi, transcriptApi } from '@/lib/api/client';
+import { useThemeStore } from '@/lib/store/themeStore';
+import { useThemeColors } from '@/lib/store/themeStore';
 
-interface NotificationItem { id: string; title: string; body: string; read: boolean; createdAt: number; }
+interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
 /**
  * REBUILT to match the inspiration reference exactly (image 9,
@@ -35,13 +37,11 @@ function useNotifications(uid?: string) {
   const [items, setItems] = useState<NotificationItem[]>([]);
   useEffect(() => {
     if (!uid) return;
-    const ref = database().ref(`notifications/${uid}`).orderByChild('createdAt').limitToLast(30);
-    const onValue = ref.on('value', (snap) => {
-      const val = snap.val() ?? {};
-      const list = Object.entries(val).map(([id, v]: [string, any]) => ({ id, ...v })) as NotificationItem[];
-      setItems(list.sort((a, b) => b.createdAt - a.createdAt));
+    const ref = db.collection('notifications').doc(uid).collection('items')
+      .orderBy('createdAt', 'desc').limit(30);
+    return ref.onSnapshot((snap) => {
+      setItems(snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<NotificationItem, 'id'>) })));
     });
-    return () => ref.off('value', onValue);
   }, [uid]);
   return items;
 }
@@ -50,14 +50,22 @@ const CLOUDINARY_CLOUD_NAME = 'dgqukbs8n';
 const CLOUDINARY_UPLOAD_PRESET = 'acadegrade_avatars';
 
 export default function Profile() {
+  const c = useThemeColors();
+  const themeMode = useThemeStore((s) => s.mode);
+  const setThemeMode = useThemeStore((s) => s.setMode);
   const profile = useAuthStore((s) => s.profile);
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const { cgpa, totalCredits, atRiskCount } = useAcademicData();
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [notifs, setNotifs] = useState(profile?.notificationPreferences ?? {});
+  const [notifs, setNotifs] = useState(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true });
+  const [themeSheetOpen, setThemeSheetOpen] = useState(false);
+  const [deleteSheetOpen, setDeleteSheetOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => { setNotifs(profile?.notificationPreferences ?? {}); }, [profile?.notificationPreferences]);
+  useEffect(() => { setNotifs(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true }); }, [profile?.notificationPreferences]);
 
   const notificationItems = useNotifications(uid);
   const unreadCount = notificationItems.filter((n) => !n.read).length;
@@ -72,6 +80,17 @@ export default function Profile() {
   async function toggleGradeMode() {
     if (!uid) return;
     await db.collection('users').doc(uid).update({ gradeMode: profile?.gradeMode === 'pi' ? 'cgpa' : 'pi' });
+  }
+
+  async function enablePushNotifications() {
+    if (!uid) return;
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      await registerFcmToken(uid);
+      Alert.alert('Notifications enabled', 'You will receive important academic updates here.');
+    } else {
+      Alert.alert('Notifications are off', 'Enable notifications for AcadeGrade in your device settings to receive updates.');
+    }
   }
 
   async function pickAvatar() {
@@ -95,9 +114,11 @@ export default function Profile() {
   async function handleExportTranscript() {
     setExporting(true);
     try {
-      const { pdfBase64 } = await transcriptApi.generate(true);
-      const fileUri = `${FileSystem.cacheDirectory}transcript.pdf`;
-      await FileSystem.writeAsStringAsync(fileUri, pdfBase64, { encoding: FileSystem.EncodingType.Base64 });
+      const pdfBuffer = await transcriptApi.generate(true);
+      const file = new File(Paths.cache, 'transcript.pdf');
+      file.create({ overwrite: true });
+      file.write(new Uint8Array(pdfBuffer));
+      const fileUri = file.uri;
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, { mimeType: 'application/pdf', dialogTitle: 'AcadeGrade Transcript' });
       }
@@ -109,19 +130,34 @@ export default function Profile() {
   }
 
   async function handleLogout() {
-    if (uid) await unregisterFcmToken(uid);
-    await signOut();
+    try {
+      if (uid) await unregisterFcmToken(uid);
+    } catch {
+      // Signing out must still work if token cleanup is unavailable offline.
+    } finally {
+      await signOut();
+    }
   }
 
   function handleDeleteAccount() {
-    Alert.alert(
-      'Delete account',
-      'This permanently wipes all your semesters, courses, and transcript data. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: async () => { await userApi.deleteAccount(); await signOut(); } },
-      ]
-    );
+    setDeletePassword('');
+    setDeleteSheetOpen(true);
+  }
+
+  async function confirmDeleteAccount() {
+    setDeleting(true);
+    try {
+      const isGoogle = firebaseUser?.providerData.some((provider) => provider.providerId === 'google.com');
+      if (isGoogle) await reauthenticateWithGoogle();
+      else await reauthenticateWithPassword(deletePassword);
+      await userApi.deleteAccount();
+      setDeleteSheetOpen(false);
+      await signOut();
+    } catch (e: any) {
+      Alert.alert('Could not delete account', e?.message ?? 'Please verify your credentials and try again.');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -177,7 +213,9 @@ export default function Profile() {
           <SectionLabel label="Academic Preferences" />
           <View style={{ gap: 8 }}>
             <ListRow icon={<Star size={16} color={c.gold} />} title="Primary Metric" subtitle={profile?.gradeMode === 'pi' ? 'True Mastery (PI)' : 'CGPA (4.0 Scale)'} onPress={toggleGradeMode} />
+            <ListRow icon={<Palette size={16} color={c.primary} />} title="Appearance" subtitle={themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark mode' : 'Light mode'} onPress={() => setThemeSheetOpen(true)} />
             <ListRow icon={<CalendarDays size={16} color={c.primary} />} title="Current Session" subtitle={profile?.currentSession ?? '—'} />
+            <ListRow icon={<BellRing size={16} color={c.primary} />} title="Push Notifications" subtitle="Manage alerts on this device" onPress={enablePushNotifications} />
             <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
               <Text style={{ color: c.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm }}>
                 <BellRing size={13} color={c.primary} /> Grade Alerts
@@ -218,15 +256,49 @@ export default function Profile() {
           </Text>
         )}
       </ScrollView>
+
+      <Modal visible={themeSheetOpen} transparent animationType="fade" onRequestClose={() => setThemeSheetOpen(false)}>
+        <Pressable onPress={() => setThemeSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,9,15,0.55)' }}>
+          <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: spacing.xxl }}>
+            <Text style={{ color: c.text, fontSize: 18, fontWeight: '800', marginBottom: 4 }}>Appearance</Text>
+            <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: spacing.lg }}>Choose how AcadeGrade looks on this device.</Text>
+            {(['light', 'dark', 'system'] as const).map((mode) => (
+              <Pressable key={mode} onPress={() => { setThemeMode(mode); setThemeSheetOpen(false); }} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: c.borderSubtle }}>
+                <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }}>{mode === 'system' ? 'System default' : mode === 'dark' ? 'Dark mode' : 'Light mode'}</Text>
+                {themeMode === mode && <BadgeCheck size={18} color={c.primary} />}
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={deleteSheetOpen} transparent animationType="fade" onRequestClose={() => setDeleteSheetOpen(false)}>
+        <Pressable onPress={() => setDeleteSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,9,15,0.55)' }}>
+          <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: spacing.xxl }}>
+            <Text style={{ color: c.danger, fontSize: 18, fontWeight: '800', marginBottom: 6 }}>Delete account?</Text>
+            <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19, marginBottom: spacing.lg }}>This permanently erases your semesters, courses, transcript data, and account. This cannot be undone.</Text>
+            {firebaseUser?.providerData.some((provider) => provider.providerId === 'google.com') ? (
+              <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: spacing.md }}>Continue with Google to verify your identity.</Text>
+            ) : (
+              <Input label="Your password" value={deletePassword} onChangeText={setDeletePassword} secureTextEntry themeColors={c} />
+            )}
+            <Button label="Delete everything" variant="danger" loading={deleting} disabled={!firebaseUser?.providerData.some((provider) => provider.providerId === 'google.com') && !deletePassword} onPress={confirmDeleteAccount} fullWidth themeColors={c} />
+            <View style={{ height: spacing.sm }} />
+            <Button label="Keep my account" variant="ghost" onPress={() => setDeleteSheetOpen(false)} fullWidth themeColors={c} />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 function SectionLabel({ label }: { label: string }) {
+  const c = useThemeColors();
   return <Text style={{ color: c.textMuted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm }}>{label}</Text>;
 }
 
 function StatCell({ value, label, danger }: { value: string; label: string; danger?: boolean }) {
+  const c = useThemeColors();
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <Text style={{ color: danger ? c.danger : c.text, fontSize: 18, fontWeight: '800' }}>{value}</Text>
@@ -236,10 +308,12 @@ function StatCell({ value, label, danger }: { value: string; label: string; dang
 }
 
 function Divider() {
+  const c = useThemeColors();
   return <View style={{ width: 1, backgroundColor: c.border, marginVertical: 4 }} />;
 }
 
 function ListRow({ icon, title, subtitle, onPress, danger }: { icon: React.ReactNode; title: string; subtitle?: string; onPress?: () => void; danger?: boolean }) {
+  const c = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -259,6 +333,7 @@ function ListRow({ icon, title, subtitle, onPress, danger }: { icon: React.React
 }
 
 function NotifRow({ label, value, onChange, last }: { label: string; value: boolean; onChange: (v: boolean) => void; last?: boolean }) {
+  const c = useThemeColors();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: last ? 0 : 1, borderBottomColor: c.borderSubtle }}>
       <Text style={{ color: c.textMuted, fontSize: 13 }}>{label}</Text>

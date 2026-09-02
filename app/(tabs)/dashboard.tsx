@@ -1,17 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Image, RefreshControl, Switch, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GraduationCap, CheckCircle2, Lightbulb, ChevronRight } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { spacing, radius, lightColors as c } from '@/constants/theme';
+import { spacing, radius, type ThemeColors } from '@/constants/theme';
 import { TrendChart } from '@/components/dashboard/TrendChart';
 import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 const { width } = Dimensions.get('window');
 
@@ -24,12 +25,14 @@ const { width } = Dimensions.get('window');
  * matching every other screen rebuilt this round.
  */
 export default function Dashboard() {
+  const c = useThemeColors();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
-  const { semesters, allCourses, cgpa, totalCredits, totalCourses, loading } = useAcademicData();
+  const { semesters, allCourses, cgpa, pi, totalCredits, totalCourses, atRiskCount } = useAcademicData();
   const [refreshing, setRefreshing] = useState(false);
   const [tourDismissed, setTourDismissed] = useState(!!profile?.mobileOnboardingCompleted);
+  useEffect(() => setTourDismissed(!!profile?.mobileOnboardingCompleted), [profile?.mobileOnboardingCompleted]);
 
   const trendData = semesters.map((s, i) => ({ x: i + 1, gpa: s.gpa, pi: s.pi }));
   const recentGrades = useMemo(
@@ -82,7 +85,7 @@ export default function Dashboard() {
             </View>
             <Text style={{ color: '#FFFFFF', fontSize: 40, fontWeight: '800', marginTop: 4 }}>{cgpa.toFixed(2)}</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: spacing.sm }}>
-              <Pill label={`Top of ${totalCourses} courses`} />
+              <Pill label={`PI ${pi.toFixed(2)} · ${totalCourses} courses`} />
               {semesterDelta !== 0 && <Pill label={`${semesterDelta > 0 ? '+' : ''}${semesterDelta.toFixed(1)} this semester`} />}
             </View>
           </LinearGradient>
@@ -90,8 +93,9 @@ export default function Dashboard() {
 
         {/* STAT PAIR */}
         <Animated.View entering={FadeInDown.delay(100).duration(350)} style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
-          <StatCard icon={<GraduationCap size={16} color={c.primary} />} label="Completed" value={totalCourses} />
-          <StatCard icon={<CheckCircle2 size={16} color={c.success} />} label="Credits" value={totalCredits} />
+          <StatCard colors={c} icon={<GraduationCap size={16} color={c.primary} />} label="Courses" value={totalCourses} />
+          <StatCard colors={c} icon={<CheckCircle2 size={16} color={c.success} />} label="Credits" value={totalCredits} />
+          <StatCard colors={c} icon={<Lightbulb size={16} color={atRiskCount ? c.danger : c.success} />} label="At risk" value={atRiskCount} danger={atRiskCount > 0} />
         </Animated.View>
 
         {/* TOUR NUDGE */}
@@ -161,14 +165,14 @@ function Pill({ label }: { label: string }) {
   );
 }
 
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+function StatCard({ icon, label, value, danger, colors }: { icon: React.ReactNode; label: string; value: number; danger?: boolean; colors: ThemeColors }) {
   return (
-    <View style={{ flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
+    <View style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         {icon}
-        <Text style={{ color: c.textMuted, fontSize: 12 }}>{label}</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 12 }}>{label}</Text>
       </View>
-      <Text style={{ color: c.text, fontSize: 22, fontWeight: '800' }}>{value}</Text>
+      <Text style={{ color: danger ? colors.danger : colors.text, fontSize: 22, fontWeight: '800' }}>{value}</Text>
     </View>
   );
 }

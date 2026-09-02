@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image } from 'react-native';
-import { colors as darkColors } from '@/constants/theme';
+import { colors as darkColors, type ThemeColors } from '@/constants/theme';
 
 /**
  * `assets/icon.png` is (confirmed by matching MD5 checksum) the exact same
@@ -16,7 +16,7 @@ interface LogoProps {
   size?: number;
   showWordmark?: boolean;
   tagline?: string;
-  themeColors?: typeof darkColors;
+  themeColors?: ThemeColors;
 }
 
 export function Logo({ size = 64, showWordmark = true, tagline, themeColors }: LogoProps) {

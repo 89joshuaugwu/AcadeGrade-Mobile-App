@@ -56,6 +56,8 @@ export const colors = {
   textInverse: '#07090F',
 } as const;
 
+export type ThemeColors = Record<keyof typeof colors, string>;
+
 /** Grade colors — matches web `GRADE_COLORS` in lib/utils/constants.ts */
 export const gradeColors = {
   A: '#22C55E',
@@ -125,7 +127,7 @@ export const APP_TAGLINE = "Know where you stand. Know where you're going.";
  * rebuilt right now (Welcome, Onboarding, Login, Register, Forgot
  * Password) via `useThemeColors()` below.
  */
-export const lightColors = {
+export const lightColors: ThemeColors = {
   void: '#F7F7FB',
   deep: '#FFFFFF',
   surface: '#FFFFFF',
@@ -153,7 +155,4 @@ export const lightColors = {
   textMuted: '#6B7085',
   textFaint: '#A1A5B8',
   textInverse: '#FFFFFF',
-} as const;
-
-export type ThemeColors = typeof colors;
-
+};

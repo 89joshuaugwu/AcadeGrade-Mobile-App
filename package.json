@@ -8,7 +8,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit --ignoreDeprecations 6.0"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.0.6",

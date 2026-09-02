@@ -4,12 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { spacing, radius, lightColors as c } from '@/constants/theme';
+import { spacing, radius } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { GoogleIcon } from '@/components/ui/GoogleIcon';
 import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 /**
  * REBUILT to match the AuthPortal reference exactly: light theme, logo
@@ -20,6 +21,7 @@ import { signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
  * instruction (email/password + Google only). Auth handlers unchanged.
  */
 export default function Login() {
+  const c = useThemeColors();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -127,6 +129,7 @@ export default function Login() {
 }
 
 export function SegmentedPill({ active, onSelect }: { active: 'login' | 'register'; onSelect: (k: 'login' | 'register') => void }) {
+  const c = useThemeColors();
   return (
     <View style={{ flexDirection: 'row', backgroundColor: c.overlay, borderRadius: radius.pill, padding: 4 }}>
       {(['login', 'register'] as const).map((key) => {

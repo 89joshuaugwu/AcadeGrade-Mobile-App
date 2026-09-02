@@ -1,27 +1,42 @@
-import { useState } from 'react';
-import { View, Text, FlatList } from 'react-native';
+import { View, Text, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Swipeable } from 'react-native-gesture-handler';
+import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import * as Haptics from 'expo-haptics';
 import { Plus, ChevronRight, Trash2 } from 'lucide-react-native';
-import { lightColors as colors, spacing, radius } from '@/constants/theme';
+import { spacing, radius } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 /** Converted to light theme this round — structure/logic unchanged. */
 export default function ResultsList() {
+  const colors = useThemeColors();
   const router = useRouter();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const { semesters, loading } = useAcademicData();
 
   async function deleteSemester(semesterId: string) {
     if (!uid) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    await db.collection('users').doc(uid).collection('semesters').doc(semesterId).delete();
+    Alert.alert('Delete semester?', 'This removes the semester and all its courses.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          const semesterRef = db.collection('users').doc(uid).collection('semesters').doc(semesterId);
+          const courses = await semesterRef.collection('courses').get();
+          const batch = db.batch();
+          courses.docs.forEach((course) => batch.delete(course.ref));
+          batch.delete(semesterRef);
+          await batch.commit();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        } catch (error: any) {
+          Alert.alert('Could not delete semester', error?.message ?? 'Please try again.');
+        }
+      } },
+    ]);
   }
 
   return (

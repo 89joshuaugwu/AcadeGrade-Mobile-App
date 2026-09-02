@@ -1,17 +1,19 @@
 import { useState } from 'react';
-import { View, Text, Switch, Image } from 'react-native';
+import { View, Text, Switch, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as FileSystem from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
-import { lightColors as colors, spacing } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/lib/store/authStore';
 import { transcriptApi } from '@/lib/api/client';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 /** Converted to light theme this round — structure/logic unchanged. */
 export default function Transcript() {
+  const colors = useThemeColors();
   const profile = useAuthStore((s) => s.profile);
   const [includePhoto, setIncludePhoto] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -21,13 +23,17 @@ export default function Transcript() {
   async function generateAndShare() {
     setGenerating(true);
     try {
-      const { pdfBase64 } = await transcriptApi.generate(includePhoto);
-      const fileUri = `${FileSystem.cacheDirectory}transcript.pdf`;
-      await FileSystem.writeAsStringAsync(fileUri, pdfBase64, { encoding: FileSystem.EncodingType.Base64 });
+      const pdfBuffer = await transcriptApi.generate(includePhoto);
+      const file = new File(Paths.cache, 'transcript.pdf');
+      file.create({ overwrite: true });
+      file.write(new Uint8Array(pdfBuffer));
+      const fileUri = file.uri;
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, { mimeType: 'application/pdf', dialogTitle: 'AcadeGrade Transcript' });
       }
+    } catch (error: any) {
+      Alert.alert('Could not generate transcript', error?.message ?? 'Please try again.');
     } finally {
       setGenerating(false);
     }
@@ -36,9 +42,11 @@ export default function Transcript() {
   async function createPublicLink() {
     setSharing(true);
     try {
-      const { url } = await transcriptApi.share();
-      setShareUrl(url);
-      await Clipboard.setStringAsync(url);
+      const { shareUrl } = await transcriptApi.share(includePhoto);
+      setShareUrl(shareUrl);
+      await Clipboard.setStringAsync(shareUrl);
+    } catch (error: any) {
+      Alert.alert('Could not create link', error?.message ?? 'Please try again.');
     } finally {
       setSharing(false);
     }

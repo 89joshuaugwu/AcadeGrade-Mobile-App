@@ -1,17 +1,18 @@
 import 'react-native-gesture-handler';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { colors } from '@/constants/theme';
 import { onAuthStateChange, configureGoogleSignIn } from '@/lib/firebase/auth';
 import { db } from '@/lib/firebase/client';
-import { registerFcmToken } from '@/lib/firebase/fcm';
+import { registerFcmToken, onForegroundMessage, onTokenRefresh } from '@/lib/firebase/fcm';
 import { useAuthStore } from '@/lib/store/authStore';
-import { useThemeStore } from '@/lib/store/themeStore';
+import { useResolvedThemeMode, useThemeStore } from '@/lib/store/themeStore';
 import { RootErrorBoundary } from '@/components/RootErrorBoundary';
 import type { UserWithId } from '@/types/user';
 
@@ -47,9 +48,20 @@ export default function RootLayout() {
   const [retryKey, setRetryKey] = useState(0);
   const router = useRouter();
   const segments = useSegments();
-  const safetyTimer = useRef<ReturnType<typeof setTimeout>>();
+  const safetyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const { firebaseUser, profile, setFirebaseUser, setProfile, setResolving } = useAuthStore();
+  const hydrateTheme = useThemeStore((s) => s.hydrate);
+  const themeHydrated = useThemeStore((s) => s.hydrated);
+  const resolvedTheme = useResolvedThemeMode();
+
+  useEffect(() => {
+    hydrateTheme();
+  }, [hydrateTheme]);
+
+  useEffect(() => onForegroundMessage((title, body) => {
+    Alert.alert(title, body);
+  }), []);
 
   useEffect(() => {
     console.log('[AcadeGrade] Root layout mounted (attempt', retryKey + 1, '), configuring Google Sign-In...');
@@ -62,6 +74,7 @@ export default function RootLayout() {
     }, READY_SAFETY_TIMEOUT_MS);
 
     let unsubDoc: (() => void) | undefined;
+    let unsubToken: (() => void) | undefined;
 
     console.log('[AcadeGrade] Subscribing to onAuthStateChange...');
     const unsubAuth = onAuthStateChange(async (user) => {
@@ -72,8 +85,10 @@ export default function RootLayout() {
       if (user) {
         unsubDoc = db.collection('users').doc(user.uid).onSnapshot(
           (snap) => {
-            if (snap.exists) {
+            if (snap.exists()) {
               setProfile({ uid: user.uid, ...(snap.data() as any) } as UserWithId);
+            } else {
+              setProfile(null);
             }
             setResolving(false);
             setReady(true);
@@ -85,8 +100,11 @@ export default function RootLayout() {
           }
         );
         registerFcmToken(user.uid).catch((err) => console.warn('[AcadeGrade] registerFcmToken failed:', err));
+        unsubToken?.();
+        unsubToken = onTokenRefresh(user.uid);
       } else {
         if (unsubDoc) unsubDoc();
+        if (unsubToken) unsubToken();
         setProfile(null);
         setResolving(false);
         setReady(true);
@@ -97,6 +115,7 @@ export default function RootLayout() {
       if (safetyTimer.current) clearTimeout(safetyTimer.current);
       unsubAuth();
       if (unsubDoc) unsubDoc();
+      if (unsubToken) unsubToken();
     };
   }, [retryKey]);
 
@@ -105,7 +124,7 @@ export default function RootLayout() {
   }, [ready]);
 
   useEffect(() => {
-    if (!ready || timedOut) return;
+    if (!ready || !themeHydrated || timedOut) return;
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
 
@@ -124,9 +143,9 @@ export default function RootLayout() {
     } else if (profile) {
       if (!inTabsGroup) router.replace('/(tabs)/dashboard');
     }
-  }, [ready, timedOut, firebaseUser, profile, segments]);
+  }, [ready, themeHydrated, timedOut, firebaseUser, profile, segments]);
 
-  if (!ready) return null;
+  if (!ready || !themeHydrated) return null;
 
   if (timedOut) {
     return (
@@ -155,6 +174,7 @@ export default function RootLayout() {
   return (
     <RootErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.void }} onLayout={onLayoutRootView}>
+        <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
         <BottomSheetModalProvider>
           <QueryClientProvider client={queryClient}>
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.void } }}>

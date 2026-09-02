@@ -19,7 +19,7 @@
  *   /api/results/extract               POST  (AI OCR)
  *   /api/transcript/generate           POST
  *   /api/transcript/share              POST
- *   /api/user/delete-account           DELETE
+ *   /api/user/delete-account           POST
  *
  * Base URL is configured via EXPO_PUBLIC_API_BASE_URL — set to
  * https://acadegrade.vercel.app in production.
@@ -38,9 +38,9 @@ class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown; auth?: boolean } = {}
+  options: { method?: string; body?: unknown; auth?: boolean; responseType?: 'json' | 'arrayBuffer' } = {}
 ): Promise<T> {
-  const { method = 'GET', body, auth = true } = options;
+  const { method = 'GET', body, auth = true, responseType = 'json' } = options;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
   if (auth) {
@@ -54,10 +54,15 @@ async function request<T>(
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = responseType === 'arrayBuffer'
+    ? await res.arrayBuffer()
+    : await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    throw new ApiError(data?.error ?? `Request failed (${res.status})`, res.status);
+    const message = typeof data === 'object' && data !== null && 'error' in data
+      ? String((data as { error?: unknown }).error)
+      : `Request failed (${res.status})`;
+    throw new ApiError(message, res.status);
   }
   return data as T;
 }
@@ -77,9 +82,10 @@ export interface ExtractedCourse {
   code: string;
   title: string;
   units: number;
-  grade?: string;
+  grade?: 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
   caScore?: number;
   examScore?: number;
+  isAR?: boolean;
 }
 
 export const resultsApi = {
@@ -98,12 +104,16 @@ export const resultsApi = {
 // ── Transcript ──────────────────────────────────────────────────────────
 export const transcriptApi = {
   generate: (includePhoto: boolean) =>
-    request<{ pdfBase64: string }>('/api/transcript/generate', {
+    request<ArrayBuffer>('/api/transcript/generate', {
       method: 'POST',
-      body: { includePhoto },
+      body: { showPhoto: includePhoto },
+      responseType: 'arrayBuffer',
     }),
-  share: () =>
-    request<{ shareId: string; url: string }>('/api/transcript/share', { method: 'POST' }),
+  share: (includePhoto = true) =>
+    request<{ shareId: string; shareUrl: string }>('/api/transcript/share', {
+      method: 'POST',
+      body: { showPhoto: includePhoto },
+    }),
 };
 
 // ── AI Insights ─────────────────────────────────────────────────────────
@@ -153,7 +163,7 @@ export const aiApi = {
 // NOTE: FCM token removal is NOT an API route (see lib/firebase/fcm.ts for
 // why) — it's a direct Firestore write, so there's no userApi entry for it.
 export const userApi = {
-  deleteAccount: () => request<{ success: boolean }>('/api/user/delete-account', { method: 'DELETE' }),
+  deleteAccount: () => request<{ success: boolean }>('/api/user/delete-account', { method: 'POST' }),
 };
 
 export { ApiError };

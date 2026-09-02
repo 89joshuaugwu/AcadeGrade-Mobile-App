@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { View, Text, FlatList, Modal, ScrollView, Pressable } from 'react-native';
+import { View, Text, FlatList, Modal, ScrollView, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { ArrowLeft, Plus, Camera, ImageIcon, FileUp, Trash2, X, Sparkles } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
-import { lightColors as colors, spacing, radius } from '@/constants/theme';
+import { spacing } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -20,6 +20,7 @@ import { computeCourseMetrics, computeSemesterGPA } from '@/lib/cgpa/calculator'
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { resultsApi } from '@/lib/api/client';
 import type { CourseWithId, CourseInput } from '@/types/course';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -32,6 +33,7 @@ import type { CourseWithId, CourseInput } from '@/types/course';
  * server-side regardless of the source picked here.
  */
 export default function SemesterDetail() {
+  const colors = useThemeColors();
   const router = useRouter();
   const { semesterId } = useLocalSearchParams<{ semesterId: string }>();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
@@ -41,6 +43,8 @@ export default function SemesterDetail() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const [reviewCourses, setReviewCourses] = useState<CourseInput[] | null>(null);
+  const [editingCourse, setEditingCourse] = useState<CourseWithId | null>(null);
+  const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
     if (!uid || !semesterId) return;
@@ -53,23 +57,48 @@ export default function SemesterDetail() {
       });
   }, [uid, semesterId]);
 
-  const metrics = courses.map((c) => computeCourseMetrics(c));
+  const metrics = courses.map((c) => computeCourseMetrics({ ...c, grade: c.grade ?? undefined }));
   const semResult = computeSemesterGPA(metrics);
 
   useEffect(() => {
-    if (!uid || !semesterId || courses.length === 0) return;
+    if (!uid || !semesterId) return;
     db.collection('users').doc(uid).collection('semesters').doc(semesterId).update({
       gpa: semResult.gpa,
       pi: semResult.pi,
       creditLoaded: semResult.creditLoaded,
       updatedAt: firestore.FieldValue.serverTimestamp(),
     });
-  }, [courses.length, semResult.gpa, semResult.pi]);
+  }, [courses.length, semResult.gpa, semResult.pi, semResult.creditLoaded, uid, semesterId]);
+
+  async function completeSemester() {
+    if (!uid || !semesterId) return;
+    if (!courses.length) {
+      Alert.alert('Add courses first', 'A semester needs at least one course before it can be completed.');
+      return;
+    }
+    setCompleting(true);
+    try {
+      await db.collection('users').doc(uid).collection('semesters').doc(semesterId).update({
+        gpa: semResult.gpa, pi: semResult.pi, creditLoaded: semResult.creditLoaded,
+        isComplete: true, updatedAt: firestore.FieldValue.serverTimestamp(),
+      });
+      router.back();
+    } catch (e: any) {
+      Alert.alert('Could not complete semester', e?.message ?? 'Please try again.');
+    } finally {
+      setCompleting(false);
+    }
+  }
 
   async function deleteCourse(courseId: string) {
     if (!uid || !semesterId) return;
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(courseId).delete();
+    Alert.alert('Delete course?', 'This removes the course from the semester.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(courseId).delete();
+      } },
+    ]);
   }
 
   async function runExtraction(base64Data: string, mimeType: string) {
@@ -86,6 +115,8 @@ export default function SemesterDetail() {
         extracted.map((c) => ({
           code: c.code, title: c.title, units: c.units,
           caScore: c.caScore ?? null, examScore: c.examScore ?? null,
+          grade: c.grade,
+          isAR: c.isAR,
           estimated: true,
         }))
       );
@@ -115,7 +146,7 @@ export default function SemesterDetail() {
   async function scanDocument() {
     const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
     if (result.canceled || !result.assets[0]) return;
-    const base64 = await FileSystem.readAsStringAsync(result.assets[0].uri, { encoding: FileSystem.EncodingType.Base64 });
+    const base64 = await new File(result.assets[0].uri).base64();
     await runExtraction(base64, result.assets[0].mimeType ?? 'application/pdf');
   }
 
@@ -164,6 +195,9 @@ export default function SemesterDetail() {
             />
           </View>
         </View>
+        <View style={{ marginTop: spacing.sm }}>
+          <Button label="Complete semester" variant="ghost" onPress={completeSemester} loading={completing} fullWidth />
+        </View>
 
         {ocrError && (
           <Animated.Text entering={FadeIn.duration(200)} style={{ color: colors.danger, fontSize: 12, marginTop: spacing.sm }}>
@@ -185,7 +219,7 @@ export default function SemesterDetail() {
         }
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
-            <Card themeColors={colors} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Card themeColors={colors} onTouchEnd={() => { setEditingCourse(item); setModalOpen(true); }} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: colors.text, fontWeight: '700' }}>{item.code} — {item.units} units</Text>
                 <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>{item.title}</Text>
@@ -196,7 +230,7 @@ export default function SemesterDetail() {
                   backgroundColor: `${getGradeColor(item.grade ?? 'F')}18`, marginRight: spacing.sm,
                 }}
               >
-                <Text style={{ color: getGradeColor(item.grade ?? 'F'), fontWeight: '800' }}>{item.grade}</Text>
+                <Text style={{ color: getGradeColor(item.grade ?? 'F'), fontWeight: '800' }}>{item.isAR ? 'AR' : item.grade}</Text>
               </View>
               <Pressable onPress={() => deleteCourse(item.id)} hitSlop={8}>
                 <Trash2 color={colors.textFaint} size={18} />
@@ -231,16 +265,20 @@ export default function SemesterDetail() {
 
       <AddCourseModal
         visible={modalOpen}
-        onClose={() => setModalOpen(false)}
+        initialCourse={editingCourse}
+        onClose={() => { setModalOpen(false); setEditingCourse(null); }}
         onSave={async (input) => {
           if (!uid || !semesterId) return;
           const computed = computeCourseMetrics(input);
-          await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').add({
+          const courseCollection = db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses');
+          const courseRef = input.id ? courseCollection.doc(input.id) : courseCollection.doc();
+          await courseRef.set({
             ...computed,
             createdAt: firestore.FieldValue.serverTimestamp(),
             updatedAt: firestore.FieldValue.serverTimestamp(),
-          });
+          }, { merge: true });
           setModalOpen(false);
+          setEditingCourse(null);
         }}
       />
 
@@ -273,6 +311,7 @@ export default function SemesterDetail() {
 }
 
 function ScanOption({ icon, label, subtitle, onPress }: { icon: React.ReactNode; label: string; subtitle: string; onPress: () => void }) {
+  const colors = useThemeColors();
   return (
     <Pressable
       onPress={onPress}
@@ -289,22 +328,34 @@ function ScanOption({ icon, label, subtitle, onPress }: { icon: React.ReactNode;
   );
 }
 
-function AddCourseModal({ visible, onClose, onSave }: { visible: boolean; onClose: () => void; onSave: (input: CourseInput) => void }) {
+function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: boolean; onClose: () => void; onSave: (input: CourseInput) => void; initialCourse: CourseWithId | null }) {
+  const colors = useThemeColors();
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [units, setUnits] = useState('3');
   const [caScore, setCaScore] = useState('');
   const [examScore, setExamScore] = useState('');
+  const [grade, setGrade] = useState<CourseInput['grade']>();
+
+  useEffect(() => {
+    if (!visible) return;
+    setCode(initialCourse?.code ?? '');
+    setTitle(initialCourse?.title ?? '');
+    setUnits(String(initialCourse?.units ?? 3));
+    setCaScore(initialCourse?.caScore == null ? '' : String(initialCourse.caScore));
+    setExamScore(initialCourse?.examScore == null ? '' : String(initialCourse.examScore));
+    setGrade(initialCourse?.grade ?? undefined);
+  }, [visible, initialCourse]);
 
   const ca = caScore ? Number(caScore) : null;
   const exam = examScore ? Number(examScore) : null;
-  const preview = computeCourseMetrics({ code, title, units: Number(units) || 0, caScore: ca, examScore: exam });
+  const preview = computeCourseMetrics({ code, title, units: Number(units) || 0, caScore: ca, examScore: exam, grade });
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.void, padding: spacing.lg }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-          <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>Add Course</Text>
+          <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>{initialCourse ? 'Edit Course' : 'Add Course'}</Text>
           <Pressable onPress={onClose} hitSlop={8}><X size={22} color={colors.textMuted} /></Pressable>
         </View>
         <Input label="Course code" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="CSC 499" themeColors={colors} />
@@ -312,6 +363,15 @@ function AddCourseModal({ visible, onClose, onSave }: { visible: boolean; onClos
         <Input label="Units" value={units} onChangeText={setUnits} keyboardType="number-pad" themeColors={colors} />
         <Input label="CA score (max 30)" value={caScore} onChangeText={setCaScore} keyboardType="number-pad" themeColors={colors} />
         <Input label="Exam score (max 70)" value={examScore} onChangeText={setExamScore} keyboardType="number-pad" themeColors={colors} />
+
+        <Text style={{ color: colors.textMuted, fontSize: 13, marginBottom: 6 }}>Letter grade (use when scores are unavailable)</Text>
+        <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.lg }}>
+          {(['A', 'B', 'C', 'D', 'E', 'F'] as const).map((letter) => (
+            <Pressable key={letter} onPress={() => setGrade(letter)} style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8, backgroundColor: grade === letter ? getGradeColor(letter) : colors.overlay, borderWidth: 1, borderColor: grade === letter ? getGradeColor(letter) : colors.border }}>
+              <Text style={{ color: grade === letter ? '#fff' : colors.textMuted, fontWeight: '800' }}>{letter}</Text>
+            </Pressable>
+          ))}
+        </View>
 
         {(ca !== null && exam !== null) && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }}>
@@ -322,7 +382,7 @@ function AddCourseModal({ visible, onClose, onSave }: { visible: boolean; onClos
           </View>
         )}
 
-        <Button label="Save Course" onPress={() => onSave({ code, title, units: Number(units) || 0, caScore: ca, examScore: exam })} fullWidth />
+        <Button label={initialCourse ? 'Update Course' : 'Save Course'} onPress={() => onSave({ id: initialCourse?.id, code, title, units: Number(units) || 0, caScore: ca, examScore: exam, grade })} fullWidth />
       </SafeAreaView>
     </Modal>
   );

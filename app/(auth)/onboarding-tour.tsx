@@ -2,12 +2,14 @@ import { useState, useRef } from 'react';
 import { View, Text, Pressable, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, interpolate, Extrapolation, FadeIn } from 'react-native-reanimated';
+import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, interpolate, Extrapolation, FadeIn, type SharedValue } from 'react-native-reanimated';
 import { spacing, radius } from '@/constants/theme';
-import { lightColors as c } from '@/constants/theme';
+import { useThemeColors } from '@/lib/store/themeStore';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { HeroArt } from '@/components/ui/HeroArt';
+import { useAuthStore } from '@/lib/store/authStore';
+import { db } from '@/lib/firebase/client';
 
 const { width } = Dimensions.get('window');
 
@@ -30,7 +32,10 @@ const SLIDES = [
  * "Continue" on the last slide leads to Register, not straight to sign-in.
  */
 export default function OnboardingTour() {
+  const c = useThemeColors();
   const router = useRouter();
+  const firebaseUser = useAuthStore((s) => s.firebaseUser);
+  const profile = useAuthStore((s) => s.profile);
   const [index, setIndex] = useState(0);
   const scrollX = useSharedValue(0);
   const scrollRef = useRef<Animated.ScrollView>(null);
@@ -38,9 +43,18 @@ export default function OnboardingTour() {
 
   const scrollHandler = useAnimatedScrollHandler({ onScroll: (e) => { scrollX.value = e.contentOffset.x; } });
 
+  async function finishTour() {
+    if (firebaseUser && profile) {
+      await db.collection('users').doc(firebaseUser.uid).set({ mobileOnboardingCompleted: true }, { merge: true });
+      router.replace('/(tabs)/dashboard');
+      return;
+    }
+    router.replace('/(auth)/register');
+  }
+
   function goNext() {
     if (isLast) {
-      router.push('/(auth)/register');
+      finishTour();
     } else {
       scrollRef.current?.scrollTo({ x: (index + 1) * width, animated: true });
     }
@@ -51,13 +65,14 @@ export default function OnboardingTour() {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.xl, paddingTop: spacing.sm }}>
           <Logo size={28} showWordmark themeColors={c} />
-          <Pressable onPress={() => router.push('/(auth)/register')}>
+          <Pressable onPress={finishTour}>
             <Text style={{ color: c.primary, fontWeight: '600', fontSize: 14 }}>Skip</Text>
           </Pressable>
         </View>
 
         <Animated.ScrollView
           horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+          ref={scrollRef}
           onScroll={scrollHandler} scrollEventThrottle={16}
           onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
           style={{ flex: 1 }}
@@ -85,7 +100,8 @@ export default function OnboardingTour() {
   );
 }
 
-function Slide({ slide, index, scrollX }: { slide: (typeof SLIDES)[number]; index: number; scrollX: Animated.SharedValue<number> }) {
+function Slide({ slide, index, scrollX }: { slide: (typeof SLIDES)[number]; index: number; scrollX: SharedValue<number> }) {
+  const c = useThemeColors();
   const style = useAnimatedStyle(() => {
     const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
     return {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { TextInput, View, Text, TextInputProps } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { colors as darkColors, radius, spacing } from '@/constants/theme';
+import { colors as darkColors, radius, spacing, type ThemeColors } from '@/constants/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -11,7 +11,7 @@ interface InputProps extends TextInputProps {
   /** Element rendered inside the field, right-aligned (e.g. the password show/hide toggle). */
   rightElement?: React.ReactNode;
   /** Override token set — pass `lightColors` for screens using the light theme. Defaults to the existing dark palette so every current usage is unaffected. */
-  themeColors?: typeof darkColors;
+  themeColors?: ThemeColors;
 }
 
 /**

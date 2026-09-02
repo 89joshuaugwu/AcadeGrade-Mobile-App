@@ -24,10 +24,10 @@ export async function registerFcmToken(uid: string): Promise<void> {
   if (!granted) return;
 
   const token = await fcm.getToken();
-  await db
-    .collection('users')
-    .doc(uid)
-    .update({ fcmTokens: firestore.FieldValue.arrayUnion(token) });
+  await db.collection('users').doc(uid).set(
+    { fcmTokens: firestore.FieldValue.arrayUnion(token) },
+    { merge: true }
+  );
 }
 
 /**
@@ -43,15 +43,26 @@ export async function registerFcmToken(uid: string): Promise<void> {
  */
 export async function unregisterFcmToken(uid: string): Promise<void> {
   const token = await fcm.getToken();
-  await db
-    .collection('users')
-    .doc(uid)
-    .update({ fcmTokens: firestore.FieldValue.arrayRemove(token) });
+  await db.collection('users').doc(uid).set(
+    { fcmTokens: firestore.FieldValue.arrayRemove(token) },
+    { merge: true }
+  );
+  await fcm.deleteToken();
 }
 
 /** Foreground message listener — call once from root layout. */
 export function onForegroundMessage(callback: (title: string, body: string) => void) {
   return fcm.onMessage(async (remoteMessage) => {
     callback(remoteMessage.notification?.title ?? 'AcadeGrade', remoteMessage.notification?.body ?? '');
+  });
+}
+
+/** Keeps a rotated FCM token registered while the session is active. */
+export function onTokenRefresh(uid: string) {
+  return fcm.onTokenRefresh(async (token) => {
+    await db.collection('users').doc(uid).set(
+      { fcmTokens: firestore.FieldValue.arrayUnion(token) },
+      { merge: true }
+    );
   });
 }

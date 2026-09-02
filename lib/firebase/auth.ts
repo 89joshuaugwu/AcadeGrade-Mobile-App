@@ -53,9 +53,30 @@ export async function signUpWithEmail(email: string, password: string) {
 
 export async function signInWithGoogle() {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  const { idToken } = await GoogleSignin.signIn();
+  const response = await GoogleSignin.signIn();
+  if (response.type !== 'success' || !response.data.idToken) {
+    throw new Error('Google sign-in was cancelled or did not return an ID token.');
+  }
+  const { idToken } = response.data;
   const googleCredential = auth.GoogleAuthProvider.credential(idToken);
   return firebaseAuth.signInWithCredential(googleCredential);
+}
+
+export async function reauthenticateWithGoogle() {
+  const user = firebaseAuth.currentUser;
+  if (!user) throw new Error('No authenticated user');
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  const response = await GoogleSignin.signIn();
+  if (response.type !== 'success' || !response.data.idToken) {
+    throw new Error('Google re-authentication was cancelled.');
+  }
+  return user.reauthenticateWithCredential(auth.GoogleAuthProvider.credential(response.data.idToken));
+}
+
+export async function reauthenticateWithPassword(password: string) {
+  const user = firebaseAuth.currentUser;
+  if (!user?.email) throw new Error('No email sign-in is linked to this account');
+  return user.reauthenticateWithCredential(auth.EmailAuthProvider.credential(user.email, password));
 }
 
 export async function signOut() {

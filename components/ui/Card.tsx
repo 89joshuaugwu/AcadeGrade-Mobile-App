@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, ViewProps } from 'react-native';
-import { colors as darkColors, radius, spacing } from '@/constants/theme';
+import { colors as darkColors, radius, spacing, type ThemeColors } from '@/constants/theme';
 
 interface CardProps extends ViewProps {
-  themeColors?: typeof darkColors;
+  themeColors?: ThemeColors;
 }
 
 /** EXTENDED with optional themeColors override (backward compatible — every existing call keeps working unchanged). */

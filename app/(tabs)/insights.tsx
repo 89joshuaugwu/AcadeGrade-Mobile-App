@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { TrendingUp, TrendingDown, AlertTriangle, RefreshCw, Target } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
-import { lightColors as colors, spacing, radius } from '@/constants/theme';
+import firestore from '@react-native-firebase/firestore';
+import { spacing, radius } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,6 +16,7 @@ import { useAcademicData } from '@/lib/store/useAcademicData';
 import { aiApi, type ForecastResponse, type InsightsResponse, type WhatIfResponse } from '@/lib/api/client';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import type { CourseWithId } from '@/types/course';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 type TabType = 'forecast' | 'whatif' | 'risk' | 'analysis';
 const TABS: { id: TabType; label: string }[] = [
@@ -36,8 +38,9 @@ const TABS: { id: TabType; label: string }[] = [
  * forecast or written analysis generated on web shows up here too.
  */
 export default function Insights() {
+  const colors = useThemeColors();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
-  const { semesters, allCourses, cgpa, pi, totalCredits, loading } = useAcademicData();
+  const { semesters, allCourses, cgpa, totalCredits, loading } = useAcademicData();
   const [tab, setTab] = useState<TabType>('forecast');
 
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
@@ -71,7 +74,7 @@ export default function Insights() {
     db.collection('analytics').doc(uid).get().then((snap) => {
       const data = snap.data();
       if (data?.forecast) setForecast(data.forecast);
-      if (data?.lastInsight) setInsights(data.lastInsight);
+      if (data?.lastInsight) setInsights(data.lastInsight.data ?? data.lastInsight);
     });
   }, [uid]);
 
@@ -91,13 +94,16 @@ export default function Insights() {
   }, [piHistory, cgpaHistory, uid]);
 
   const loadInsights = useCallback(async (force = false) => {
+    if (semesters.length === 0) return;
     setInsightsLoading(true);
     setRateLimited(false);
     try {
       // Web sends the raw semesters array as `semesterData` — same contract here.
       const data = await aiApi.insights(force, semesters);
       setInsights(data);
-      if (uid) await db.collection('analytics').doc(uid).set({ lastInsight: data }, { merge: true });
+      if (uid) await db.collection('analytics').doc(uid).set({
+        lastInsight: { data, timestamp: firestore.FieldValue.serverTimestamp() },
+      }, { merge: true });
     } catch (e: any) {
       if (e.status === 429) setRateLimited(true);
     } finally {
@@ -154,6 +160,7 @@ export default function Insights() {
 }
 
 function ForecastTab({ forecast, loading, onRefresh, hasHistory }: { forecast: ForecastResponse | null; loading: boolean; onRefresh: () => void; hasHistory: boolean }) {
+  const colors = useThemeColors();
   if (!hasHistory) {
     return <EmptyState message="Complete at least one semester to unlock your forecast." />;
   }
@@ -180,7 +187,7 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory }: { forecast: F
           </View>
           <View>
             <Text style={{ color: colors.textFaint, fontSize: 11 }}>Risk Score</Text>
-            <Text style={{ color: forecast.riskScore > 60 ? colors.danger : colors.success, fontSize: 18, fontWeight: '800' }}>{forecast.riskScore}</Text>
+            <Text style={{ color: forecast.riskScore >= 4 ? colors.danger : colors.success, fontSize: 18, fontWeight: '800' }}>{forecast.riskScore}</Text>
           </View>
         </View>
       </Card>
@@ -193,14 +200,24 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory }: { forecast: F
 }
 
 function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCredits: number }) {
+  const colors = useThemeColors();
   const [targetCGPA, setTargetCGPA] = useState(Math.min(5, currentCGPA + 0.3));
   const [remainingSemesters, setRemainingSemesters] = useState('2');
   const [creditLoad, setCreditLoad] = useState('18');
   const [result, setResult] = useState<WhatIfResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   async function calculate() {
+    if (loading || cooldown > 0) return;
     setLoading(true);
+    setCooldown(30);
     try {
       const data = await aiApi.whatIf(currentCGPA, totalCredits, targetCGPA, Number(remainingSemesters) || 1, Number(creditLoad) || 15);
       setResult(data);
@@ -225,7 +242,7 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
             <Input label="Credit load / semester" keyboardType="number-pad" value={creditLoad} onChangeText={setCreditLoad} themeColors={colors} />
           </View>
         </View>
-        <Button label="Calculate" onPress={calculate} loading={loading} fullWidth />
+        <Button label={cooldown > 0 ? `Try again in ${cooldown}s` : 'Calculate'} onPress={calculate} loading={loading} disabled={cooldown > 0} fullWidth />
       </Card>
 
       {result && (
@@ -242,6 +259,7 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
 }
 
 function RiskTab({ courses }: { courses: CourseWithId[] }) {
+  const colors = useThemeColors();
   if (courses.length === 0) return <EmptyState message="No courses currently flagged as at-risk. Great job!" positive />;
   return (
     <Animated.View entering={FadeInDown.duration(300)} style={{ gap: spacing.sm }}>
@@ -260,6 +278,7 @@ function RiskTab({ courses }: { courses: CourseWithId[] }) {
 }
 
 function AnalysisTab({ insights, loading, onRegenerate }: { insights: InsightsResponse | null; loading: boolean; onRegenerate: () => void }) {
+  const colors = useThemeColors();
   if (loading && !insights) return <LoadingState label="AcadeMind is writing your analysis…" />;
   if (!insights) return <EmptyState message="No written analysis yet." onRetry={onRegenerate} />;
 
@@ -284,6 +303,7 @@ function AnalysisTab({ insights, loading, onRegenerate }: { insights: InsightsRe
 }
 
 function InsightSection({ title, items, color }: { title: string; items: string[]; color: string }) {
+  const colors = useThemeColors();
   if (!items?.length) return null;
   return (
     <Card themeColors={colors}>
@@ -299,6 +319,7 @@ function InsightSection({ title, items, color }: { title: string; items: string[
 }
 
 function EmptyState({ message, onRetry, positive }: { message: string; onRetry?: () => void; positive?: boolean }) {
+  const colors = useThemeColors();
   return (
     <Animated.View entering={FadeIn.duration(250)} style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
       <Text style={{ fontSize: 32, marginBottom: spacing.sm }}>{positive ? '🎉' : '✨'}</Text>
@@ -309,6 +330,7 @@ function EmptyState({ message, onRetry, positive }: { message: string; onRetry?:
 }
 
 function LoadingState({ label }: { label: string }) {
+  const colors = useThemeColors();
   return (
     <View style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
       <ActivityIndicator color={colors.primary} />

@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import Svg, { Polyline, Line, Text as SvgText } from 'react-native-svg';
-import { colors as darkColors } from '@/constants/theme';
+import { colors as darkColors, type ThemeColors } from '@/constants/theme';
 
 interface TrendChartProps {
   data: { x: number; gpa: number; pi: number }[];
   width: number;
   height?: number;
-  themeColors?: typeof darkColors;
+  themeColors?: ThemeColors;
 }
 
 /**
