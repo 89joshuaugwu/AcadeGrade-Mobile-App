@@ -108,6 +108,11 @@ export default function SemesterDetail() {
       Alert.alert('Add courses first', 'A semester needs at least one course before it can be completed.');
       return;
     }
+    const pendingCount = courses.filter((course) => course.pending).length;
+    if (pendingCount > 0) {
+      Alert.alert('Scores still needed', `Add a score or grade to ${pendingCount} imported course${pendingCount === 1 ? '' : 's'} before completing this semester.`);
+      return;
+    }
     setCompleting(true);
     try {
       await db.collection('users').doc(uid).collection('semesters').doc(semesterId).update({
@@ -323,7 +328,7 @@ export default function SemesterDetail() {
 
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
               <CodeAction icon={<Download size={16} color={colors.primary} />} label="Import code" onPress={() => setCodeModal('import')} colors={colors} />
-              <CodeAction icon={<Share2 size={16} color={colors.primary} />} label={codeWorking ? 'Creating…' : 'Share courses'} onPress={generateShareCode} colors={colors} />
+              <CodeAction icon={<Share2 size={16} color={colors.primary} />} label={codeWorking ? 'Creating…' : 'Export code'} onPress={generateShareCode} colors={colors} />
             </View>
 
             <View style={{ marginTop: spacing.sm }}>

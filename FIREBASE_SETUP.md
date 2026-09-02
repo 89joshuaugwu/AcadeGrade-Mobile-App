@@ -48,6 +48,8 @@ After adding the SHA certificates, download a fresh `google-services.json` from 
 
 The two files currently in this repository still contain only `client_type: 3`. Until a refreshed file contains `client_type: 1` plus a `certificate_hash`, native Android Google Sign-In can fail with status code `10` / `DEVELOPER_ERROR` even though the SHA values appear in Firebase Console.
 
+The current Android JSON also references an old iOS OAuth entry with the misspelled bundle ID `com.acadegade.appname`. The actual `GoogleService-Info.plist` and Expo configuration correctly use `com.acadegrade.appname`. A fresh Android download should remove that stale mismatch; do not change the correct Expo bundle identifier to match the typo.
+
 Replace both copies in this project:
 
 ```text
