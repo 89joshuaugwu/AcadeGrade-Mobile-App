@@ -67,7 +67,11 @@ export async function signInWithGoogle() {
       cancelled.code = statusCodes.SIGN_IN_CANCELLED;
       throw cancelled;
     }
-    const googleCredential = GoogleAuthProvider.credential(response.data.idToken);
+    // RN Firebase v25's native bridge serializes an omitted access token as an
+    // empty string, which Android rejects with "access token cannot be empty".
+    // Fetch and pass both tokens explicitly so neither bridge slot is empty.
+    const tokens = await GoogleSignin.getTokens();
+    const googleCredential = GoogleAuthProvider.credential(response.data.idToken, tokens.accessToken);
     return signInWithCredential(getAuth(), googleCredential);
   } catch (error: any) {
     console.error('[AcadeGrade] Google sign-in failed:', { code: error?.code, message: error?.message });
@@ -83,7 +87,8 @@ export async function reauthenticateWithGoogle() {
   if (response.type !== 'success' || !response.data.idToken) {
     throw new Error('Google re-authentication was cancelled.');
   }
-  return reauthenticateWithCredential(user, GoogleAuthProvider.credential(response.data.idToken));
+  const tokens = await GoogleSignin.getTokens();
+  return reauthenticateWithCredential(user, GoogleAuthProvider.credential(response.data.idToken, tokens.accessToken));
 }
 
 export async function reauthenticateWithPassword(password: string) {
