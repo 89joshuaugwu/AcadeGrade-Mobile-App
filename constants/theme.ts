@@ -45,6 +45,9 @@ export const colors = {
   success: '#22C55E',
   successDim: '#052E16',
   danger: '#EF4444',
+  // Action variant is deliberately deeper than the semantic/icon red so
+  // white destructive-button labels pass WCAG AA in both themes.
+  dangerAction: '#B91C1C',
   dangerDim: '#450A0A',
   warning: '#F59E0B',
   info: '#38BDF8',
@@ -147,6 +150,7 @@ export const lightColors: ThemeColors = {
   success: '#16A34A',
   successDim: '#EAFBF1',
   danger: '#DC2626',
+  dangerAction: '#B91C1C',
   dangerDim: '#FDECEC',
   warning: '#D97706',
   info: '#0284C7',

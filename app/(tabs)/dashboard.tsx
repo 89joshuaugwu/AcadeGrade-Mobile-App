@@ -75,7 +75,7 @@ export default function Dashboard() {
         {/* GRADIENT HERO CARD */}
         <Animated.View entering={FadeInDown.delay(60).duration(350)}>
           <LinearGradient
-            colors={['#F59E0B', '#8B5CF6', '#6366F1']}
+            colors={['#B45309', '#7C3AED', '#4F46E5']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={{ borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}
           >

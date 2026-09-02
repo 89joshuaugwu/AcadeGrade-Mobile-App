@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { BottomSheetModal, BottomSheetView, BottomSheetTextInput, BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { ChevronDown, Check, Search } from 'lucide-react-native';
-import { lightColors as colors, radius, spacing } from '@/constants/theme';
+import { radius, spacing } from '@/constants/theme';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 interface PickerFieldProps {
   label: string;
@@ -21,6 +22,7 @@ interface PickerFieldProps {
  * datalist equivalent).
  */
 export function PickerField({ label, value, onChange, options, placeholder, error }: PickerFieldProps) {
+  const colors = useThemeColors();
   const sheetRef = useRef<BottomSheetModal>(null);
   const [query, setQuery] = useState('');
 

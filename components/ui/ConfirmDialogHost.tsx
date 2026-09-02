@@ -23,6 +23,12 @@ export function ConfirmDialogHost() {
 
   const tone = dialog.tone ?? 'danger';
   const accent = toneColor(tone, colors);
+  const actionBackground = tone === 'primary'
+    ? colors.primaryHover
+    : tone === 'danger'
+      ? colors.dangerAction
+      : accent;
+  const actionForeground = tone === 'warning' ? '#1C1005' : '#FFFFFF';
 
   async function confirm() {
     if (!dialog || loading) return;
@@ -132,7 +138,7 @@ export function ConfirmDialogHost() {
               }}
             >
               <ShieldAlert size={15} color={colors.danger} />
-              <Text style={{ color: colors.danger, fontSize: 12, lineHeight: 17, fontWeight: '700', flex: 1 }}>
+              <Text style={{ color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '700', flex: 1 }}>
                 This action cannot be undone.
               </Text>
             </View>
@@ -150,7 +156,7 @@ export function ConfirmDialogHost() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: radius.md,
-                backgroundColor: colors.surface,
+                backgroundColor: colors.overlay,
                 borderWidth: 1,
                 borderColor: colors.border,
                 opacity: loading ? 0.55 : pressed ? 0.72 : 1,
@@ -173,15 +179,15 @@ export function ConfirmDialogHost() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: radius.md,
-                backgroundColor: accent,
+                backgroundColor: actionBackground,
                 opacity: loading ? 0.72 : pressed ? 0.84 : 1,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               })}
             >
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={actionForeground} />
               ) : (
-                <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '900' }}>
+                <Text style={{ color: actionForeground, fontSize: 14, fontWeight: '900' }}>
                   {dialog.confirmLabel ?? 'Confirm'}
                 </Text>
               )}

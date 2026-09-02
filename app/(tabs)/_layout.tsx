@@ -111,7 +111,7 @@ function TabIcon({ focused, children, colors }: { focused: boolean; children: Re
 
 function ThemeChip({ mode, active, label, icon, onPress, colors }: { mode: ThemeMode; active: boolean; label: string; icon: React.ReactNode; onPress: (mode: ThemeMode) => void; colors: ReturnType<typeof useThemeColors> }) {
   return (
-    <Pressable onPress={() => onPress(mode)} style={{ flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: active ? colors.primary : colors.overlay, borderWidth: 1, borderColor: active ? colors.primaryGlow : colors.border }}>
+    <Pressable onPress={() => onPress(mode)} style={{ flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 11, backgroundColor: active ? colors.primaryHover : colors.overlay, borderWidth: 1, borderColor: active ? colors.primaryGlow : colors.border }}>
       {icon}
       <Text style={{ color: active ? '#FFFFFF' : colors.textMuted, fontSize: 9, fontWeight: '800' }}>{label}</Text>
     </Pressable>

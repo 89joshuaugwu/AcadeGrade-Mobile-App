@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Switch, Image, Pressable, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
 import {
   Camera, GraduationCap, BadgeCheck, Star, CalendarDays, BellRing,
-  User as UserIcon, ShieldCheck, LogOut, ChevronRight, Palette,
+  User as UserIcon, ShieldCheck, ShieldAlert, LogOut, ChevronRight, Palette,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { spacing, radius } from '@/constants/theme';
@@ -52,6 +52,7 @@ const CLOUDINARY_UPLOAD_PRESET = 'acadegrade_avatars';
 
 export default function Profile() {
   const c = useThemeColors();
+  const insets = useSafeAreaInsets();
   const themeMode = useThemeStore((s) => s.mode);
   const setThemeMode = useThemeStore((s) => s.setMode);
   const profile = useAuthStore((s) => s.profile);
@@ -65,6 +66,7 @@ export default function Profile() {
   const [themeSheetOpen, setThemeSheetOpen] = useState(false);
   const [deleteSheetOpen, setDeleteSheetOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { setNotifs(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true }); }, [profile?.notificationPreferences]);
@@ -143,10 +145,12 @@ export default function Profile() {
 
   function handleDeleteAccount() {
     setDeletePassword('');
+    setDeleteError(null);
     setDeleteSheetOpen(true);
   }
 
   async function confirmDeleteAccount() {
+    setDeleteError(null);
     setDeleting(true);
     try {
       const isGoogle = firebaseUser?.providerData.some((provider) => provider.providerId === 'google.com');
@@ -156,7 +160,7 @@ export default function Profile() {
       setDeleteSheetOpen(false);
       await signOut();
     } catch (e: any) {
-      showToast({ type: 'error', title: 'Could not delete account', message: e?.message ?? 'Please verify your credentials and try again.' });
+      setDeleteError(e?.message ?? 'Please verify your credentials and try again.');
     } finally {
       setDeleting(false);
     }
@@ -274,20 +278,50 @@ export default function Profile() {
         </Pressable>
       </Modal>
 
-      <Modal visible={deleteSheetOpen} transparent animationType="fade" onRequestClose={() => setDeleteSheetOpen(false)}>
-        <Pressable onPress={() => setDeleteSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,9,15,0.55)' }}>
-          <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: spacing.xxl }}>
-            <Text style={{ color: c.danger, fontSize: 18, fontWeight: '800', marginBottom: 6 }}>Delete account?</Text>
-            <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19, marginBottom: spacing.lg }}>This permanently erases your semesters, courses, transcript data, and account. This cannot be undone.</Text>
+      <Modal visible={deleteSheetOpen} transparent statusBarTranslucent animationType="fade" onRequestClose={() => { if (!deleting) setDeleteSheetOpen(false); }}>
+        <Pressable disabled={deleting} onPress={() => setDeleteSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.76)' }}>
+          <Animated.View entering={FadeInDown.springify().damping(21)}>
+          <Pressable
+            accessibilityRole="alert"
+            onPress={(event) => event.stopPropagation()}
+            style={{
+              backgroundColor: c.deep,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderWidth: 1,
+              borderColor: c.border,
+              padding: spacing.lg,
+              paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md),
+            }}
+          >
+            <View style={{ width: 38, height: 4, borderRadius: radius.pill, backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.lg }}>
+              <View style={{ width: 48, height: 48, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerDim, borderWidth: 1, borderColor: `${c.danger}42` }}>
+                <ShieldAlert size={23} color={c.danger} />
+              </View>
+              <View style={{ flex: 1, paddingTop: 2 }}>
+                <Text style={{ color: c.text, fontSize: 19, lineHeight: 25, fontWeight: '900' }}>Delete your account?</Text>
+                <Text style={{ color: c.textMuted, fontSize: 13, lineHeight: 19, marginTop: 5 }}>Your semesters, courses, transcript data, and account will be permanently erased.</Text>
+              </View>
+            </View>
             {firebaseUser?.providerData.some((provider) => provider.providerId === 'google.com') ? (
-              <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: spacing.md }}>Continue with Google to verify your identity.</Text>
+              <View style={{ backgroundColor: c.overlay, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
+                <Text style={{ color: c.text, fontSize: 13, fontWeight: '700' }}>Identity check required</Text>
+                <Text style={{ color: c.textMuted, fontSize: 12, lineHeight: 18, marginTop: 3 }}>Google will ask you to sign in again before deletion.</Text>
+              </View>
             ) : (
               <Input label="Your password" value={deletePassword} onChangeText={setDeletePassword} secureTextEntry themeColors={c} />
             )}
+            {!!deleteError && (
+              <View accessibilityRole="alert" style={{ backgroundColor: c.dangerDim, borderRadius: radius.md, borderWidth: 1, borderColor: `${c.danger}55`, padding: spacing.md, marginBottom: spacing.md }}>
+                <Text style={{ color: c.text, fontSize: 12, lineHeight: 18, fontWeight: '700' }}>{deleteError}</Text>
+              </View>
+            )}
             <Button label="Delete everything" variant="danger" loading={deleting} disabled={!firebaseUser?.providerData.some((provider) => provider.providerId === 'google.com') && !deletePassword} onPress={confirmDeleteAccount} fullWidth themeColors={c} />
             <View style={{ height: spacing.sm }} />
-            <Button label="Keep my account" variant="ghost" onPress={() => setDeleteSheetOpen(false)} fullWidth themeColors={c} />
+            <Button label="Keep my account" variant="secondary" disabled={deleting} onPress={() => setDeleteSheetOpen(false)} fullWidth themeColors={c} />
           </Pressable>
+          </Animated.View>
         </Pressable>
       </Modal>
     </SafeAreaView>

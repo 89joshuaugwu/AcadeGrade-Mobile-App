@@ -21,10 +21,13 @@ export function Button({ label, variant = 'primary', loading, fullWidth, icon, d
   const scale = useSharedValue(1);
   const c: ThemeColors = themeColors ?? colors;
   const style = {
-    primary: { bg: c.primary, text: '#FFFFFF' },
+    // Filled controls use the darker interaction token so 14px white labels
+    // remain AA-readable in both themes. The brighter primary stays available
+    // for icons, borders, and decorative accents.
+    primary: { bg: c.primaryHover, text: '#FFFFFF' },
     secondary: { bg: c.surface, text: c.text, border: c.border },
     ghost: { bg: 'transparent', text: c.primaryGlow },
-    danger: { bg: c.danger, text: '#FFFFFF' },
+    danger: { bg: c.dangerAction, text: '#FFFFFF' },
   }[variant];
 
   const animatedStyle = useAnimatedStyle(() => ({
