@@ -91,3 +91,9 @@ npx expo start --dev-client
 ```
 
 Test email registration, email login, password reset, Google login, logout/login, Firestore reads, transcript API authentication, foreground notifications, background notifications, and notification-open behavior on a physical device.
+
+## 7. AI rate-limit counter cleanup
+
+AI abuse protection stores server-only counters in the `_api_rate_limits` Firestore collection. Deploy the updated web `firestore.rules`. The limiter works immediately without extra environment variables.
+
+Optionally enable a Firestore TTL policy for collection group `_api_rate_limits` using the timestamp field `expiresAt`; this automatically removes expired counters later.
