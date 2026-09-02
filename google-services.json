@@ -15,6 +15,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "380362341267-hpmsl1g62s0aqblkj7adlio603744gj7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.acadegrade.app",
+            "certificate_hash": "55def320a01e3251c3934e217116aa8b8233709a"
+          }
+        },
+        {
           "client_id": "380362341267-bi3akdpp264t7ki0fbrkmkooh3qf2dtu.apps.googleusercontent.com",
           "client_type": 3
         }
