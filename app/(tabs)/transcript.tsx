@@ -14,6 +14,7 @@ import { useAcademicData } from '@/lib/store/useAcademicData';
 import { transcriptApi } from '@/lib/api/client';
 import { db } from '@/lib/firebase/client';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 
 interface SharedTranscript {
@@ -45,6 +46,7 @@ export default function Transcript() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid);
   const firebaseUser = useAuthStore((state) => state.firebaseUser);
   const profile = useAuthStore((state) => state.profile);
+  const showToast = useToastStore((state) => state.show);
   const { semesters, coursesBySemester } = useAcademicData();
   const [includePhoto, setIncludePhoto] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -98,6 +100,7 @@ export default function Transcript() {
       file.write(new Uint8Array(pdfBuffer));
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', dialogTitle: 'Share AcadeGrade Transcript' });
+        showToast({ type: 'success', title: 'Transcript generated', message: 'Your PDF is ready to share or save.' });
       } else {
         Alert.alert('Transcript generated', `Saved temporarily at ${file.uri}`);
       }
@@ -114,10 +117,7 @@ export default function Transcript() {
       const result = await transcriptApi.share(includePhoto);
       setShareUrl(result.shareUrl);
       await Clipboard.setStringAsync(result.shareUrl);
-      Alert.alert('Share link created', 'The link is valid for 30 days and has been copied to your clipboard.', [
-        { text: 'Done' },
-        { text: 'Share', onPress: () => Share.share({ title: 'AcadeGrade Transcript', message: result.shareUrl }) },
-      ]);
+      showToast({ type: 'success', title: 'Share link copied', message: 'The public link remains active for 30 days.' });
     } catch (error: any) {
       Alert.alert('Could not create link', error?.message ?? 'Please try again.');
     } finally {
@@ -128,6 +128,7 @@ export default function Transcript() {
   async function copyLink(url: string) {
     await Clipboard.setStringAsync(url);
     setShareUrl(url);
+    showToast({ type: 'success', title: 'Link copied' });
   }
 
   function revokeLink(link: SharedTranscript) {
@@ -143,6 +144,7 @@ export default function Transcript() {
             try {
               await db.collection('shared_transcripts').doc(link.id).delete();
               if (shareUrl?.endsWith(link.id)) setShareUrl(null);
+              showToast({ type: 'success', title: 'Shared link deleted' });
             } catch (error: any) {
               Alert.alert('Could not delete link', error?.message ?? 'Please try again.');
             }

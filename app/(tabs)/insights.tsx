@@ -17,6 +17,7 @@ import { useAcademicData } from '@/lib/store/useAcademicData';
 import { aiApi, type ForecastResponse, type InsightsResponse, type WhatIfResponse } from '@/lib/api/client';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 import type { CourseWithId } from '@/types/course';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -50,6 +51,7 @@ export default function Insights() {
   const colors = useThemeColors();
   const uid = useAuthStore((state) => state.firebaseUser?.uid);
   const profile = useAuthStore((state) => state.profile);
+  const showToast = useToastStore((state) => state.show);
   const { semesters, coursesBySemester, loading } = useAcademicData();
   const [tab, setTab] = useState<TabType>('forecast');
   const [projectionMode, setProjectionMode] = useState<ProjectionMode>(profile?.gradeMode ?? 'pi');
@@ -123,20 +125,23 @@ export default function Insights() {
     ? 0
     : Math.max(0, (12 * 60 * 60 * 1000) - (clock - lastInsightAt));
 
-  const loadForecast = useCallback(async () => {
+  const loadForecast = useCallback(async (force = false) => {
     if (!piHistory.length || retryCooldown > 0) return;
     setForecastLoading(true);
     setRequestError(null);
     try {
-      const data = await aiApi.forecast(piHistory, cgpaHistory);
+      const data = await aiApi.forecast(piHistory, cgpaHistory, force);
       setForecast(data);
+      if (force) showToast({ type: 'success', title: 'Forecast updated', message: 'Your latest completed results are now reflected.' });
     } catch (error: any) {
-      if (error?.status === 429) setRetryCooldown(59);
+      const retryAfter = error?.retryAfterSeconds ?? 59;
+      if (error?.status === 429) setRetryCooldown(retryAfter);
       setRequestError(error?.message ?? 'Could not refresh your forecast.');
+      showToast({ type: error?.status === 429 ? 'warning' : 'error', title: error?.status === 429 ? 'Forecast limit reached' : 'Forecast unavailable', message: error?.message });
     } finally {
       setForecastLoading(false);
     }
-  }, [cgpaHistory, piHistory, retryCooldown]);
+  }, [cgpaHistory, piHistory, retryCooldown, showToast]);
 
   const loadInsights = useCallback(async (force = false) => {
     if (!semesters.length || retryCooldown > 0) return;
@@ -151,13 +156,16 @@ export default function Insights() {
       setInsights(data);
       setInsightsStale(false);
       if (uid) await db.collection('analytics').doc(uid).set({ insightsStale: false }, { merge: true });
+      if (force) showToast({ type: 'success', title: 'Written analysis updated' });
     } catch (error: any) {
-      if (error?.status === 429) setRetryCooldown(59);
+      const retryAfter = error?.retryAfterSeconds ?? 59;
+      if (error?.status === 429) setRetryCooldown(retryAfter);
       setRequestError(error?.message ?? 'Could not generate written analysis.');
+      showToast({ type: error?.status === 429 ? 'warning' : 'error', title: error?.status === 429 ? 'Analysis limit reached' : 'Analysis unavailable', message: error?.message });
     } finally {
       setInsightsLoading(false);
     }
-  }, [retryCooldown, semesters, uid, writtenCooldownMs]);
+  }, [retryCooldown, semesters, showToast, uid, writtenCooldownMs]);
 
   useEffect(() => {
     if (loading) return;
@@ -219,7 +227,7 @@ export default function Insights() {
           <ForecastTab
             forecast={forecast}
             loading={forecastLoading}
-            onRefresh={loadForecast}
+            onRefresh={() => loadForecast(true)}
             hasHistory={piHistory.length > 0}
             piHistory={piHistory}
             cgpaHistory={cgpaHistory}
@@ -322,6 +330,7 @@ function ModeToggle({ mode, onChange }: { mode: ProjectionMode; onChange: (mode:
 
 function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCredits: number }) {
   const colors = useThemeColors();
+  const showToast = useToastStore((state) => state.show);
   const [targetCGPA, setTargetCGPA] = useState(Math.min(5, currentCGPA + 0.2));
   const [remainingSemesters, setRemainingSemesters] = useState('2');
   const [creditLoad, setCreditLoad] = useState('18');
@@ -348,9 +357,12 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
       const data = await aiApi.whatIf(currentCGPA, totalCredits, targetCGPA, Number(remainingSemesters) || 1, Number(creditLoad) || 18);
       setResult(data);
       setCooldown(30);
+      showToast({ type: 'success', title: 'Scenario analyzed', message: 'AI guidance is ready below.' });
     } catch (requestError: any) {
-      if (requestError?.status === 429) setCooldown(30);
+      const retryAfter = requestError?.retryAfterSeconds ?? 30;
+      if (requestError?.status === 429) setCooldown(retryAfter);
       setError(requestError?.message ?? 'Could not analyze this scenario.');
+      showToast({ type: requestError?.status === 429 ? 'warning' : 'error', title: requestError?.status === 429 ? 'Guidance limit reached' : 'Scenario unavailable', message: requestError?.message });
     } finally {
       setLoading(false);
     }

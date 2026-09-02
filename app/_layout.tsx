@@ -14,6 +14,7 @@ import { registerFcmToken, onForegroundMessage, onTokenRefresh } from '@/lib/fir
 import { useAuthStore } from '@/lib/store/authStore';
 import { useResolvedThemeMode, useThemeStore } from '@/lib/store/themeStore';
 import { RootErrorBoundary } from '@/components/RootErrorBoundary';
+import { ToastHost } from '@/components/ui/ToastHost';
 import type { UserWithId } from '@/types/user';
 
 import '../global.css';
@@ -182,6 +183,7 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
             </Stack>
+            <ToastHost />
           </QueryClientProvider>
         </BottomSheetModalProvider>
       </GestureHandlerRootView>

@@ -22,6 +22,7 @@ import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { resultsApi } from '@/lib/api/client';
 import type { CourseWithId, CourseInput } from '@/types/course';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -38,6 +39,7 @@ export default function SemesterDetail() {
   const router = useRouter();
   const { semesterId, action } = useLocalSearchParams<{ semesterId: string; action?: string }>();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
+  const showToast = useToastStore((state) => state.show);
   const [courses, setCourses] = useState<CourseWithId[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -95,6 +97,7 @@ export default function SemesterDetail() {
         isComplete: true, updatedAt: firestore.FieldValue.serverTimestamp(),
       });
       markInsightsStale();
+      showToast({ type: 'success', title: 'Semester completed', message: 'Dashboard and transcript totals have been updated.' });
       router.back();
     } catch (e: any) {
       Alert.alert('Could not complete semester', e?.message ?? 'Please try again.');
@@ -111,6 +114,7 @@ export default function SemesterDetail() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(courseId).delete();
         markInsightsStale();
+        showToast({ type: 'success', title: 'Course deleted' });
       } },
     ]);
   }
@@ -133,8 +137,10 @@ export default function SemesterDetail() {
           estimated: true,
         }))
       );
+      showToast({ type: 'success', title: `${extracted.length} courses detected`, message: 'Review the extracted values before saving.' });
     } catch (e: any) {
       setOcrError(e.message ?? 'Extraction failed. Please try again.');
+      showToast({ type: e?.status === 429 ? 'warning' : 'error', title: e?.status === 429 ? 'Scan limit reached' : 'Scan failed', message: e?.message });
     } finally {
       setOcrLoading(false);
     }
@@ -170,6 +176,7 @@ export default function SemesterDetail() {
       setReviewCourses(null);
       setScannerOpen(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      showToast({ type: 'success', title: 'Scanned courses saved', message: `${reviewCourses.length} courses were added to this semester.` });
     } catch (error: any) {
       Alert.alert('Could not save scanned courses', error?.message ?? 'Please try again.');
     } finally {
@@ -318,6 +325,7 @@ export default function SemesterDetail() {
             updatedAt: firestore.FieldValue.serverTimestamp(),
           }, { merge: true });
           markInsightsStale();
+          showToast({ type: 'success', title: input.id ? 'Course updated' : 'Course added', message: `${input.code} has been saved.` });
           setModalOpen(false);
           setEditingCourse(null);
         }}

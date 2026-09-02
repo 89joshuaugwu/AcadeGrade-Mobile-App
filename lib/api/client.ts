@@ -30,9 +30,11 @@ const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://acadegrade.ver
 
 class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  retryAfterSeconds?: number;
+  constructor(message: string, status: number, retryAfterSeconds?: number) {
     super(message);
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -62,7 +64,12 @@ async function request<T>(
     const message = typeof data === 'object' && data !== null && 'error' in data
       ? String((data as { error?: unknown }).error)
       : `Request failed (${res.status})`;
-    throw new ApiError(message, res.status);
+    const retryAfterHeader = Number(res.headers.get('Retry-After'));
+    const retryAfterBody = typeof data === 'object' && data !== null && 'retryAfterSeconds' in data
+      ? Number((data as { retryAfterSeconds?: unknown }).retryAfterSeconds)
+      : 0;
+    const retryAfterSeconds = retryAfterHeader || retryAfterBody || undefined;
+    throw new ApiError(message, res.status, retryAfterSeconds);
   }
   return data as T;
 }
@@ -151,8 +158,8 @@ export const aiApi = {
   insights: (forceRegenerate: boolean, semesterData: unknown) =>
     request<InsightsResponse>('/api/ai/insights', { method: 'POST', body: { forceRegenerate, semesterData } }),
   /** Web requires BOTH `piHistory` and `cgpaHistory` — sending only one silently produces a degraded/wrong forecast. */
-  forecast: (piHistory: number[], cgpaHistory: number[]) =>
-    request<ForecastResponse>('/api/ai/forecast', { method: 'POST', body: { piHistory, cgpaHistory } }),
+  forecast: (piHistory: number[], cgpaHistory: number[], forceRegenerate = false) =>
+    request<ForecastResponse>('/api/ai/forecast', { method: 'POST', body: { piHistory, cgpaHistory, forceRegenerate } }),
   /** Web requires `currentCGPA` and `totalCredits` too — omitting them returns a 400. */
   whatIf: (currentCGPA: number, totalCredits: number, targetCGPA: number, remainingSemesters: number, creditLoad: number) =>
     request<WhatIfResponse>('/api/ai/whatif', {

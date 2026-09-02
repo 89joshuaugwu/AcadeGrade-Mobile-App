@@ -11,6 +11,7 @@ import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
 import { db } from '@/lib/firebase/client';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import type { CourseWithId } from '@/types/course';
 import type { SemesterWithId } from '@/types/semester';
@@ -20,6 +21,7 @@ export default function ResultsList() {
   const router = useRouter();
   const uid = useAuthStore((state) => state.firebaseUser?.uid);
   const profile = useAuthStore((state) => state.profile);
+  const showToast = useToastStore((state) => state.show);
   const { semesters, coursesBySemester, cgpa, totalCredits, loading } = useAcademicData();
   const orderedSemesters = useMemo(() => [...semesters].reverse(), [semesters]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -72,6 +74,7 @@ export default function ResultsList() {
               await batch.commit();
               markInsightsStale();
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              showToast({ type: 'success', title: 'Semester deleted', message: `${semester.label} and its courses were removed.` });
             } catch (error: any) {
               Alert.alert('Could not delete semester', error?.message ?? 'Please try again.');
             }
@@ -93,6 +96,7 @@ export default function ResultsList() {
             await db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc(course.id).delete();
             markInsightsStale();
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            showToast({ type: 'success', title: 'Course deleted', message: `${course.code} was removed.` });
           } catch (error: any) {
             Alert.alert('Could not delete course', error?.message ?? 'Please try again.');
           }
