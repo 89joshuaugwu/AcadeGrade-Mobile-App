@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ViewProps, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { colors, glass, radius } from '@/constants/theme';
+import { glass, radius } from '@/constants/theme';
 
 interface GlassCardProps extends ViewProps {
   /** Subtle indigo wash for surfaces representing "AI is active here" — used

@@ -16,7 +16,7 @@ export function ShimmerBlock({ width = '100%', height = 16, style }: { width?: n
 
   useEffect(() => {
     translateX.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.linear }), -1, false);
-  }, []);
+  }, [translateX]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value * 200 }],

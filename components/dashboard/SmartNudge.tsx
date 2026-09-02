@@ -1,10 +1,9 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { Text, Pressable } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { colors, spacing } from '@/constants/theme';
-import { resolveDegreeClass } from '@/lib/cgpa/degreeClass';
 
 interface SmartNudgeProps {
   cgpa: number;
@@ -44,7 +43,6 @@ function computeNudge(cgpa: number, atRiskCount: number, hasGeneratedInsight: bo
       route: '/(tabs)/insights',
     };
   }
-  const degreeClass = resolveDegreeClass(cgpa);
   const nextThreshold = getNextThreshold(cgpa);
   if (nextThreshold) {
     return {

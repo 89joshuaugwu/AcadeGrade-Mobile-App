@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, withDelay, Easing } from 'react-native-reanimated';
 import * as LucideIcons from 'lucide-react-native';
-import { colors } from '@/constants/theme';
+import { useThemeColors } from '@/lib/store/themeStore';
 import { AcadeMindMark } from './AcadeMindMark';
 
 interface HeroArtProps {
@@ -24,7 +24,9 @@ interface HeroArtProps {
  * float/breathe animated icon. No new dependency, matches the prompt's own
  * "SVG built from the existing icon set" option.
  */
-export function HeroArt({ icon, size = 96, color = colors.primaryGlow, useAcademindLogo }: HeroArtProps) {
+export function HeroArt({ icon, size = 96, color, useAcademindLogo }: HeroArtProps) {
+  const colors = useThemeColors();
+  const resolvedColor = color ?? colors.primaryGlow;
   const Icon = LucideIcons[icon] as React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
   const float = useSharedValue(0);
   const pulse = useSharedValue(0);
@@ -32,7 +34,7 @@ export function HeroArt({ icon, size = 96, color = colors.primaryGlow, useAcadem
   useEffect(() => {
     float.value = withRepeat(withSequence(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.sin) })), -1, false);
     pulse.value = withRepeat(withSequence(withTiming(1, { duration: 2200, easing: Easing.out(Easing.ease) }), withDelay(200, withTiming(0, { duration: 0 }))), -1, false);
-  }, []);
+  }, [float, pulse]);
 
   const floatStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: -6 + float.value * 12 }],
@@ -48,7 +50,7 @@ export function HeroArt({ icon, size = 96, color = colors.primaryGlow, useAcadem
     <View style={{ width: ringSize, height: ringSize, alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View style={[ringStyle, { position: 'absolute' }]}>
         <Svg width={ringSize} height={ringSize}>
-          <Circle cx={ringSize / 2} cy={ringSize / 2} r={size / 2} stroke={color} strokeWidth={2} fill="none" />
+          <Circle cx={ringSize / 2} cy={ringSize / 2} r={size / 2} stroke={resolvedColor} strokeWidth={2} fill="none" />
         </Svg>
       </Animated.View>
       <View
@@ -56,9 +58,9 @@ export function HeroArt({ icon, size = 96, color = colors.primaryGlow, useAcadem
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: 'rgba(99,102,241,0.12)',
+          backgroundColor: colors.primaryDim,
           borderWidth: 1,
-          borderColor: 'rgba(232,237,255,0.14)',
+          borderColor: colors.border,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -67,7 +69,7 @@ export function HeroArt({ icon, size = 96, color = colors.primaryGlow, useAcadem
           {useAcademindLogo ? (
             <AcadeMindMark size={size * 0.5} />
           ) : Icon ? (
-            <Icon size={size * 0.42} color={color} strokeWidth={1.75} />
+            <Icon size={size * 0.42} color={resolvedColor} strokeWidth={1.75} />
           ) : null}
         </Animated.View>
       </View>

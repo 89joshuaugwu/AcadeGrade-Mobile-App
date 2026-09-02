@@ -15,7 +15,7 @@ export function AIPulseBadge({ label = 'AcadeMind' }: { label?: string }) {
   useEffect(() => {
     scale.value = withRepeat(withSequence(withTiming(1.6, { duration: 900 }), withTiming(1, { duration: 0 })), -1, false);
     opacity.value = withRepeat(withSequence(withTiming(0, { duration: 900 }), withTiming(1, { duration: 0 })), -1, false);
-  }, []);
+  }, [opacity, scale]);
 
   const ringStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

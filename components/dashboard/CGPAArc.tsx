@@ -34,7 +34,7 @@ export function CGPAArc({ value, label }: CGPAArcProps) {
   useEffect(() => {
     progress.value = withSpring(value / 5, { damping: 11, stiffness: 55, mass: 0.9 });
     dotPulse.value = withRepeat(withSequence(withTiming(1.3, { duration: 1000 }), withTiming(1, { duration: 1000 })), -1, true);
-  }, [value]);
+  }, [dotPulse, progress, value]);
 
   const animatedProps = useAnimatedProps(() => ({
     strokeDashoffset: ARC_LENGTH * (1 - progress.value),

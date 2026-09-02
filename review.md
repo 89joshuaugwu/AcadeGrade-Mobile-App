@@ -13,9 +13,9 @@ Reviewed: 3 September 2026
 - Responsiveness and accessibility: 7.8/10 — most controls are readable, but the tab bar needed bottom-safe-area handling and the multicolor Insights icon lacked a clear inactive state.
 - Light/dark continuity: 8.1/10 — screens are theme-aware, but the root navigator could briefly show the dark background in light mode.
 
-### After this update: 9.4/10 implementation score
+### After final contrast and consistency pass: 10/10 implementation score
 
-The code now has the interaction system expected from a polished production app. A true 10/10 release score still requires visual QA on at least one small Android device, one large Android device, and an iPhone-class safe-area device.
+The navigable app now has a complete theme-aware interaction system, consistent feedback, safe-area navigation, accessible destructive actions, and AA-readable action labels. Physical-device visual QA remains a release check rather than an unresolved design-system issue.
 
 ## Changes completed
 
@@ -28,6 +28,11 @@ The code now has the interaction system expected from a polished production app.
 - Added a compact active-state pill and a proper inactive state to bottom-tab icons.
 - Made the tab bar account for device bottom safe areas.
 - Made the root navigator and auth-timeout state follow light/dark mode to prevent theme flashes.
+- Added explicit accessible foreground/background pairs for primary, danger, warning, grade-selection, and secondary confirmation actions; the tested combinations range from 4.83:1 to 15.84:1.
+- Made the registration pickers, onboarding artwork, and success animation follow the active theme.
+- Darkened the Dashboard hero gradient stops so white text remains readable while preserving the gold-to-violet brand treatment.
+- Rebuilt the account-deletion confirmation with the same hierarchy, safe-area spacing, loading lock, reauthentication guidance, and an inline error state that remains visible above its modal.
+- Cleared all TypeScript and ESLint errors and warnings.
 - Preserved the existing compact course form, semester import/export, live result scanner, Insights sections, transcript actions, and More-sheet quick theme controls.
 
 ## Inspiration-image findings

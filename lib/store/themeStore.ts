@@ -18,15 +18,9 @@ interface ThemeState {
  * persists the choice via AsyncStorage — previously in-memory only,
  * resetting to light on every cold launch.
  *
- * IMPORTANT SCOPE NOTE, not hidden: most existing screens import
- * `lightColors as colors` STATICALLY at the top of the file, not through
- * `useThemeColors()` below — meaning toggling this setting only visibly
- * changes screens that read colors through the hook. `profile.tsx` (where
- * the toggle itself lives) has been switched over to prove the mechanism
- * end-to-end. Retrofitting every other screen from a static import to the
- * dynamic hook is a larger follow-up, not done in this pass — the toggle
- * is real and persists, but its visual reach is currently limited to
- * screens using the hook.
+ * All navigable application screens resolve their palette through
+ * `useThemeColors()`. The welcome screen intentionally remains dark to
+ * match the native splash and avoid a cold-start color flash.
  */
 export const useThemeStore = create<ThemeState>((set) => ({
   mode: 'light',

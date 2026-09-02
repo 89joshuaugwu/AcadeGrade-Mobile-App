@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import Animated, { useSharedValue, useAnimatedProps, withTiming, withDelay, Easing } from 'react-native-reanimated';
-import { colors } from '@/constants/theme';
+import { useThemeColors } from '@/lib/store/themeStore';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -15,13 +15,14 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
  * in the app, so the motion language is consistent.
  */
 export function SuccessCheck({ size = 88 }: { size?: number }) {
+  const colors = useThemeColors();
   const ringProgress = useSharedValue(0);
   const checkProgress = useSharedValue(0);
 
   useEffect(() => {
     ringProgress.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) });
     checkProgress.value = withDelay(400, withTiming(1, { duration: 350, easing: Easing.out(Easing.cubic) }));
-  }, []);
+  }, [checkProgress, ringProgress]);
 
   const r = size / 2 - 4;
   const circumference = 2 * Math.PI * r;

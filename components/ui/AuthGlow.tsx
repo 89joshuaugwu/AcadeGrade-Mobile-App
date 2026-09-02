@@ -19,7 +19,7 @@ export function AuthGlow() {
   useEffect(() => {
     t1.value = withRepeat(withSequence(withTiming(1, { duration: 7000, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 7000, easing: Easing.inOut(Easing.sin) })), -1, false);
     t2.value = withRepeat(withSequence(withTiming(1, { duration: 9000, easing: Easing.inOut(Easing.sin) }), withTiming(0, { duration: 9000, easing: Easing.inOut(Easing.sin) })), -1, false);
-  }, []);
+  }, [t1, t2]);
 
   const blob1 = useAnimatedStyle(() => ({
     transform: [{ translateX: t1.value * 40 - 20 }, { translateY: t1.value * -30 }],
