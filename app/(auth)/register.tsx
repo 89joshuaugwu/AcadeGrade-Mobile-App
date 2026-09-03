@@ -234,10 +234,32 @@ export default function Register() {
                     <Pressable
                       onPress={handleGetCode}
                       disabled={sendingCode || cooldown > 0}
-                      style={{ paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: cooldown > 0 ? c.overlay : c.primaryDim, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.primary, opacity: sendingCode || cooldown > 0 ? 0.6 : 1 }}
+                      style={{
+                        height: 48, // Matches standard input heights
+                        minWidth: 85, // Keeps the button width consistent
+                        alignSelf: 'flex-start', // Pins to the top so it aligns with the input, not the label/errors
+                        paddingHorizontal: 12,
+                        borderRadius: radius.md,
+                        backgroundColor: cooldown > 0 ? c.overlay : c.primaryDim,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: c.primary,
+                        opacity: sendingCode || cooldown > 0 ? 0.6 : 1,
+                      }}
                     >
-                      <Text style={{ color: c.primary, fontWeight: '700', fontSize: 12 }}>
-                        {cooldown > 0 ? `${cooldown}s` : codeSent ? 'Resend' : 'Get Code'}
+                      <Text 
+                        numberOfLines={1} 
+                        adjustsFontSizeToFit={true} 
+                        minimumFontScale={0.7} // Allows the font to shrink up to 70% of its original size
+                        style={{ 
+                          color: c.primary, 
+                          fontWeight: '700', 
+                          fontSize: 13, 
+                          textAlign: 'center' 
+                        }}
+                      >
+                        {cooldown > 0 ? `Wait ${cooldown}s` : codeSent ? 'Resend' : 'Get Code'}
                       </Text>
                     </Pressable>
                   </View>
