@@ -19,7 +19,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { db } from '@/lib/firebase/client';
 import { signOut, reauthenticateWithGoogle, reauthenticateWithPassword } from '@/lib/firebase/auth';
-import { unregisterFcmToken, requestNotificationPermission, registerFcmToken } from '@/lib/firebase/fcm';
+import { unregisterFcmToken, registerFcmToken } from '@/lib/firebase/fcm';
 import { userApi, transcriptApi } from '@/lib/api/client';
 import { useThemeStore } from '@/lib/store/themeStore';
 import { useThemeColors } from '@/lib/store/themeStore';
@@ -107,12 +107,16 @@ export default function Profile() {
 
   async function enablePushNotifications() {
     if (!uid) return;
-    const granted = await requestNotificationPermission();
-    if (granted) {
+    try {
       await registerFcmToken(uid);
       showToast({ type: 'success', title: 'Notifications enabled', message: 'You will receive important academic updates here.' });
-    } else {
-      showToast({ type: 'warning', title: 'Notifications are off', message: 'Enable notifications for AcadeGrade in your device settings to receive updates.' });
+    } catch (error: any) {
+      const denied = String(error?.message ?? '').toLowerCase().includes('permission');
+      showToast({
+        type: denied ? 'warning' : 'error',
+        title: denied ? 'Notifications are off' : 'Could not enable notifications',
+        message: denied ? 'Allow notifications for AcadeGrade in your device settings, then try again.' : (error?.message ?? 'Please try again.'),
+      });
     }
   }
 

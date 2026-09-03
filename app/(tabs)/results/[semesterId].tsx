@@ -253,7 +253,10 @@ export default function SemesterDetail() {
       reviewCourses.forEach((c) => {
         const computed = computeCourseMetrics(c);
         const ref = db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses').doc();
-        batch.set(ref, { ...computed, createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp() });
+        // OCR is conservative: do not invent a grade when either component
+        // was unreadable. The course stays marked “Add score” for completion.
+        const pending = !c.isAR && (c.caScore == null || c.examScore == null);
+        batch.set(ref, { ...computed, pending, createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp() });
       });
       await batch.commit();
       markInsightsStale();
@@ -633,7 +636,8 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [units, setUnits] = useState(3);
-  const [score, setScore] = useState('');
+  const [caScore, setCaScore] = useState('');
+  const [examScore, setExamScore] = useState('');
   const [grade, setGrade] = useState<CourseInput['grade']>();
   const [inputMode, setInputMode] = useState<'score' | 'grade'>('score');
   const [saving, setSaving] = useState(false);
@@ -645,15 +649,17 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
     setCode(initialCourse?.code ?? '');
     setTitle(initialCourse?.title ?? '');
     setUnits(initialCourse?.units ?? 3);
-    setScore(initialCourse?.totalScore == null ? '' : String(initialCourse.totalScore));
+    setCaScore(initialCourse?.caScore == null ? '' : String(initialCourse.caScore));
+    setExamScore(initialCourse?.examScore == null ? '' : String(initialCourse.examScore));
     setGrade(initialCourse?.grade ?? undefined);
     setInputMode(initialCourse?.totalScore == null && initialCourse?.grade ? 'grade' : 'score');
     setError(null);
   }, [visible, initialCourse]);
 
-  const numericScore = score === '' ? null : Number(score);
-  const ca = inputMode === 'score' && numericScore != null ? Number((numericScore * 0.3).toFixed(1)) : null;
-  const exam = inputMode === 'score' && numericScore != null ? Number((numericScore * 0.7).toFixed(1)) : null;
+  const numericCa = caScore === '' ? null : Number(caScore);
+  const numericExam = examScore === '' ? null : Number(examScore);
+  const ca = inputMode === 'score' ? numericCa : null;
+  const exam = inputMode === 'score' ? numericExam : null;
   const preview = computeCourseMetrics({ code, title, units, caScore: ca, examScore: exam, grade: inputMode === 'grade' ? grade : undefined });
 
   async function submit() {
@@ -661,8 +667,8 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
       setError('Enter both the course code and course title.');
       return;
     }
-    if (inputMode === 'score' && (numericScore == null || Number.isNaN(numericScore) || numericScore < 0 || numericScore > 100)) {
-      setError('Enter a total score between 0 and 100.');
+    if (inputMode === 'score' && (numericCa == null || numericExam == null || Number.isNaN(numericCa) || Number.isNaN(numericExam) || numericCa < 0 || numericCa > 30 || numericExam < 0 || numericExam > 70)) {
+      setError('Enter both CA (0–30) and exam (0–70) scores.');
       return;
     }
     if (inputMode === 'grade' && !grade) {
@@ -758,14 +764,24 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
                   style={{ flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 8, backgroundColor: inputMode === mode ? colors.overlay : 'transparent' }}
                 >
                   <Text style={{ color: inputMode === mode ? colors.text : colors.textMuted, fontWeight: '800', fontSize: 12 }}>
-                    {mode === 'score' ? 'Total Score' : 'Letter Grade'}
+                    {mode === 'score' ? 'CA + Exam' : 'Letter Grade'}
                   </Text>
                 </Pressable>
               ))}
             </View>
 
             {inputMode === 'score' ? (
-              <Input label="Score (0–100)" value={score} onChangeText={setScore} keyboardType="decimal-pad" placeholder="75" themeColors={colors} />
+              <>
+                <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 16, marginBottom: spacing.sm }}>Enter the scores exactly as shown on your result. Your total and grade are calculated automatically.</Text>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                  <View style={{ flex: 1 }}>
+                    <Input label="CA (0–30)" value={caScore} onChangeText={setCaScore} keyboardType="decimal-pad" placeholder="24" themeColors={colors} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Input label="Exam (0–70)" value={examScore} onChangeText={setExamScore} keyboardType="decimal-pad" placeholder="51" themeColors={colors} />
+                  </View>
+                </View>
+              </>
             ) : (
               <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.md }}>
                 {(['A', 'B', 'C', 'D', 'E', 'F'] as const).map((letter) => (
@@ -777,9 +793,12 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
             )}
             </TourTarget>
 
-            {(numericScore != null || grade) && (
+            {((numericCa != null && numericExam != null) || grade) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderRadius: 10, backgroundColor: colors.surface, marginBottom: spacing.md }}>
-                <Text style={{ color: colors.textMuted, fontSize: 12 }}>Live preview</Text>
+                <View>
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>Live result</Text>
+                  {inputMode === 'score' && <Text style={{ color: colors.textFaint, fontSize: 10, marginTop: 2 }}>CA {numericCa} + Exam {numericExam} = {preview.totalScore}</Text>}
+                </View>
                 <Text style={{ color: getGradeColor(preview.grade), fontWeight: '800' }}>{preview.grade} · {preview.gradePoint.toFixed(1)} points</Text>
               </View>
             )}

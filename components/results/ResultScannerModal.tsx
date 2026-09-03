@@ -270,7 +270,7 @@ export function ResultScannerModal({
                 <Text style={{ color: colors.text, fontWeight: '800', fontSize: 18 }}>Review detected courses</Text>
               </View>
               <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 18, marginBottom: spacing.lg }}>
-                Check every score before saving. AI extraction can make mistakes.
+                Check CA and exam values before saving. AI extraction can make mistakes; incomplete rows will be marked for manual completion.
               </Text>
               {courses?.map((course, index) => {
                 const total = course.caScore != null && course.examScore != null
@@ -293,10 +293,15 @@ export function ResultScannerModal({
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: colors.text, fontWeight: '800', fontSize: 13 }}>{course.code}</Text>
                       <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{course.title}</Text>
+                      {!course.isAR && (
+                        <Text style={{ color: colors.textFaint, fontSize: 10, marginTop: 4 }}>
+                          CA {course.caScore ?? '—'}/30 · Exam {course.examScore ?? '—'}/70
+                        </Text>
+                      )}
                     </View>
                     <Text style={{ color: colors.textFaint, fontSize: 11, marginRight: spacing.md }}>{course.units} CR</Text>
                     <Text style={{ color: colors.primaryGlow, fontSize: 14, fontWeight: '800' }}>
-                      {course.isAR ? 'AR' : total != null ? `${total}%` : course.grade ?? '—'}
+                      {course.isAR ? 'AR' : total != null ? `${total}%` : 'ADD SCORE'}
                     </Text>
                   </View>
                 );
