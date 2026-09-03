@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { PickerField } from '@/components/ui/PickerField';
 import { SegmentedPill } from './login';
-import { getGoogleSignInErrorMessage, signUpWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
-import { db } from '@/lib/firebase/client';
+import { getGoogleSignInErrorMessage, signOut, signUpWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
+import { db, firebaseAuth } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 import { authApi } from '@/lib/api/client';
 import { NIGERIAN_UNIVERSITIES, ACADEMIC_DEPARTMENTS, ACADEMIC_PROGRAMMES } from '@/lib/data/academic-data';
@@ -42,6 +42,9 @@ export default function Register() {
   const showToast = useToastStore((state) => state.show);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('email');
+  const [pendingAccountUid, setPendingAccountUid] = useState<string | null>(null);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const [googleAccountEmail, setGoogleAccountEmail] = useState<string | null>(null);
 
   const [fullName, setFullName] = useState('');
   const [matric, setMatric] = useState('');
@@ -63,6 +66,17 @@ export default function Register() {
   });
   function update<K extends string>(key: K, value: any) { setForm((f) => ({ ...f, [key]: value })); }
 
+  function handleEmailChange(value: string) {
+    const changed = value.trim().toLowerCase() !== email.trim().toLowerCase();
+    setEmail(value);
+    if (changed) {
+      setOtp('');
+      setCodeSent(false);
+      setVerifiedEmail(null);
+      setCooldown(0);
+    }
+  }
+
   useEffect(() => {
     if (cooldown <= 0) return;
     const t = setInterval(() => setCooldown((v) => v - 1), 1000);
@@ -77,6 +91,20 @@ export default function Register() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.currentSession, form.courseDuration]);
 
+  // Recover an interrupted Google registration without treating the verified
+  // identity as an email/password account.
+  useEffect(() => {
+    if (!firebaseUser || pendingAccountUid || step !== 1) return;
+    const signedInWithGoogle = firebaseUser.providerData.some((provider) => provider.providerId === 'google.com');
+    if (!signedInWithGoogle) return;
+    const accountEmail = firebaseUser.email?.trim().toLowerCase() ?? null;
+    setAuthMethod('google');
+    setPendingAccountUid(firebaseUser.uid);
+    setGoogleAccountEmail(accountEmail);
+    if (accountEmail) setEmail(accountEmail);
+    if (firebaseUser.displayName) setFullName(firebaseUser.displayName);
+  }, [firebaseUser, pendingAccountUid, step]);
+
   async function handleGetCode() {
     setError(null);
     if (!email || !email.includes('@')) return setError('Enter a valid email first');
@@ -84,6 +112,7 @@ export default function Register() {
     try {
       await authApi.sendOtp(email.trim().toLowerCase(), 'registration');
       setCodeSent(true);
+      setVerifiedEmail(null);
       setCooldown(60);
       showToast({ type: 'success', title: 'Verification code sent', message: 'Check your inbox, then enter the code below.' });
     } catch (e: any) {
@@ -100,11 +129,23 @@ export default function Register() {
     setLoading(true);
     try {
       const cred = await signInWithGoogle();
+      const existingProfile = await db.collection('users').doc(cred.user.uid).get();
+      if (existingProfile.exists()) {
+        showToast({ type: 'info', title: 'Account already exists', message: 'Signing you in to your dashboard.' });
+        router.replace('/(tabs)/dashboard');
+        return;
+      }
+
+      const accountEmail = cred.user.email?.trim().toLowerCase() ?? null;
       setAuthMethod('google');
-      if (cred.user.email) setEmail(cred.user.email);
+      setPendingAccountUid(cred.user.uid);
+      setGoogleAccountEmail(accountEmail);
+      if (accountEmail) setEmail(accountEmail);
       if (cred.user.displayName) setFullName(cred.user.displayName);
-      setStep(2);
-      showToast({ type: 'success', title: 'Google account verified', message: 'Finish your academic profile to continue.' });
+      setOtp('');
+      setCodeSent(false);
+      setVerifiedEmail(null);
+      showToast({ type: 'success', title: 'Google account verified', message: 'Confirm your name and add your matric number to continue.' });
     } catch (e: any) {
       const message = getGoogleSignInErrorMessage(e);
       if (message) {
@@ -116,17 +157,49 @@ export default function Register() {
     }
   }
 
+  async function useDifferentGoogleAccount() {
+    setLoading(true);
+    setError(null);
+    try {
+      await signOut();
+      setAuthMethod('email');
+      setPendingAccountUid(null);
+      setGoogleAccountEmail(null);
+      setFullName('');
+      setMatric('');
+      handleEmailChange('');
+      showToast({ type: 'info', title: 'Choose another account', message: 'Continue with Google again to select a different account.' });
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not switch Google account', message: error?.message ?? 'Please try again.' });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleSubmitStep1() {
     setError(null);
-    if (!fullName || !matric || !email) return setError('Fill in all required fields');
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!fullName.trim() || !matric.trim() || !normalizedEmail.includes('@')) return setError('Fill in all required fields');
+
+    if (authMethod === 'google') {
+      if (!pendingAccountUid && !firebaseAuth.currentUser?.uid) return setError('Your Google session expired. Please choose your Google account again.');
+      setStep(2);
+      return;
+    }
+
     if (!password || password.length < 6) return setError('Password must be at least 6 characters');
     if (password !== confirmPassword) return setError('Passwords do not match');
+    if (verifiedEmail === normalizedEmail) {
+      setStep(2);
+      return;
+    }
     if (!codeSent) return setError('Tap "Get Code" to receive your verification code first');
     if (otp.length < 4) return setError('Enter the verification code sent to your email');
 
     setLoading(true);
     try {
-      await authApi.verifyOtp(email.trim().toLowerCase(), otp, 'registration');
+      await authApi.verifyOtp(normalizedEmail, otp, 'registration');
+      setVerifiedEmail(normalizedEmail);
       setStep(2);
       showToast({ type: 'success', title: 'Email verified', message: 'Now add your academic details.' });
     } catch (e: any) {
@@ -154,16 +227,28 @@ export default function Register() {
     setLoading(true);
     try {
       let uid: string;
+      const normalizedEmail = email.trim().toLowerCase();
       if (authMethod === 'google') {
+        const recoveredUid = pendingAccountUid ?? firebaseAuth.currentUser?.uid;
+        if (recoveredUid) {
+          uid = recoveredUid;
+        } else {
         if (!firebaseUser) throw new Error('Google session expired — please sign in again');
         uid = firebaseUser.uid;
+        }
       } else {
-        const cred = await signUpWithEmail(email.trim(), password);
-        uid = cred.user.uid;
+        const currentUser = firebaseAuth.currentUser;
+        if (currentUser?.email?.trim().toLowerCase() === normalizedEmail) {
+          uid = currentUser.uid;
+        } else {
+          const cred = await signUpWithEmail(normalizedEmail, password);
+          uid = cred.user.uid;
+        }
+        setPendingAccountUid(uid);
       }
 
       await db.collection('users').doc(uid).set({
-        fullName, email: email.trim().toLowerCase(), matric,
+        fullName: fullName.trim(), email: normalizedEmail, matric: matric.trim(),
         department: form.department, currentLevel: form.currentLevel ?? 100,
         programme: form.programme, university: form.university ?? DEFAULT_UNIVERSITY,
         avatarUrl: null, recordMode: form.recordMode ?? 'fromScratch', gradeMode: 'cgpa',
@@ -179,6 +264,7 @@ export default function Register() {
         mobileUsageTourSkipped: false, mobileUsageTourCompleted: false,
         createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp(),
       });
+      setPendingAccountUid(null);
       showToast({ type: 'success', title: 'Account created', message: 'Welcome to AcadeGrade.' });
     } catch (e: any) {
       const message = e.message ?? 'Failed to create your account';
@@ -200,7 +286,7 @@ export default function Register() {
               <Logo size={52} tagline="Master Your Academic Journey" themeColors={c} />
             </Animated.View>
 
-            {step === 1 && <SegmentedPill active="register" onSelect={(k) => k === 'login' && router.replace('/(auth)/login')} />}
+            {step === 1 && authMethod === 'email' && <SegmentedPill active="register" onSelect={(k) => k === 'login' && router.replace('/(auth)/login')} />}
 
             <View style={{ flexDirection: 'row', gap: 6, marginVertical: spacing.lg }}>
               {[1, 2, 3].map((s) => (
@@ -210,28 +296,53 @@ export default function Register() {
 
             {step === 1 && (
               <Animated.View entering={FadeIn.duration(250)}>
-                <Pressable
+                {authMethod === 'email' && <Pressable
                   onPress={handleGoogleSignup}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, marginBottom: spacing.md }}
                 >
                   <Text style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>Continue with Google</Text>
-                </Pressable>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+                </Pressable>}
+                {authMethod === 'email' && <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
                   <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
                   <Text style={{ color: c.textFaint, fontSize: 12, marginHorizontal: spacing.sm }}>OR REGISTER WITH EMAIL</Text>
                   <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
-                </View>
+                </View>}
+
+                {authMethod === 'google' && (
+                  <Animated.View entering={FadeIn.duration(180)} style={{ backgroundColor: c.successDim, borderWidth: 1, borderColor: `${c.success}55`, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Check size={16} color={c.success} />
+                      <Text style={{ color: c.text, fontWeight: '800', fontSize: 13 }}>Google account verified</Text>
+                    </View>
+                    <Text style={{ color: c.textMuted, fontSize: 12, lineHeight: 17, marginTop: 5 }}>Confirm these details and add your matric number. Your verified Google email will be saved to your profile.</Text>
+                    <Pressable onPress={useDifferentGoogleAccount} disabled={loading} style={{ alignSelf: 'flex-start', marginTop: 10 }}>
+                      <Text style={{ color: c.primary, fontWeight: '800', fontSize: 12 }}>Use a different Google account</Text>
+                    </Pressable>
+                  </Animated.View>
+                )}
 
                 <Input label="Full Name" value={fullName} onChangeText={setFullName} themeColors={c} leftIcon={<User size={16} color={c.textFaint} />} />
                 <Input label="Matric Number" autoCapitalize="characters" value={matric} onChangeText={setMatric} themeColors={c} />
 
                 <View style={{ marginBottom: spacing.md }}>
-                  <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: 6, fontWeight: '500' }}>University Email</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: 6, fontWeight: '500' }}>
+                    {authMethod === 'google' && googleAccountEmail ? 'Google Account Email' : 'University Email'}
+                  </Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     <View style={{ flex: 1 }}>
-                      <Input placeholder="name@university.edu.ng" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={(v) => { setEmail(v); setCodeSent(false); }} themeColors={c} leftIcon={<Mail size={16} color={c.textFaint} />} style={{ marginBottom: 0 }} />
+                      <Input
+                        placeholder="name@university.edu.ng"
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        value={email}
+                        onChangeText={handleEmailChange}
+                        editable={authMethod !== 'google' || !googleAccountEmail}
+                        themeColors={c}
+                        leftIcon={<Mail size={16} color={c.textFaint} />}
+                        style={{ marginBottom: 0, opacity: authMethod === 'google' && googleAccountEmail ? 0.7 : 1 }}
+                      />
                     </View>
-                    <Pressable
+                    {authMethod === 'email' && <Pressable
                       onPress={handleGetCode}
                       disabled={sendingCode || cooldown > 0}
                       style={{
@@ -261,9 +372,9 @@ export default function Register() {
                       >
                         {cooldown > 0 ? `Wait ${cooldown}s` : codeSent ? 'Resend' : 'Get Code'}
                       </Text>
-                    </Pressable>
+                    </Pressable>}
                   </View>
-                  {codeSent && (
+                  {authMethod === 'email' && codeSent && (
                     <Animated.View entering={FadeIn.duration(200)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
                       <Check size={12} color={c.success} />
                       <Text style={{ color: c.success, fontSize: 11 }}>Code sent — check your inbox</Text>
@@ -271,6 +382,7 @@ export default function Register() {
                   )}
                 </View>
 
+                {authMethod === 'email' && <>
                 <Input
                   label="Password" secureTextEntry={!showPassword} value={password} onChangeText={setPassword}
                   themeColors={c} leftIcon={<Lock size={16} color={c.textFaint} />}
@@ -286,9 +398,10 @@ export default function Register() {
                   value={otp} onChangeText={setOtp} themeColors={c} leftIcon={<KeyRound size={16} color={c.textFaint} />}
                   editable={codeSent}
                 />
+                </>}
 
                 {error && <Text style={{ color: c.danger, marginBottom: spacing.md, fontSize: 13 }}>{error}</Text>}
-                <Button label="Create Account" onPress={handleSubmitStep1} loading={loading} fullWidth />
+                <Button label={authMethod === 'google' ? 'Continue' : 'Create Account'} onPress={handleSubmitStep1} loading={loading} fullWidth />
               </Animated.View>
             )}
 
@@ -334,7 +447,7 @@ export default function Register() {
 
                 {error && <Text style={{ color: c.danger, marginBottom: spacing.md }}>{error}</Text>}
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                  {authMethod === 'email' && <Button label="Back" variant="secondary" onPress={() => setStep(1)} />}
+                  <Button label="Back" variant="secondary" onPress={() => setStep(1)} />
                   <View style={{ flex: 1 }}><Button label="Continue" onPress={handleContinueStep2} fullWidth /></View>
                 </View>
               </Animated.View>

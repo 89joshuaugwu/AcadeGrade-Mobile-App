@@ -54,7 +54,7 @@ export default function RootLayout() {
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const initialNotificationHandled = useRef(false);
 
-  const { firebaseUser, profile, setFirebaseUser, setProfile, setResolving } = useAuthStore();
+  const { firebaseUser, profile, isResolving, setFirebaseUser, setProfile, setResolving } = useAuthStore();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
   const themeHydrated = useThemeStore((s) => s.hydrated);
   const resolvedTheme = useResolvedThemeMode();
@@ -102,6 +102,9 @@ export default function RootLayout() {
     const unsubAuth = onAuthStateChange(async (user) => {
       console.log('[AcadeGrade] onAuthStateChange fired. user:', user?.uid ?? null);
       if (safetyTimer.current) clearTimeout(safetyTimer.current);
+      // A returning user may still have a real profile snapshot in flight.
+      // Keep navigation stable until Firestore confirms whether it exists.
+      setResolving(true);
       setFirebaseUser(user);
 
       if (user) {
@@ -146,7 +149,7 @@ export default function RootLayout() {
   }, [ready]);
 
   useEffect(() => {
-    if (!ready || !themeHydrated || timedOut) return;
+    if (!ready || !themeHydrated || timedOut || isResolving) return;
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
 
@@ -160,12 +163,17 @@ export default function RootLayout() {
     // of current segment, so it redirects correctly however the app opens.
     if (!firebaseUser) {
       if (!inAuthGroup) router.replace('/(auth)/welcome');
+    } else if (!profile) {
+      // Firebase authentication succeeded but profile setup was interrupted or
+      // Firestore was temporarily unavailable. Resume registration instead of
+      // leaving a valid account on a blank or unrelated route.
+      if (segments[1] !== 'register') router.replace('/(auth)/register');
     } else if (profile && !profile.mobileOnboardingCompleted) {
       if (segments[1] !== 'onboarding-tour') router.replace('/(auth)/onboarding-tour');
     } else if (profile) {
       if (!inTabsGroup) router.replace('/(tabs)/dashboard');
     }
-  }, [ready, themeHydrated, timedOut, firebaseUser, profile, router, segments]);
+  }, [ready, themeHydrated, timedOut, isResolving, firebaseUser, profile, router, segments]);
 
   if (!ready || !themeHydrated) return null;
 

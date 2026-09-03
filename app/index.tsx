@@ -20,7 +20,9 @@ import { useAuthStore } from '@/lib/store/authStore';
  * mechanisms are complementary, not redundant.
  */
 export default function Index() {
-  const { firebaseUser, profile } = useAuthStore();
+  const { firebaseUser, profile, isResolving } = useAuthStore();
+
+  if (isResolving) return null;
 
   if (!firebaseUser) {
     return <Redirect href="/(auth)/welcome" />;
@@ -34,8 +36,8 @@ export default function Index() {
     return <Redirect href="/(tabs)/dashboard" />;
   }
 
-  // Auth resolved (firebaseUser exists) but the profile doc hasn't loaded
-  // yet. _layout.tsx holds the splash screen until both are ready, so this
-  // branch is rarely hit in practice — safe fallback to welcome either way.
-  return <Redirect href="/(auth)/welcome" />;
+  // A Firebase account without its student profile means setup was interrupted
+  // or profile storage failed. Resume the wizard rather than returning them to
+  // the welcome screen with no route back to completion.
+  return <Redirect href="/(auth)/register" />;
 }
