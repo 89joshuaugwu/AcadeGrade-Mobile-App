@@ -10,7 +10,7 @@ import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useTourStore } from '@/lib/store/tourStore';
-import { TOUR_CHAPTERS } from '@/lib/tour/chapters';
+import { TOUR_CHAPTERS, USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 import { registerTourAction } from '@/lib/tour/registry';
 
 /**
@@ -33,6 +33,7 @@ export default function TabsLayout() {
   const activeChapter = useTourStore((state) => state.activeChapter);
   const completedLocally = useTourStore((state) => state.completedLocally);
   const skippedLocally = useTourStore((state) => state.skippedLocally);
+  const tourHydrated = useTourStore((state) => state.hydrated);
   const startChapter = useTourStore((state) => state.startChapter);
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -45,12 +46,20 @@ export default function TabsLayout() {
   useEffect(() => registerTourAction('more-expand', () => sheetRef.current?.snapToIndex(1)), []);
 
   useEffect(() => {
-    if (!moreOpen || activeChapter || skippedLocally || profile?.mobileUsageTourSkipped) return;
-    const completed = profile?.mobileUsageTourCompletedChapters ?? [];
+    const hasCurrentRemoteProgress = profile?.mobileUsageTourVersion === USAGE_TOUR_VERSION;
+    if (
+      !moreOpen
+      || !profile
+      || !tourHydrated
+      || activeChapter
+      || skippedLocally
+      || (hasCurrentRemoteProgress && profile.mobileUsageTourSkipped)
+    ) return;
+    const completed = hasCurrentRemoteProgress ? profile.mobileUsageTourCompletedChapters ?? [] : [];
     if (completed.includes('more') || completedLocally.includes('more')) return;
     const timer = setTimeout(() => startChapter(TOUR_CHAPTERS.more), 550);
     return () => clearTimeout(timer);
-  }, [activeChapter, completedLocally, moreOpen, profile, skippedLocally, startChapter]);
+  }, [activeChapter, completedLocally, moreOpen, profile, skippedLocally, startChapter, tourHydrated]);
 
   return (
     <>

@@ -19,6 +19,7 @@ import { NIGERIAN_UNIVERSITIES, ACADEMIC_DEPARTMENTS, ACADEMIC_PROGRAMMES } from
 import type { RegisterFormData, StudentLevel } from '@/types/user';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { COURSE_DURATION_OPTIONS, formatSessionInput, graduationSession, inferCurrentLevel, parseAcademicSession } from '@/lib/academic/timeline';
+import { USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 
 type AuthMethod = 'email' | 'google';
 const DEFAULT_UNIVERSITY = 'ESUT Agbani';
@@ -162,7 +163,7 @@ export default function Register() {
         // The user reached registration through the pre-auth product intro.
         // The authenticated usage guide will keep its own versioned progress.
         fcmToken: null, fcmTokens: [], mobileOnboardingCompleted: true,
-        mobileUsageTourVersion: 1, mobileUsageTourCompletedChapters: [],
+        mobileUsageTourVersion: USAGE_TOUR_VERSION, mobileUsageTourCompletedChapters: [],
         mobileUsageTourSkipped: false, mobileUsageTourCompleted: false,
         createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp(),
       });

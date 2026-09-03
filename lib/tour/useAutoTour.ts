@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { TOUR_CHAPTERS } from './chapters';
+import { TOUR_CHAPTERS, USAGE_TOUR_VERSION } from './chapters';
 import type { TourChapterId } from './types';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useTourStore } from '@/lib/store/tourStore';
@@ -14,14 +14,20 @@ export function useAutoTour(chapterId: TourChapterId, delay = 650, enabled = tru
   const startChapter = useTourStore((state) => state.startChapter);
 
   useFocusEffect(useCallback(() => {
-    const completedRemotely = profile?.mobileUsageTourCompletedChapters ?? [];
+    // A completed/skipped flag only belongs to the guide version that wrote
+    // it. This lets a future redesigned guide run for existing users instead
+    // of being hidden forever by stale profile data.
+    const hasCurrentRemoteProgress = profile?.mobileUsageTourVersion === USAGE_TOUR_VERSION;
+    const completedRemotely = hasCurrentRemoteProgress
+      ? profile?.mobileUsageTourCompletedChapters ?? []
+      : [];
     if (
       !enabled
       || !profile
       || !hydrated
       || activeChapter
       || skippedLocally
-      || profile.mobileUsageTourSkipped
+      || (hasCurrentRemoteProgress && profile.mobileUsageTourSkipped)
       || completedLocally.includes(chapterId)
       || completedRemotely.includes(chapterId)
     ) return;

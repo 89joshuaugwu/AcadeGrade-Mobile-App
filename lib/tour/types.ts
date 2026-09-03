@@ -3,6 +3,8 @@ export type TourChapterId =
   | 'results'
   | 'new-semester'
   | 'semester'
+  | 'course-entry'
+  | 'course-code'
   | 'scanner'
   | 'insights'
   | 'transcript'

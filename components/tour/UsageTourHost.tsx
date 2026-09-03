@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { AccessibilityInfo, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import firestore from '@react-native-firebase/firestore';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -28,6 +28,7 @@ export function UsageTourHost() {
   const showToast = useToastStore((state) => state.show);
   const activeChapter = useTourStore((state) => state.activeChapter);
   const stepIndex = useTourStore((state) => state.stepIndex);
+  const completedLocally = useTourStore((state) => state.completedLocally);
   const setStepIndex = useTourStore((state) => state.setStepIndex);
   const completeChapterLocally = useTourStore((state) => state.completeChapterLocally);
   const skipAllLocally = useTourStore((state) => state.skipAllLocally);
@@ -37,6 +38,13 @@ export function UsageTourHost() {
   const [showSkipChoice, setShowSkipChoice] = useState(false);
 
   const step = activeChapter?.steps[stepIndex];
+
+  useEffect(() => {
+    if (!step || !activeChapter) return;
+    AccessibilityInfo.announceForAccessibility(
+      `${activeChapter.label}. Step ${stepIndex + 1} of ${activeChapter.steps.length}. ${step.title}. ${step.description}`,
+    );
+  }, [activeChapter, step, stepIndex]);
 
   useEffect(() => {
     if (uid) setTourOwner(uid);
@@ -104,14 +112,19 @@ export function UsageTourHost() {
 
   async function completeChapter() {
     const chapterId = activeChapter!.id;
-    const remoteCompleted = profile?.mobileUsageTourCompletedChapters ?? [];
-    const allCompleted = new Set([...remoteCompleted, chapterId]);
+    const hasCurrentRemoteProgress = profile?.mobileUsageTourVersion === USAGE_TOUR_VERSION;
+    const remoteCompleted = hasCurrentRemoteProgress
+      ? profile?.mobileUsageTourCompletedChapters ?? []
+      : [];
+    const allCompleted = new Set([...remoteCompleted, ...completedLocally, chapterId]);
     completeChapterLocally(chapterId);
     if (!uid) return;
     try {
       await db.collection('users').doc(uid).set({
         mobileUsageTourVersion: USAGE_TOUR_VERSION,
-        mobileUsageTourCompletedChapters: firestore.FieldValue.arrayUnion(chapterId),
+        mobileUsageTourCompletedChapters: hasCurrentRemoteProgress
+          ? firestore.FieldValue.arrayUnion(chapterId)
+          : [chapterId],
         mobileUsageTourSkipped: false,
         mobileUsageTourCompleted: ALL_TOUR_CHAPTER_IDS.every((id) => allCompleted.has(id)),
         updatedAt: firestore.FieldValue.serverTimestamp(),

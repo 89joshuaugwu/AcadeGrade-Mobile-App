@@ -497,13 +497,14 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
   onCopy: () => void;
 }) {
   const colors = useThemeColors();
+  useAutoTour('course-code', 650, mode !== null);
   return (
     <Modal visible={mode !== null} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.7)' }}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
         <View style={{ backgroundColor: colors.deep, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xxl }}>
           <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.lg }} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <TourTarget tourId="course-code-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: spacing.md }}>
               <Text style={{ color: colors.text, fontSize: 19, fontWeight: '900' }}>{mode === 'share' ? 'Share course list' : 'Import course list'}</Text>
               <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 17, marginTop: 4 }}>
@@ -511,8 +512,9 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
               </Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8}><X size={21} color={colors.textFaint} /></Pressable>
-          </View>
+          </TourTarget>
 
+          <TourTarget tourId="course-code-control">
           {mode === 'share' ? (
             <View style={{ marginTop: spacing.xl }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderRadius: 15, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primaryDim }}>
@@ -528,6 +530,7 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
               <Button label="Import courses" icon={<Download size={16} color="#FFFFFF" />} onPress={onImport} loading={working} disabled={codeInput.length !== 6} fullWidth themeColors={colors} />
             </View>
           )}
+          </TourTarget>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -536,6 +539,7 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
 
 function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: boolean; onClose: () => void; onSave: (input: CourseInput) => Promise<void>; initialCourse: CourseWithId | null }) {
   const colors = useThemeColors();
+  const formScrollRef = useRef<ScrollView>(null);
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [units, setUnits] = useState(3);
@@ -544,6 +548,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
   const [inputMode, setInputMode] = useState<'score' | 'grade'>('score');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useAutoTour('course-entry', 650, visible);
 
   useEffect(() => {
     if (!visible) return;
@@ -613,7 +618,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
           }}
         >
           <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md }} />
-          <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
+          <ScrollView ref={formScrollRef} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
               <View>
                 <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>{initialCourse ? 'Edit Course' : 'Add Course'}</Text>
@@ -622,15 +627,16 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
               <Pressable onPress={onClose} hitSlop={8}><X size={22} color={colors.textMuted} /></Pressable>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <TourTarget tourId="course-entry-details" onTourFocus={() => formScrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ flexDirection: 'row', gap: spacing.sm }}>
               <View style={{ flex: 0.8 }}>
                 <Input label="Course code" value={code} onChangeText={setCode} autoCapitalize="characters" placeholder="CSC301" themeColors={colors} />
               </View>
               <View style={{ flex: 1.8 }}>
                 <Input label="Course title" value={title} onChangeText={setTitle} placeholder="Software Engineering" themeColors={colors} />
               </View>
-            </View>
+            </TourTarget>
 
+            <TourTarget tourId="course-entry-units" onTourFocus={() => formScrollRef.current?.scrollTo({ y: 70, animated: true })}>
             <Text style={{ color: colors.textMuted, fontSize: 13, fontWeight: '600', marginBottom: 7 }}>Credit units</Text>
             <View style={{ flexDirection: 'row', gap: 7, marginBottom: spacing.md }}>
               {[1, 2, 3, 4, 5, 6].map((value) => (
@@ -651,7 +657,9 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
                 </Pressable>
               ))}
             </View>
+            </TourTarget>
 
+            <TourTarget tourId="course-entry-score" onTourFocus={() => formScrollRef.current?.scrollTo({ y: 170, animated: true })}>
             <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 10, padding: 3, marginBottom: spacing.md }}>
               {(['score', 'grade'] as const).map((mode) => (
                 <Pressable
@@ -677,6 +685,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
                 ))}
               </View>
             )}
+            </TourTarget>
 
             {(numericScore != null || grade) && (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderRadius: 10, backgroundColor: colors.surface, marginBottom: spacing.md }}>
@@ -685,8 +694,10 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
               </View>
             )}
 
-            {!!error && <Text style={{ color: colors.danger, fontSize: 12, marginBottom: spacing.md }}>{error}</Text>}
-            <Button label={initialCourse ? 'Update Course' : 'Save Course'} onPress={submit} loading={saving} fullWidth themeColors={colors} />
+            <TourTarget tourId="course-entry-save" onTourFocus={() => formScrollRef.current?.scrollToEnd({ animated: true })}>
+              {!!error && <Text style={{ color: colors.danger, fontSize: 12, marginBottom: spacing.md }}>{error}</Text>}
+              <Button label={initialCourse ? 'Update Course' : 'Save Course'} onPress={submit} loading={saving} fullWidth themeColors={colors} />
+            </TourTarget>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>

@@ -188,11 +188,15 @@ export default function Transcript() {
           </Animated.View>
         )}
 
-        {sharedLinks.length > 0 && (
-          <TourTarget tourId="transcript-links" onTourFocus={() => scrollRef.current?.scrollTo({ y: 250, animated: true })}>
+        <TourTarget tourId="transcript-links" onTourFocus={() => scrollRef.current?.scrollTo({ y: 250, animated: true })}>
           <Card themeColors={colors} style={{ marginTop: spacing.lg, marginBottom: spacing.lg }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: spacing.md }}><Link2 size={16} color={colors.primary} /><Text style={{ color: colors.text, fontWeight: '900', fontSize: 13 }}>Active shared transcripts</Text></View>
-            {sharedLinks.map((link, index) => {
+            {sharedLinks.length === 0 ? (
+              <View style={{ padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.overlay, borderWidth: 1, borderColor: colors.borderSubtle }}>
+                <Text style={{ color: colors.text, fontWeight: '800', fontSize: 12 }}>No active links yet</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 10, lineHeight: 15, marginTop: 4 }}>Create a secure link above. It will appear here with its expiry date and revoke control.</Text>
+              </View>
+            ) : sharedLinks.map((link, index) => {
               const url = `${PUBLIC_BASE_URL}/share/${link.id}`;
               const expiry = toDate(link.expiresAt);
               return (
@@ -204,8 +208,7 @@ export default function Transcript() {
               );
             })}
           </Card>
-          </TourTarget>
-        )}
+        </TourTarget>
 
         <TourTarget tourId="transcript-record" onTourFocus={() => scrollRef.current?.scrollTo({ y: sharedLinks.length ? 480 : 300, animated: true })}>
         <TranscriptPreview

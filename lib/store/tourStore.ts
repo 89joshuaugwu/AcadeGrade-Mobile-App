@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { TourChapter, TourChapterId } from '@/lib/tour/types';
+import { USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 
 interface TourState {
   activeChapter: TourChapter | null;
@@ -62,7 +63,9 @@ export const useTourStore = create<TourState>()(persist(
     },
   }),
   {
-    name: 'acadegrade:usage-tour-v1',
+    // Incrementing USAGE_TOUR_VERSION automatically gives a redesigned
+    // guide fresh local progress instead of inheriting stale completion.
+    name: `acadegrade:usage-tour-v${USAGE_TOUR_VERSION}`,
     storage: createJSONStorage(() => AsyncStorage),
     partialize: (state) => ({
       completedLocally: state.completedLocally,

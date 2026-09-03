@@ -44,6 +44,24 @@ export const TOUR_CHAPTERS: Record<TourChapter['id'], TourChapter> = {
       { id: 'workspace-courses', target: 'semester-courses', title: 'Edit from the course list', description: 'Tap a course to edit it. Delete actions always open a confirmation sheet before anything is removed.', enterAction: 'semester-scroll-courses' },
     ],
   },
+  'course-entry': {
+    id: 'course-entry',
+    label: 'Course Entry',
+    steps: [
+      { id: 'course-entry-details', target: 'course-entry-details', title: 'Start with the course identity', description: 'Enter the course code and title exactly as they should appear on Results and your transcript.' },
+      { id: 'course-entry-units', target: 'course-entry-units', title: 'Choose the correct credit load', description: 'Tap the course credit units. Credits affect both semester GPA and cumulative GPA calculations.' },
+      { id: 'course-entry-score', target: 'course-entry-score', title: 'Use the result you have', description: 'Enter a total score for the richest analysis, or switch to Letter Grade when a numerical score is unavailable.' },
+      { id: 'course-entry-save', target: 'course-entry-save', title: 'Review, then save', description: 'The live preview shows the calculated grade and grade points. Nothing is added until you tap Save Course.' },
+    ],
+  },
+  'course-code': {
+    id: 'course-code',
+    label: 'Course Codes',
+    steps: [
+      { id: 'course-code-purpose', target: 'course-code-header', title: 'Exchange the list, not private results', description: 'Course codes transfer course names and credit units between classmates. Scores, grades, and personal details are never included.' },
+      { id: 'course-code-control', target: 'course-code-control', title: 'One short code does the work', description: 'Copy your six-character share code, or enter a classmate\'s code and import. You can still review and edit every imported course afterward.' },
+    ],
+  },
   scanner: {
     id: 'scanner',
     label: 'Result Scanner',
@@ -70,8 +88,8 @@ export const TOUR_CHAPTERS: Record<TourChapter['id'], TourChapter> = {
     steps: [
       { id: 'transcript-heading', target: 'transcript-heading', title: 'Your unofficial academic record', description: 'Only completed semesters are included, keeping shared and exported records consistent.' },
       { id: 'transcript-actions', target: 'transcript-actions', title: 'Export or share securely', description: 'Generate a PDF or create a public link. The photo control lets you choose what appears before sharing.' },
-      { id: 'transcript-record', target: 'transcript-record', title: 'Review before sending', description: 'Check semester GPAs, cumulative performance, credits, grades, and degree classification in one document.', enterAction: 'transcript-scroll-record' },
       { id: 'transcript-links', target: 'transcript-links', title: 'You stay in control', description: 'Active links can be copied, shared, or revoked. Deleting a link immediately removes public access.', enterAction: 'transcript-scroll-links' },
+      { id: 'transcript-record', target: 'transcript-record', title: 'Review before sending', description: 'Check semester GPAs, cumulative performance, credits, grades, and degree classification in one document.', enterAction: 'transcript-scroll-record' },
     ],
   },
   more: {
