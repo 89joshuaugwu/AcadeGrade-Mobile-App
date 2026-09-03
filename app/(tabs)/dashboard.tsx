@@ -67,8 +67,8 @@ export default function Dashboard() {
   // Switching primary mode therefore reverses the order, while the larger
   // metric still occupies the larger part of the gradient.
   const primaryGradientShare = Math.min(0.88, Math.max(0.12, primaryMetric / Math.max(primaryMetric + secondaryMetric, 0.01)));
-  const gradientColors = [primaryClass.gradient, primaryClass.gradient, secondaryClass.gradient] as const;
-  const gradientLocations = [0, primaryGradientShare, 1] as const;
+  const gradientColors = [primaryClass.gradient, primaryClass.gradient, secondaryClass.gradient, secondaryClass.gradient] as const;
+  const gradientLocations = [0, primaryGradientShare - 0.025, primaryGradientShare + 0.025, 1] as const;
 
   if (loading) return <DashboardSkeleton firstName={firstName} avatarUrl={profile?.avatarUrl ?? undefined} colors={c} />;
 
