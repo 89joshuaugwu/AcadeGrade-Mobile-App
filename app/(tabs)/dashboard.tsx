@@ -44,7 +44,7 @@ export default function Dashboard() {
 
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Student';
 
-  if (loading) return <DashboardSkeleton firstName={firstName} avatarUrl={profile?.avatarUrl} colors={c} />;
+  if (loading) return <DashboardSkeleton firstName={firstName} avatarUrl={profile?.avatarUrl ?? undefined} colors={c} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
