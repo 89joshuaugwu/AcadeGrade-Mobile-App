@@ -29,6 +29,7 @@ import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
+import { SwipeDismissSheet } from '@/components/ui/SwipeDismissSheet';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -607,8 +608,12 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
     <Modal visible={mode !== null} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.7)' }}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View style={{ backgroundColor: colors.deep, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xxl }}>
-          <SwipeDownHandle onDismiss={onClose} color={colors.border} style={{ marginBottom: spacing.lg }} />
+        <SwipeDismissSheet
+          onDismiss={onClose}
+          disabled={working}
+          style={{ backgroundColor: colors.deep, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xxl }}
+        >
+          <SwipeDownHandle onDismiss={onClose} disabled={working} color={colors.border} style={{ marginBottom: spacing.lg }} />
           <TourTarget tourId="course-code-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: spacing.md }}>
               <Text style={{ color: colors.text, fontSize: 19, fontWeight: '900' }}>{mode === 'share' ? 'Share course list' : 'Import course list'}</Text>
@@ -636,7 +641,7 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
             </View>
           )}
           </TourTarget>
-        </View>
+        </SwipeDismissSheet>
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -645,6 +650,7 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
 function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: boolean; onClose: () => void; onSave: (input: CourseInput) => Promise<void>; initialCourse: CourseWithId | null }) {
   const colors = useThemeColors();
   const formScrollRef = useRef<ScrollView>(null);
+  const formScrollOffsetRef = useRef(0);
   const [code, setCode] = useState('');
   const [title, setTitle] = useState('');
   const [units, setUnits] = useState(3);
@@ -714,7 +720,10 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.72)' }}
       >
         <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <View
+        <SwipeDismissSheet
+          onDismiss={onClose}
+          disabled={saving}
+          canStart={() => formScrollOffsetRef.current <= 0}
           style={{
             maxHeight: '78%',
             backgroundColor: colors.deep,
@@ -725,8 +734,14 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
             paddingTop: spacing.sm,
           }}
         >
-          <SwipeDownHandle onDismiss={onClose} color={colors.border} style={{ marginBottom: spacing.md }} />
-          <ScrollView ref={formScrollRef} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
+          <SwipeDownHandle onDismiss={onClose} disabled={saving} color={colors.border} style={{ marginBottom: spacing.md }} />
+          <ScrollView
+            ref={formScrollRef}
+            contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
+            keyboardShouldPersistTaps="handled"
+            scrollEventThrottle={16}
+            onScroll={(event) => { formScrollOffsetRef.current = event.nativeEvent.contentOffset.y; }}
+          >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
               <View>
                 <Text style={{ color: colors.text, fontSize: 20, fontWeight: '800' }}>{initialCourse ? 'Edit Course' : 'Add Course'}</Text>
@@ -820,7 +835,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
               <Button label={initialCourse ? 'Update Course' : 'Save Course'} onPress={submit} loading={saving} fullWidth themeColors={colors} />
             </TourTarget>
           </ScrollView>
-        </View>
+        </SwipeDismissSheet>
       </KeyboardAvoidingView>
     </Modal>
   );

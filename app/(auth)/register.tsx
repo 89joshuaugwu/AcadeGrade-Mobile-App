@@ -445,9 +445,9 @@ export default function Register() {
 
                 <View style={{ marginBottom: spacing.md }}>
                   <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: 8 }}>Course duration (years)</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     {COURSE_DURATION_OPTIONS.map((d) => (
-                      <Pressable key={d} onPress={() => update('courseDuration', d)} style={{ minWidth: '29%', flexGrow: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: form.courseDuration === d ? c.primary : c.border, backgroundColor: form.courseDuration === d ? c.primaryDim : c.surface }}>
+                      <Pressable key={d} onPress={() => update('courseDuration', d)} style={{ flexBasis: '30%', flexGrow: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: form.courseDuration === d ? c.primary : c.border, backgroundColor: form.courseDuration === d ? c.primaryDim : c.surface }}>
                         <Text style={{ color: form.courseDuration === d ? c.primary : c.textMuted, fontWeight: '600', fontSize: 13 }}>{d} yrs</Text>
                       </Pressable>
                     ))}

@@ -32,6 +32,7 @@ import { useTourStore } from '@/lib/store/tourStore';
 import { TOUR_CHAPTERS, USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
 import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
+import { SwipeDismissSheet } from '@/components/ui/SwipeDismissSheet';
 
 interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
@@ -503,7 +504,8 @@ export default function Profile() {
       <Modal visible={shareAppOpen} transparent statusBarTranslucent animationType="fade" onRequestClose={() => setShareAppOpen(false)}>
         <Pressable onPress={() => setShareAppOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.72)' }}>
           <Animated.View entering={FadeInDown.springify().damping(21)}>
-            <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.deep, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border, padding: spacing.lg, paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }}>
+            <SwipeDismissSheet onDismiss={() => setShareAppOpen(false)} style={{ backgroundColor: c.deep, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border }}>
+            <Pressable onPress={(event) => event.stopPropagation()} style={{ padding: spacing.lg, paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }}>
               <SwipeDownHandle onDismiss={() => setShareAppOpen(false)} color={c.border} style={{ marginBottom: spacing.lg }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
                 <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}><Share2 size={21} color={c.primary} /></View>
@@ -537,6 +539,7 @@ export default function Profile() {
               <View style={{ height: spacing.sm }} />
               <Button label="Close" variant="secondary" onPress={() => setShareAppOpen(false)} fullWidth themeColors={c} />
             </Pressable>
+            </SwipeDismissSheet>
           </Animated.View>
         </Pressable>
       </Modal>
