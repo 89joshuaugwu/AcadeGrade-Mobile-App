@@ -18,6 +18,7 @@ import { Logo } from '@/components/ui/Logo';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { db } from '@/lib/firebase/client';
+import { useToastStore } from '@/lib/store/toastStore';
 
 const SLIDES = [
   { icon: 'TrendingUp' as const, title: 'Track Your Grades', body: 'Automatically calculate your GPA and PI, and track semester performance across all courses.' },
@@ -32,6 +33,7 @@ export default function OnboardingTour() {
   const router = useRouter();
   const firebaseUser = useAuthStore((state) => state.firebaseUser);
   const profile = useAuthStore((state) => state.profile);
+  const showToast = useToastStore((state) => state.show);
   const [index, setIndex] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const scrollX = useSharedValue(0);
@@ -55,6 +57,8 @@ export default function OnboardingTour() {
       } else {
         router.replace('/(auth)/register');
       }
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not finish introduction', message: error?.message ?? 'Check your connection and try again.' });
     } finally {
       setFinishing(false);
     }

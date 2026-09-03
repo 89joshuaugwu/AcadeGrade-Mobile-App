@@ -14,6 +14,7 @@ import { Camera, FileUp, HelpCircle, ImageIcon, RotateCcw, Sparkles, X } from 'l
 import { radius, spacing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 import type { CourseInput } from '@/types/course';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
@@ -48,6 +49,7 @@ export function ResultScannerModal({
   onManual,
 }: ResultScannerModalProps) {
   const colors = useThemeColors();
+  const showToast = useToastStore((state) => state.show);
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
@@ -82,8 +84,22 @@ export function ResultScannerModal({
       if (!picture?.base64) throw new Error('The camera did not return an image. Please try again.');
       setPreviewUri(picture.uri);
       await onCapture(picture.base64, 'image/jpeg');
+    } catch (error: any) {
+      setPreviewUri(null);
+      showToast({ type: 'error', title: 'Camera capture failed', message: error?.message ?? 'Please try again or choose a file instead.' });
     } finally {
       setCapturing(false);
+    }
+  }
+
+  async function requestCameraAccess() {
+    try {
+      const nextPermission = await requestPermission();
+      if (!nextPermission.granted) {
+        showToast({ type: 'warning', title: 'Camera access is needed', message: 'Allow camera access to scan a printed result.' });
+      }
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not request camera access', message: error?.message ?? 'Please try again.' });
     }
   }
 
@@ -152,7 +168,7 @@ export function ResultScannerModal({
                   <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: 12, marginTop: 6, marginBottom: spacing.md }}>
                     Your photo is sent securely for course extraction and is not saved automatically.
                   </Text>
-                  <Button label="Enable Camera" onPress={requestPermission} themeColors={colors} />
+                  <Button label="Enable Camera" onPress={requestCameraAccess} themeColors={colors} />
                 </View>
               )}
 

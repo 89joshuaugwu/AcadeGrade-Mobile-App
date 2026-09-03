@@ -11,6 +11,7 @@ import { Logo } from '@/components/ui/Logo';
 import { GoogleIcon } from '@/components/ui/GoogleIcon';
 import { getGoogleSignInErrorMessage, signInWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 
 /**
  * REBUILT to match the AuthPortal reference exactly: light theme, logo
@@ -23,6 +24,7 @@ import { useThemeColors } from '@/lib/store/themeStore';
 export default function Login() {
   const c = useThemeColors();
   const router = useRouter();
+  const showToast = useToastStore((state) => state.show);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,8 +37,11 @@ export default function Login() {
     setLoading(true);
     try {
       await signInWithEmail(email.trim(), password);
+      showToast({ type: 'success', title: 'Welcome back', message: 'Opening your academic dashboard.' });
     } catch (e: any) {
-      setError(mapAuthError(e.code));
+      const message = mapAuthError(e.code);
+      setError(message);
+      showToast({ type: 'error', title: 'Could not sign in', message });
     } finally {
       setLoading(false);
     }
@@ -47,9 +52,13 @@ export default function Login() {
     setLoading(true);
     try {
       await signInWithGoogle();
+      showToast({ type: 'success', title: 'Welcome back', message: 'Opening your academic dashboard.' });
     } catch (e: any) {
       const message = getGoogleSignInErrorMessage(e);
-      if (message) setError(message);
+      if (message) {
+        setError(message);
+        showToast({ type: 'error', title: 'Google sign-in failed', message });
+      }
     } finally {
       setLoading(false);
     }

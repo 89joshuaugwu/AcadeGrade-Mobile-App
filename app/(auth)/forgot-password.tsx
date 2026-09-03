@@ -11,6 +11,7 @@ import { Logo } from '@/components/ui/Logo';
 import { SuccessCheck } from '@/components/ui/SuccessCheck';
 import { authApi } from '@/lib/api/client';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 
 type Step = 'email' | 'reset';
 
@@ -24,6 +25,7 @@ type Step = 'email' | 'reset';
 export default function ForgotPassword() {
   const c = useThemeColors();
   const router = useRouter();
+  const showToast = useToastStore((state) => state.show);
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -40,8 +42,11 @@ export default function ForgotPassword() {
     try {
       await authApi.sendOtp(email.trim().toLowerCase(), 'reset');
       setStep('reset');
+      showToast({ type: 'success', title: 'Reset code sent', message: 'Check your inbox, then choose a new password.' });
     } catch (e: any) {
-      setError(e.message ?? 'Could not send code');
+      const message = e.message ?? 'Could not send code';
+      setError(message);
+      showToast({ type: 'error', title: 'Could not send reset code', message });
     } finally {
       setLoading(false);
     }
@@ -55,7 +60,9 @@ export default function ForgotPassword() {
       await authApi.resetPassword(email.trim().toLowerCase(), otp, newPassword);
       setDone(true);
     } catch (e: any) {
-      setError(e.message ?? 'Reset failed');
+      const message = e.message ?? 'Reset failed';
+      setError(message);
+      showToast({ type: 'error', title: 'Could not reset password', message });
     } finally {
       setLoading(false);
     }

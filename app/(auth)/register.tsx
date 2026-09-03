@@ -20,6 +20,7 @@ import type { RegisterFormData, StudentLevel } from '@/types/user';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { COURSE_DURATION_OPTIONS, formatSessionInput, graduationSession, inferCurrentLevel, parseAcademicSession } from '@/lib/academic/timeline';
 import { USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
+import { useToastStore } from '@/lib/store/toastStore';
 
 type AuthMethod = 'email' | 'google';
 const DEFAULT_UNIVERSITY = 'ESUT Agbani';
@@ -38,6 +39,7 @@ export default function Register() {
   const c = useThemeColors();
   const router = useRouter();
   const { firebaseUser } = useAuthStore();
+  const showToast = useToastStore((state) => state.show);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('email');
 
@@ -83,8 +85,11 @@ export default function Register() {
       await authApi.sendOtp(email.trim().toLowerCase(), 'registration');
       setCodeSent(true);
       setCooldown(60);
+      showToast({ type: 'success', title: 'Verification code sent', message: 'Check your inbox, then enter the code below.' });
     } catch (e: any) {
-      setError(e.message ?? 'Could not send verification code');
+      const message = e.message ?? 'Could not send verification code';
+      setError(message);
+      showToast({ type: 'error', title: 'Could not send code', message });
     } finally {
       setSendingCode(false);
     }
@@ -99,9 +104,13 @@ export default function Register() {
       if (cred.user.email) setEmail(cred.user.email);
       if (cred.user.displayName) setFullName(cred.user.displayName);
       setStep(2);
+      showToast({ type: 'success', title: 'Google account verified', message: 'Finish your academic profile to continue.' });
     } catch (e: any) {
       const message = getGoogleSignInErrorMessage(e);
-      if (message) setError(message);
+      if (message) {
+        setError(message);
+        showToast({ type: 'error', title: 'Google sign-up failed', message });
+      }
     } finally {
       setLoading(false);
     }
@@ -119,8 +128,11 @@ export default function Register() {
     try {
       await authApi.verifyOtp(email.trim().toLowerCase(), otp, 'registration');
       setStep(2);
+      showToast({ type: 'success', title: 'Email verified', message: 'Now add your academic details.' });
     } catch (e: any) {
-      setError(e.message ?? 'Invalid or expired code');
+      const message = e.message ?? 'Invalid or expired code';
+      setError(message);
+      showToast({ type: 'error', title: 'Could not verify code', message });
     } finally {
       setLoading(false);
     }
@@ -167,8 +179,11 @@ export default function Register() {
         mobileUsageTourSkipped: false, mobileUsageTourCompleted: false,
         createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp(),
       });
+      showToast({ type: 'success', title: 'Account created', message: 'Welcome to AcadeGrade.' });
     } catch (e: any) {
-      setError(e.message ?? 'Failed to create your account');
+      const message = e.message ?? 'Failed to create your account';
+      setError(message);
+      showToast({ type: 'error', title: 'Could not create account', message });
     } finally {
       setLoading(false);
     }

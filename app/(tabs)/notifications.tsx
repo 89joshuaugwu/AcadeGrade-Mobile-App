@@ -12,6 +12,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
+import { useToastStore } from '@/lib/store/toastStore';
 
 interface NotificationItem {
   id: string;
@@ -40,6 +41,7 @@ export default function Notifications() {
   const router = useRouter();
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const colors = useThemeColors();
+  const showToast = useToastStore((state) => state.show);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   useAutoTour('notifications', 650, !loading);
@@ -73,20 +75,30 @@ export default function Notifications() {
   async function markAsRead(id: string) {
     if (!uid) return;
     const item = items.find((notification) => notification.id === id);
-    await db.collection('notifications').doc(uid).collection('items').doc(id).update({ read: true });
-    if (item && !item.read) {
-      await database().ref(`notif_counts/${uid}/unread`).set(Math.max(0, unreadCount - 1));
+    try {
+      await db.collection('notifications').doc(uid).collection('items').doc(id).update({ read: true });
+      if (item && !item.read) {
+        await database().ref(`notif_counts/${uid}/unread`).set(Math.max(0, unreadCount - 1));
+      }
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not update notification', message: error?.message ?? 'Please try again.' });
     }
   }
 
   async function markAllRead() {
     if (!uid) return;
-    const batch = firestore().batch();
-    items.filter((n) => !n.read).forEach((n) => {
-      batch.update(db.collection('notifications').doc(uid).collection('items').doc(n.id), { read: true });
-    });
-    if (items.some((n) => !n.read)) await batch.commit();
-    await database().ref(`notif_counts/${uid}/unread`).set(0);
+    try {
+      const batch = firestore().batch();
+      const unreadItems = items.filter((n) => !n.read);
+      unreadItems.forEach((n) => {
+        batch.update(db.collection('notifications').doc(uid).collection('items').doc(n.id), { read: true });
+      });
+      if (unreadItems.length) await batch.commit();
+      await database().ref(`notif_counts/${uid}/unread`).set(0);
+      showToast({ type: 'success', title: 'All caught up', message: 'Your notifications are marked as read.' });
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not mark all as read', message: error?.message ?? 'Please try again.' });
+    }
   }
 
   const unreadCount = items.filter((n) => !n.read).length;

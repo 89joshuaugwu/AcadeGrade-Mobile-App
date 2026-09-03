@@ -136,14 +136,30 @@ export default function Profile() {
 
   async function updateNotifPref(key: keyof NonNullable<typeof notifs>, value: boolean) {
     if (!uid) return;
+    const previous = notifs;
     const next = { ...notifs, [key]: value };
     setNotifs(next);
-    await db.collection('users').doc(uid).update({ notificationPreferences: next });
+    try {
+      await db.collection('users').doc(uid).update({ notificationPreferences: next });
+    } catch (error: any) {
+      setNotifs(previous);
+      showToast({ type: 'error', title: 'Could not update alert preference', message: error?.message ?? 'Your previous setting has been restored.' });
+    }
   }
 
   async function toggleGradeMode() {
     if (!uid) return;
-    await db.collection('users').doc(uid).update({ gradeMode: profile?.gradeMode === 'pi' ? 'cgpa' : 'pi' });
+    const nextMode = profile?.gradeMode === 'pi' ? 'cgpa' : 'pi';
+    try {
+      await db.collection('users').doc(uid).update({ gradeMode: nextMode });
+      showToast({
+        type: 'success',
+        title: nextMode === 'pi' ? 'Performance Index selected' : 'CGPA selected',
+        message: nextMode === 'pi' ? 'Your dashboard and insights now lead with PI.' : 'Your dashboard and insights now lead with CGPA.',
+      });
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not change primary metric', message: error?.message ?? 'Please try again.' });
+    }
   }
 
   async function enablePushNotifications() {
@@ -162,18 +178,25 @@ export default function Profile() {
   }
 
   async function pickAvatar() {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, base64: true });
-    if (result.canceled || !uid) return;
-    setUploading(true);
     try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showToast({ type: 'warning', title: 'Photo access is needed', message: 'Allow photo access to change your profile picture.' });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, base64: true });
+      if (result.canceled || !uid) return;
+      setUploading(true);
       const formData = new FormData();
       formData.append('file', `data:image/jpeg;base64,${result.assets[0].base64}`);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
       const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, { method: 'POST', body: formData });
       const data = await res.json();
+      if (!res.ok || !data?.secure_url) throw new Error(data?.error?.message ?? 'Could not upload your profile picture.');
       await db.collection('users').doc(uid).update({ avatarUrl: data.secure_url });
+      showToast({ type: 'success', title: 'Profile picture updated' });
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not update profile picture', message: error?.message ?? 'Please try again.' });
     } finally {
       setUploading(false);
     }
@@ -190,6 +213,7 @@ export default function Profile() {
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(fileUri, { mimeType: 'application/pdf', dialogTitle: 'AcadeGrade Transcript' });
       }
+      showToast({ type: 'success', title: 'Transcript ready', message: 'Your academic transcript is ready to share or save.' });
     } catch (e: any) {
       showToast({ type: 'error', title: 'Export failed', message: e.message ?? 'Could not generate transcript.' });
     } finally {
@@ -266,16 +290,20 @@ export default function Profile() {
 
   async function replayAppTour() {
     if (!uid) return;
-    await db.collection('users').doc(uid).set({
-      mobileUsageTourVersion: USAGE_TOUR_VERSION,
-      mobileUsageTourCompletedChapters: [],
-      mobileUsageTourSkipped: false,
-      mobileUsageTourCompleted: false,
-      updatedAt: firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-    resetTourForReplay();
-    router.replace('/(tabs)/dashboard');
-    setTimeout(() => startTourChapter(TOUR_CHAPTERS.dashboard, true), 450);
+    try {
+      await db.collection('users').doc(uid).set({
+        mobileUsageTourVersion: USAGE_TOUR_VERSION,
+        mobileUsageTourCompletedChapters: [],
+        mobileUsageTourSkipped: false,
+        mobileUsageTourCompleted: false,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      resetTourForReplay();
+      router.replace('/(tabs)/dashboard');
+      setTimeout(() => startTourChapter(TOUR_CHAPTERS.dashboard, true), 450);
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not restart the guide', message: error?.message ?? 'Please try again.' });
+    }
   }
 
   function openShareApp() {

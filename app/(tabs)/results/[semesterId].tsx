@@ -232,18 +232,29 @@ export default function SemesterDetail() {
   }
 
   async function scanFromGallery() {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) return;
-    const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.7 });
-    if (result.canceled || !result.assets[0].base64) return;
-    await runExtraction(result.assets[0].base64, result.assets[0].mimeType ?? 'image/jpeg');
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showToast({ type: 'warning', title: 'Photo access is needed', message: 'Allow photo access to scan a saved result image.' });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({ base64: true, quality: 0.7 });
+      if (result.canceled || !result.assets[0].base64) return;
+      await runExtraction(result.assets[0].base64, result.assets[0].mimeType ?? 'image/jpeg');
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not open gallery', message: error?.message ?? 'Please try again.' });
+    }
   }
 
   async function scanDocument() {
-    const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
-    if (result.canceled || !result.assets[0]) return;
-    const base64 = await new File(result.assets[0].uri).base64();
-    await runExtraction(base64, result.assets[0].mimeType ?? 'application/pdf');
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'], copyToCacheDirectory: true });
+      if (result.canceled || !result.assets[0]) return;
+      const base64 = await new File(result.assets[0].uri).base64();
+      await runExtraction(base64, result.assets[0].mimeType ?? 'application/pdf');
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not read document', message: error?.message ?? 'Choose a PDF or image result file and try again.' });
+    }
   }
 
   async function saveReviewedCourses() {
