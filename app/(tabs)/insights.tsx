@@ -262,7 +262,13 @@ export default function Insights() {
           })}
       </TourTarget>
 
-      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <RateLimitGuide tab={tab} />
 
         {!!requestError && (

@@ -739,6 +739,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
             ref={formScrollRef}
             contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             scrollEventThrottle={16}
             onScroll={(event) => { formScrollOffsetRef.current = event.nativeEvent.contentOffset.y; }}
           >

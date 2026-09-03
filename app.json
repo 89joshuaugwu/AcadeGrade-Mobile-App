@@ -23,6 +23,7 @@
     "android": {
       "package": "com.acadegrade.app",
       "googleServicesFile": "./google-services.json",
+      "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#07090F"

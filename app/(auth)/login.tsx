@@ -68,7 +68,12 @@ export default function Login() {
     <View style={{ flex: 1, backgroundColor: c.void }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: spacing.xl, flexGrow: 1, justifyContent: 'center' }}>
+          <ScrollView
+            contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.xxxl, flexGrow: 1, justifyContent: 'center' }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            showsVerticalScrollIndicator={false}
+          >
             <Animated.View entering={FadeInDown.duration(350)} style={{ alignItems: 'center', marginBottom: spacing.xl }}>
               <Logo size={56} tagline="Master Your Academic Journey" themeColors={c} />
             </Animated.View>

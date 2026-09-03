@@ -90,7 +90,12 @@ export default function ForgotPassword() {
     <View style={{ flex: 1, backgroundColor: c.void }}>
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: spacing.xl, flexGrow: 1, justifyContent: 'center' }}>
+          <ScrollView
+            contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.xxxl, flexGrow: 1, justifyContent: 'center' }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            showsVerticalScrollIndicator={false}
+          >
             <Pressable onPress={() => router.back()} style={{ marginBottom: spacing.lg }} hitSlop={8}>
               <ArrowLeft size={22} color={c.text} />
             </Pressable>

@@ -303,7 +303,13 @@ export default function Register() {
     <View style={{ flex: 1, backgroundColor: c.void }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView ref={registrationScrollRef} contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            ref={registrationScrollRef}
+            contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.xxxl }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            showsVerticalScrollIndicator={false}
+          >
             <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
               <Logo size={52} tagline="Master Your Academic Journey" themeColors={c} />
             </Animated.View>
