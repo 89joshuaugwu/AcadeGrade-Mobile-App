@@ -63,9 +63,12 @@ export default function Dashboard() {
   const secondaryMetric = isPiPrimary ? cgpa : pi;
   const primaryClass = getPerformanceClass(primaryMetric);
   const secondaryClass = getPerformanceClass(secondaryMetric);
-  const gradientColors = isPiPrimary
-    ? [primaryClass.gradient, secondaryClass.gradient, primaryClass.gradient] as const
-    : [primaryClass.gradient, secondaryClass.gradient, primaryClass.gradient] as const;
+  // The primary metric owns its literal share of the left-to-right card.
+  // Switching primary mode therefore reverses the order, while the larger
+  // metric still occupies the larger part of the gradient.
+  const primaryGradientShare = Math.min(0.88, Math.max(0.12, primaryMetric / Math.max(primaryMetric + secondaryMetric, 0.01)));
+  const gradientColors = [primaryClass.gradient, primaryClass.gradient, secondaryClass.gradient] as const;
+  const gradientLocations = [0, primaryGradientShare, 1] as const;
 
   if (loading) return <DashboardSkeleton firstName={firstName} avatarUrl={profile?.avatarUrl ?? undefined} colors={c} />;
 
@@ -93,7 +96,7 @@ export default function Dashboard() {
 
         <Animated.View entering={FadeInDown.delay(60).duration(350)}>
           <TourTarget tourId="dashboard-performance">
-            <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}>
+            <LinearGradient colors={gradientColors} locations={gradientLocations} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <View>
                   <Text style={{ color: 'rgba(255,255,255,0.84)', fontSize: 12, fontWeight: '700' }}>PRIMARY METRIC · {isPiPrimary ? 'PI' : 'CGPA'}</Text>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, Layout } from 'react-native-reanimated';
 import { AlertTriangle, Clock3, GraduationCap, Minus, RefreshCw, Target, TrendingDown, TrendingUp } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import Svg, { Circle } from 'react-native-svg';
@@ -250,9 +250,13 @@ export default function Insights() {
               <Pressable
                 key={item.id}
                 onPress={() => setTab(item.id)}
-                style={{ flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: active ? colors.primaryHover : 'transparent' }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+                style={{ flex: 1, minHeight: 40 }}
               >
-                <Text numberOfLines={1} style={{ color: active ? '#FFFFFF' : colors.textMuted, fontSize: 10, fontWeight: '900' }}>{item.label}</Text>
+                <Animated.View layout={Layout.springify().damping(18).stiffness(230)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: active ? colors.primaryHover : 'transparent', borderWidth: active ? 1 : 0, borderColor: active ? `${colors.primaryGlow}66` : 'transparent' }}>
+                  <Text numberOfLines={1} style={{ color: active ? '#FFFFFF' : colors.textMuted, fontSize: 10, fontWeight: '900' }}>{item.label}</Text>
+                </Animated.View>
               </Pressable>
             );
           })}
@@ -435,10 +439,13 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpa
 function ModeToggle({ mode, onChange }: { mode: ProjectionMode; onChange: (mode: ProjectionMode) => void }) {
   const colors = useThemeColors();
   return (
-    <View style={{ flexDirection: 'row', padding: 3, borderRadius: 9, backgroundColor: colors.deep, borderWidth: 1, borderColor: colors.border }}>
+    <View accessibilityRole="tablist" accessibilityLabel="Projection metric" style={{ flexDirection: 'row', padding: 3, borderRadius: 12, backgroundColor: colors.overlay, borderWidth: 1, borderColor: colors.border }}>
       {(['pi', 'cgpa'] as const).map((item) => (
-        <Pressable key={item} onPress={() => onChange(item)} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 7, backgroundColor: mode === item ? colors.surface : 'transparent' }}>
-          <Text style={{ color: mode === item ? colors.text : colors.textMuted, fontWeight: '900', fontSize: 10 }}>{item.toUpperCase()}</Text>
+        <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: mode === item }} accessibilityLabel={`Show ${item.toUpperCase()} projection`} onPress={() => onChange(item)} style={{ minHeight: 36 }}>
+          <Animated.View layout={Layout.springify().damping(18).stiffness(230)} style={{ height: 36, minWidth: 52, paddingHorizontal: 8, gap: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: mode === item ? colors.primaryHover : 'transparent' }}>
+            {item === 'cgpa' ? <GraduationCap size={12} color={mode === item ? '#FFFFFF' : colors.textMuted} /> : <Target size={12} color={mode === item ? '#FFFFFF' : colors.textMuted} />}
+            <Text style={{ color: mode === item ? '#FFFFFF' : colors.textMuted, fontWeight: '900', fontSize: 10 }}>{item.toUpperCase()}</Text>
+          </Animated.View>
         </Pressable>
       ))}
     </View>

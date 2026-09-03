@@ -37,8 +37,10 @@ export default function TabsLayout() {
   const tourHydrated = useTourStore((state) => state.hydrated);
   const startChapter = useTourStore((state) => state.startChapter);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreExpanded, setMoreExpanded] = useState(false);
 
   const openMore = useCallback(() => {
+    setMoreExpanded(false);
     setMoreOpen(true);
     sheetRef.current?.present();
   }, []);
@@ -88,11 +90,15 @@ export default function TabsLayout() {
 
       <BottomSheetModal
         ref={sheetRef}
-        snapPoints={['32%', '52%']}
+        snapPoints={['31%', '47%']}
         enableDynamicSizing={false}
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.border }}
-        onDismiss={() => setMoreOpen(false)}
+        onChange={(index) => setMoreExpanded(index === 1)}
+        onDismiss={() => {
+          setMoreOpen(false);
+          setMoreExpanded(false);
+        }}
       >
         <BottomSheetView style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}>
           <TourTarget tourId="more-destinations">
@@ -101,14 +107,24 @@ export default function TabsLayout() {
             <MoreRow colors={colors} icon={<Settings size={18} color={colors.primary} />} label="Settings" onPress={() => closeAnd(() => router.push('/(tabs)/profile'))} />
           </TourTarget>
 
-          <TourTarget tourId="more-theme" onTourFocus={() => sheetRef.current?.snapToIndex(1)} style={{ marginTop: spacing.xl, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
-            <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Quick appearance</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 3, marginBottom: spacing.sm }}>Swipe this sheet up anytime to change the app theme.</Text>
-            <View style={{ flexDirection: 'row', gap: 7 }}>
-              <ThemeChip mode="light" active={themeMode === 'light'} label="Light" icon={<Sun size={15} color={themeMode === 'light' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
-              <ThemeChip mode="dark" active={themeMode === 'dark'} label="Dark" icon={<Moon size={15} color={themeMode === 'dark' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
-              <ThemeChip mode="system" active={themeMode === 'system'} label="System" icon={<Smartphone size={15} color={themeMode === 'system' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
-            </View>
+          <TourTarget
+            tourId="more-theme"
+            onTourFocus={() => sheetRef.current?.snapToIndex(1)}
+            style={moreExpanded
+              ? { marginTop: spacing.xl, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.borderSubtle }
+              : { height: 0, opacity: 0, overflow: 'hidden' }}
+          >
+            {moreExpanded && (
+              <Animated.View entering={FadeIn.duration(170)}>
+                <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Quick appearance</Text>
+                <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 3, marginBottom: spacing.sm }}>Swipe this sheet up anytime to change the app theme.</Text>
+                <View style={{ flexDirection: 'row', gap: 7 }}>
+                  <ThemeChip mode="light" active={themeMode === 'light'} label="Light" icon={<Sun size={15} color={themeMode === 'light' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
+                  <ThemeChip mode="dark" active={themeMode === 'dark'} label="Dark" icon={<Moon size={15} color={themeMode === 'dark' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
+                  <ThemeChip mode="system" active={themeMode === 'system'} label="System" icon={<Smartphone size={15} color={themeMode === 'system' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
+                </View>
+              </Animated.View>
+            )}
           </TourTarget>
         </BottomSheetView>
       </BottomSheetModal>

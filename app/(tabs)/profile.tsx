@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Switch, Image, Pressable, Modal, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, Switch, Image, Pressable, Modal, Share as NativeShare, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
@@ -8,8 +8,9 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   Camera, GraduationCap, BadgeCheck, Star, CalendarRange, BellRing,
   User as UserIcon, ShieldCheck, ShieldAlert, LogOut, ChevronRight, Palette,
-  Minus, Plus, PlayCircle,
+  Minus, Plus, PlayCircle, Share2, Smartphone,
 } from 'lucide-react-native';
+import QRCode from 'react-native-qrcode-svg';
 import Animated, { FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import firestore from '@react-native-firebase/firestore';
 import { spacing, radius } from '@/constants/theme';
@@ -58,6 +59,8 @@ function useNotifications(uid?: string) {
 
 const CLOUDINARY_CLOUD_NAME = 'dgqukbs8n';
 const CLOUDINARY_UPLOAD_PRESET = 'acadegrade_avatars';
+const ANDROID_APP_DOWNLOAD_URL = 'https://acadegrade.vercel.app/app/download/android';
+const IOS_APP_DOWNLOAD_URL = 'https://acadegrade.vercel.app/app/download/ios';
 
 export default function Profile() {
   const c = useThemeColors();
@@ -84,6 +87,9 @@ export default function Profile() {
   const [timelineDuration, setTimelineDuration] = useState(4);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [savingTimeline, setSavingTimeline] = useState(false);
+  const [shareAppOpen, setShareAppOpen] = useState(false);
+  const [sharePlatform, setSharePlatform] = useState<'android' | 'ios'>('android');
+  const [iosDownloadAvailable, setIosDownloadAvailable] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const profileScrollY = useSharedValue(0);
   const resetTourForReplay = useTourStore((state) => state.resetForReplay);
@@ -101,7 +107,7 @@ export default function Profile() {
       height: size,
       borderRadius: size / 2,
       left: interpolate(progress, [0, 1], [(width - 88) / 2, spacing.lg]),
-      top: interpolate(progress, [0, 1], [8, 11]),
+      top: interpolate(progress, [0, 1], [16, 13]),
     };
   });
   const largeIdentityStyle = useAnimatedStyle(() => ({
@@ -115,6 +121,13 @@ export default function Profile() {
   const headerSurfaceStyle = useAnimatedStyle(() => ({ opacity: interpolate(profileScrollY.value, [25, 95], [0, 1]) }));
 
   useEffect(() => { setNotifs(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true }); }, [profile?.notificationPreferences]);
+
+  useEffect(() => {
+    return db.collection('config').doc('settings').onSnapshot((snapshot) => {
+      const iosUrl = snapshot.data()?.mobileAppLinks?.iosUrl;
+      setIosDownloadAvailable(typeof iosUrl === 'string' && iosUrl.trim().length > 0);
+    }, () => setIosDownloadAvailable(false));
+  }, []);
 
   const notificationItems = useNotifications(uid);
   const unreadCount = notificationItems.filter((n) => !n.read).length;
@@ -263,6 +276,27 @@ export default function Profile() {
     setTimeout(() => startTourChapter(TOUR_CHAPTERS.dashboard, true), 450);
   }
 
+  function openShareApp() {
+    setSharePlatform('android');
+    setShareAppOpen(true);
+  }
+
+  const selectedDownloadUrl = sharePlatform === 'android' ? ANDROID_APP_DOWNLOAD_URL : IOS_APP_DOWNLOAD_URL;
+  const selectedPlatformAvailable = sharePlatform === 'android' || iosDownloadAvailable;
+
+  async function shareSelectedAppLink() {
+    if (!selectedPlatformAvailable) return;
+    try {
+      await NativeShare.share({
+        title: 'AcadeGrade mobile app',
+        message: `Track your grades with AcadeGrade. Download the ${sharePlatform === 'android' ? 'Android' : 'iOS'} app: ${selectedDownloadUrl}`,
+        url: selectedDownloadUrl,
+      });
+    } catch (error: any) {
+      showToast({ type: 'error', title: 'Could not open share', message: error?.message ?? 'Please try again.' });
+    }
+  }
+
   async function confirmDeleteAccount() {
     setDeleteError(null);
     setDeleting(true);
@@ -282,8 +316,8 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
-      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 72, backgroundColor: c.void, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, zIndex: 4 }, headerSurfaceStyle]} />
-      <TourTarget tourId="settings-profile" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 164, zIndex: 5 }}>
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 78, backgroundColor: c.void, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, zIndex: 4 }, headerSurfaceStyle]} />
+      <TourTarget tourId="settings-profile" style={{ position: 'absolute', top: spacing.sm, left: 0, right: 0, height: 176, zIndex: 5 }}>
         <Animated.View style={[{ position: 'absolute', overflow: 'visible' }, avatarHeaderStyle]}>
           <Pressable onPress={pickAvatar} style={{ flex: 1 }} accessibilityLabel="Change profile picture">
             {profile?.avatarUrl ? (
@@ -298,16 +332,16 @@ export default function Profile() {
             </View>
           </Pressable>
         </Animated.View>
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 105, left: 0, right: 0, alignItems: 'center' }, largeIdentityStyle]}>
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 116, left: 0, right: 0, alignItems: 'center' }, largeIdentityStyle]}>
           <Text style={{ color: c.text, fontSize: 19, fontWeight: '800' }}>{profile?.fullName}</Text>
           <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>{profile?.department} · {profile?.currentLevel} Level</Text>
         </Animated.View>
-        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 70, right: spacing.lg, top: 14 }, compactIdentityStyle]}>
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 70, right: spacing.lg, top: 18 }, compactIdentityStyle]}>
           <Text style={{ color: c.text, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{profile?.fullName}</Text>
           <Text style={{ color: c.textMuted, fontSize: 10, marginTop: 1 }} numberOfLines={1}>{profile?.department} · {profile?.currentLevel} Level</Text>
         </Animated.View>
       </TourTarget>
-      <Animated.ScrollView ref={scrollRef as any} onScroll={onProfileScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: spacing.lg, paddingTop: 174, paddingBottom: 120 }}>
+      <Animated.ScrollView ref={scrollRef as any} onScroll={onProfileScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: spacing.lg, paddingTop: 190, paddingBottom: 120 }}>
         {/* AVATAR + IDENTITY */}
         <Animated.View entering={FadeInDown.duration(300)} style={{ display: 'none', alignItems: 'center', marginBottom: spacing.lg }}>
           <TourTarget tourId="settings-profile-legacy" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ alignItems: 'center' }}>
@@ -375,6 +409,7 @@ export default function Profile() {
               <ListRow icon={<PlayCircle size={16} color={c.primary} />} title="Replay Usage Guide" subtitle="Restart every contextual screen guide" onPress={replayAppTour} />
             </TourTarget>
             <ListRow icon={<BellRing size={16} color={c.primary} />} title="Push Notifications" subtitle="Manage alerts on this device" onPress={enablePushNotifications} />
+            <ListRow icon={<Share2 size={16} color={c.primary} />} title="Share AcadeGrade" subtitle="Show a download QR code or send the app link" onPress={openShareApp} />
             <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
               <Text style={{ color: c.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm }}>
                 <BellRing size={13} color={c.primary} /> Grade Alerts
@@ -431,6 +466,47 @@ export default function Profile() {
               </Pressable>
             ))}
           </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={shareAppOpen} transparent statusBarTranslucent animationType="fade" onRequestClose={() => setShareAppOpen(false)}>
+        <Pressable onPress={() => setShareAppOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.72)' }}>
+          <Animated.View entering={FadeInDown.springify().damping(21)}>
+            <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.deep, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border, padding: spacing.lg, paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }}>
+              <View style={{ width: 38, height: 4, borderRadius: radius.pill, backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+                <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}><Share2 size={21} color={c.primary} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontSize: 19, fontWeight: '900' }}>Share AcadeGrade</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 3 }}>Choose a platform, then scan or share its secure download link.</Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+                <SharePlatformChip label="Android" selected={sharePlatform === 'android'} onPress={() => setSharePlatform('android')} colors={c} />
+                <SharePlatformChip label="iOS" selected={sharePlatform === 'ios'} onPress={() => setSharePlatform('ios')} unavailable={!iosDownloadAvailable} colors={c} />
+              </View>
+
+              {selectedPlatformAvailable ? (
+                <View style={{ alignItems: 'center' }}>
+                  <View style={{ padding: 12, borderRadius: 18, backgroundColor: '#FFFFFF', marginBottom: spacing.md }}>
+                    <QRCode value={selectedDownloadUrl} size={172} color="#10131E" backgroundColor="#FFFFFF" />
+                  </View>
+                  <Text style={{ color: c.text, fontSize: 14, fontWeight: '800' }}>Scan to download for {sharePlatform === 'android' ? 'Android' : 'iOS'}</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 11, textAlign: 'center', lineHeight: 16, marginTop: 4, marginBottom: spacing.lg }}>The QR code uses AcadeGrade’s branded download page, so future releases stay up to date.</Text>
+                  <Button label={`Share ${sharePlatform === 'android' ? 'Android' : 'iOS'} link`} onPress={shareSelectedAppLink} fullWidth themeColors={c} />
+                </View>
+              ) : (
+                <View style={{ alignItems: 'center', paddingVertical: spacing.xl, backgroundColor: c.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border }}>
+                  <Smartphone size={28} color={c.textFaint} />
+                  <Text style={{ color: c.text, fontSize: 15, fontWeight: '800', marginTop: spacing.sm }}>iOS is coming soon</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 11, textAlign: 'center', marginTop: 4, paddingHorizontal: spacing.xl }}>We will enable the iOS QR code as soon as the App Store download URL is available.</Text>
+                </View>
+              )}
+              <View style={{ height: spacing.sm }} />
+              <Button label="Close" variant="secondary" onPress={() => setShareAppOpen(false)} fullWidth themeColors={c} />
+            </Pressable>
+          </Animated.View>
         </Pressable>
       </Modal>
 
@@ -570,6 +646,15 @@ function ListRow({ icon, title, subtitle, onPress, danger }: { icon: React.React
         {subtitle && <Text style={{ color: c.textFaint, fontSize: 11, marginTop: 1 }} numberOfLines={1}>{subtitle}</Text>}
       </View>
       {onPress && <ChevronRight size={16} color={c.textFaint} />}
+    </Pressable>
+  );
+}
+
+function SharePlatformChip({ label, selected, unavailable, onPress, colors }: { label: string; selected: boolean; unavailable?: boolean; onPress: () => void; colors: ReturnType<typeof useThemeColors> }) {
+  return (
+    <Pressable onPress={onPress} style={{ flex: 1, minHeight: 48, paddingHorizontal: spacing.md, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: selected ? colors.primaryHover : colors.surface, borderWidth: 1, borderColor: selected ? colors.primaryGlow : colors.border }}>
+      <Text style={{ color: selected ? '#FFFFFF' : colors.text, fontSize: 13, fontWeight: '800' }}>{label}</Text>
+      {unavailable && <Text style={{ color: selected ? 'rgba(255,255,255,0.78)' : colors.textFaint, fontSize: 9, marginTop: 2 }}>Coming soon</Text>}
     </Pressable>
   );
 }
