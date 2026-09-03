@@ -47,10 +47,12 @@ export async function registerFcmToken(uid: string): Promise<string> {
   }
   const token = await fcm.getToken();
   if (!token) throw new Error('Could not obtain a notification token for this device.');
-  await db.collection('users').doc(uid).set(
-    { fcmTokens: firestore.FieldValue.arrayUnion(token) },
-    { merge: true }
-  );
+  // `update` deliberately refuses to create a user profile. Calling this
+  // during Google sign-in must never turn an unfinished account into a
+  // partial `users/{uid}` document that the router mistakes for registration.
+  await db.collection('users').doc(uid).update({
+    fcmTokens: firestore.FieldValue.arrayUnion(token),
+  });
   return token;
 }
 
@@ -67,10 +69,9 @@ export async function registerFcmToken(uid: string): Promise<string> {
  */
 export async function unregisterFcmToken(uid: string): Promise<void> {
   const token = await fcm.getToken();
-  await db.collection('users').doc(uid).set(
-    { fcmTokens: firestore.FieldValue.arrayRemove(token) },
-    { merge: true }
-  );
+  await db.collection('users').doc(uid).update({
+    fcmTokens: firestore.FieldValue.arrayRemove(token),
+  });
   await fcm.deleteToken();
 }
 
@@ -118,9 +119,8 @@ export async function getInitialNotificationRoute(): Promise<string | null> {
 /** Keeps a rotated FCM token registered while the session is active. */
 export function onTokenRefresh(uid: string) {
   return fcm.onTokenRefresh(async (token) => {
-    await db.collection('users').doc(uid).set(
-      { fcmTokens: firestore.FieldValue.arrayUnion(token) },
-      { merge: true }
-    );
+    await db.collection('users').doc(uid).update({
+      fcmTokens: firestore.FieldValue.arrayUnion(token),
+    });
   });
 }

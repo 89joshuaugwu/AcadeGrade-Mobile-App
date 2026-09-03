@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { onAuthStateChange, configureGoogleSignIn } from '@/lib/firebase/auth';
 import { db } from '@/lib/firebase/client';
 import { getInitialNotificationRoute, onForegroundMessage, onNotificationOpened, onTokenRefresh, registerFcmToken } from '@/lib/firebase/fcm';
+import { isStudentProfileComplete } from '@/lib/auth/profileCompletion';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useResolvedThemeMode, useThemeColors, useThemeStore } from '@/lib/store/themeStore';
 import { RootErrorBoundary } from '@/components/RootErrorBoundary';
@@ -53,6 +54,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const initialNotificationHandled = useRef(false);
+  const fcmRegisteredUid = useRef<string | null>(null);
 
   const { firebaseUser, profile, isResolving, setFirebaseUser, setProfile, setResolving } = useAuthStore();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
@@ -102,16 +104,34 @@ export default function RootLayout() {
     const unsubAuth = onAuthStateChange(async (user) => {
       console.log('[AcadeGrade] onAuthStateChange fired. user:', user?.uid ?? null);
       if (safetyTimer.current) clearTimeout(safetyTimer.current);
+      // A provider switch can fire without an intermediate `null` auth state.
+      // Tear down the prior account's listeners before observing the new one.
+      unsubDoc?.();
+      unsubDoc = undefined;
+      unsubToken?.();
+      unsubToken = undefined;
+      fcmRegisteredUid.current = null;
       // A returning user may still have a real profile snapshot in flight.
       // Keep navigation stable until Firestore confirms whether it exists.
       setResolving(true);
       setFirebaseUser(user);
+      setProfile(null);
 
       if (user) {
         unsubDoc = db.collection('users').doc(user.uid).onSnapshot(
           (snap) => {
             if (snap.exists()) {
-              setProfile({ uid: user.uid, ...(snap.data() as any) } as UserWithId);
+              const data = snap.data();
+              setProfile({ uid: user.uid, ...(data as any) } as UserWithId);
+
+              // Push registration belongs to a completed student account.
+              // In particular, it must not merge-write an FCM token while a
+              // Google user is still filling the registration wizard.
+              if (isStudentProfileComplete(data) && fcmRegisteredUid.current !== user.uid) {
+                fcmRegisteredUid.current = user.uid;
+                registerFcmToken(user.uid).catch((err) => console.warn('[AcadeGrade] registerFcmToken failed:', err));
+                unsubToken = onTokenRefresh(user.uid);
+              }
             } else {
               setProfile(null);
             }
@@ -120,16 +140,12 @@ export default function RootLayout() {
           },
           (err) => {
             console.error('[AcadeGrade] users/{uid} snapshot error:', err);
+            setProfile(null);
             setResolving(false);
             setReady(true);
           }
         );
-        registerFcmToken(user.uid).catch((err) => console.warn('[AcadeGrade] registerFcmToken failed:', err));
-        unsubToken?.();
-        unsubToken = onTokenRefresh(user.uid);
       } else {
-        if (unsubDoc) unsubDoc();
-        if (unsubToken) unsubToken();
         setProfile(null);
         setResolving(false);
         setReady(true);
@@ -163,10 +179,10 @@ export default function RootLayout() {
     // of current segment, so it redirects correctly however the app opens.
     if (!firebaseUser) {
       if (!inAuthGroup) router.replace('/(auth)/welcome');
-    } else if (!profile) {
+    } else if (!profile || !isStudentProfileComplete(profile)) {
       // Firebase authentication succeeded but profile setup was interrupted or
-      // Firestore was temporarily unavailable. Resume registration instead of
-      // leaving a valid account on a blank or unrelated route.
+      // Firestore contains only an ancillary/partial document. Resume
+      // registration instead of treating the Firebase account as onboarded.
       if (segments[1] !== 'register') router.replace('/(auth)/register');
     } else if (profile && !profile.mobileOnboardingCompleted) {
       if (segments[1] !== 'onboarding-tour') router.replace('/(auth)/onboarding-tour');

@@ -1,5 +1,6 @@
 import { Redirect } from 'expo-router';
 import { useAuthStore } from '@/lib/store/authStore';
+import { isStudentProfileComplete } from '@/lib/auth/profileCompletion';
 
 /**
  * Root index route — matches the bare "/" URL (`acadegrade:///`).
@@ -26,6 +27,10 @@ export default function Index() {
 
   if (!firebaseUser) {
     return <Redirect href="/(auth)/welcome" />;
+  }
+
+  if (profile && !isStudentProfileComplete(profile)) {
+    return <Redirect href="/(auth)/register" />;
   }
 
   if (profile && !profile.mobileOnboardingCompleted) {

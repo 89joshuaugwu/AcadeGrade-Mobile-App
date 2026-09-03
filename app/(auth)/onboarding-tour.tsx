@@ -19,6 +19,7 @@ import { useAuthStore } from '@/lib/store/authStore';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { db } from '@/lib/firebase/client';
 import { useToastStore } from '@/lib/store/toastStore';
+import { isStudentProfileComplete } from '@/lib/auth/profileCompletion';
 
 const SLIDES = [
   { icon: 'TrendingUp' as const, title: 'Track Your Grades', body: 'Automatically calculate your GPA and PI, and track semester performance across all courses.' },
@@ -51,10 +52,11 @@ export default function OnboardingTour() {
       // Legacy authenticated profiles may still arrive here with the old
       // introduction flag unset. Finish the intro without touching the
       // separate contextual usage-tour progress.
-      if (firebaseUser && profile) {
+      if (firebaseUser && isStudentProfileComplete(profile)) {
         await db.collection('users').doc(firebaseUser.uid).set({ mobileOnboardingCompleted: true }, { merge: true });
         router.replace('/(tabs)/dashboard');
       } else {
+        showToast({ type: 'info', title: 'Finish setting up first', message: 'Add your student details before starting the app tour.' });
         router.replace('/(auth)/register');
       }
     } catch (error: any) {

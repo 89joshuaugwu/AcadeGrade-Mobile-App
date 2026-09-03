@@ -22,6 +22,7 @@ import { useThemeColors } from '@/lib/store/themeStore';
 import { COURSE_DURATION_OPTIONS, formatSessionInput, graduationSession, inferCurrentLevel, parseAcademicSession } from '@/lib/academic/timeline';
 import { USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 import { useToastStore } from '@/lib/store/toastStore';
+import { isStudentProfileComplete } from '@/lib/auth/profileCompletion';
 
 type AuthMethod = 'email' | 'google';
 const DEFAULT_UNIVERSITY = 'ESUT Agbani';
@@ -145,9 +146,15 @@ export default function Register() {
     try {
       const cred = await signInWithGoogle();
       const existingProfile = await db.collection('users').doc(cred.user.uid).get();
-      if (existingProfile.exists()) {
-        showToast({ type: 'info', title: 'Account already exists', message: 'Signing you in to your dashboard.' });
-        router.replace('/(tabs)/dashboard');
+      const existingProfileData = existingProfile.data();
+      if (existingProfile.exists() && isStudentProfileComplete(existingProfileData)) {
+        const completedOnMobile = existingProfileData.mobileOnboardingCompleted;
+        showToast({
+          type: 'info',
+          title: 'Account already exists',
+          message: completedOnMobile ? 'Signing you in to your dashboard.' : 'Let’s complete a quick app introduction.',
+        });
+        router.replace(completedOnMobile ? '/(tabs)/dashboard' : '/(auth)/onboarding-tour');
         return;
       }
 
