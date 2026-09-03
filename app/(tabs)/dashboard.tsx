@@ -19,8 +19,8 @@ import { useAutoTour } from '@/lib/tour/useAutoTour';
  * REBUILT to match the inspiration reference exactly (image 4,
  * "UserDashboard" panel) rather than the previous radial-gauge layout:
  * greeting header, gradient hero card (Current GPA + trend badges),
- * Completed/Credits stat pair, a dismissible "New to AcadeGrade?" tour
- * nudge, Recent Grades list, GPA Trend chart. Light theme throughout,
+ * Completed/Credits stat pair, contextual first-run guide,
+ * Recent Grades list, GPA Trend chart. Light theme throughout,
  * matching every other screen rebuilt this round.
  */
 export default function Dashboard() {

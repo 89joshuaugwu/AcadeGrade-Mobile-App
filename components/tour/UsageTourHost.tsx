@@ -9,7 +9,7 @@ import { radius, spacing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
-import { useThemeColors } from '@/lib/store/themeStore';
+import { useResolvedThemeMode, useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 import { useTourStore } from '@/lib/store/tourStore';
 import { ALL_TOUR_CHAPTER_IDS, USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
@@ -21,6 +21,7 @@ const TARGET_PADDING = 7;
 
 export function UsageTourHost() {
   const colors = useThemeColors();
+  const resolvedTheme = useResolvedThemeMode();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const uid = useAuthStore((state) => state.firebaseUser?.uid);
@@ -109,6 +110,7 @@ export function UsageTourHost() {
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === activeChapter.steps.length - 1;
   const resolvedCardWidth = Math.min(420, width - EDGE * 2);
+  const guideAccentText = resolvedTheme === 'dark' ? colors.primaryGlow : colors.primaryHover;
 
   async function completeChapter() {
     const chapterId = activeChapter!.id;
@@ -141,6 +143,7 @@ export function UsageTourHost() {
       await db.collection('users').doc(uid).set({
         mobileUsageTourVersion: USAGE_TOUR_VERSION,
         mobileUsageTourSkipped: true,
+        mobileUsageTourCompleted: false,
         updatedAt: firestore.FieldValue.serverTimestamp(),
       }, { merge: true });
     } catch {
@@ -153,7 +156,7 @@ export function UsageTourHost() {
       <View style={{ flex: 1 }} accessibilityViewIsModal>
         <Svg width={width} height={height} style={{ position: 'absolute', inset: 0 }} pointerEvents="none">
           <Defs>
-            <Mask id="usage-tour-cutout">
+            <Mask id="usage-tour-cutout" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
               <Rect x="0" y="0" width={width} height={height} fill="#FFFFFF" />
               {spotlight && <Rect x={spotlight.x} y={spotlight.y} width={spotlight.width} height={spotlight.height} rx={18} fill="#000000" />}
             </Mask>
@@ -213,7 +216,7 @@ export function UsageTourHost() {
                 {stepIndex === 0 ? <Sparkles size={18} color={colors.primary} /> : <CircleHelp size={18} color={colors.primary} />}
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 }}>{activeChapter.label.toUpperCase()} · {stepIndex + 1} OF {activeChapter.steps.length}</Text>
+                <Text style={{ color: guideAccentText, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 }}>{activeChapter.label.toUpperCase()} · {stepIndex + 1} OF {activeChapter.steps.length}</Text>
                 <Text style={{ color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: '900', marginTop: 3 }}>{step.title}</Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel="Skip usage guide" hitSlop={8} onPress={() => setShowSkipChoice(true)} style={{ padding: 3 }}>

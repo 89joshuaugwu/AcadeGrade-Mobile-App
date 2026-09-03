@@ -21,9 +21,13 @@ The navigable app now has a complete theme-aware interaction system, consistent 
 
 ### Guided onboarding and academic lifecycle
 
-- Rebuilt onboarding as an animated, swipeable eight-step product tour covering Dashboard, Results Hub, semester workspaces, AI result scanning, every Insights mode, Transcript, More/Settings, and the recommended first action.
-- Added progress feedback, Back, Next, Skip, responsive page sizing, light/dark styling, concise safety tips, and miniature code-native previews of the real app surfaces.
-- Moved the first-run tour to the correct point in the journey: registration happens first, then the authenticated tour teaches the working app before Dashboard opens. It can be replayed from Settings.
+- Restored and retained the animated three-slide product introduction between Welcome/Get Started and registration, including swipe navigation, progress, Skip, and Sign In access.
+- Added a separate authenticated usage tour that teaches the app on top of the real interface rather than replacing it with preview slides. Its 12 contextual chapters and 43 steps cover Dashboard, Results Hub, semester creation, semester workspace, compact course entry, course-code import/export, live result scanning, all four Insights tabs, Transcript, More, Notifications, and Settings.
+- Added measured spotlight cutouts, automatic scrolling, automatic Insights-tab switching, a responsive coach card, progress feedback, Back, Next, Finish, and a guarded Skip flow. The layout follows safe areas and live window dimensions across compact phones and orientation changes.
+- The Dashboard welcome opens automatically for a new account; each remaining chapter opens once when that page or sheet is first visited. Step progress resumes locally, while chapter completion and Skip state sync to Firestore; both are isolated per signed-in user and versioned so future guide revisions can run safely.
+- Added screen-reader announcements for every guide step and kept highlighted controls semantically intact for assistive technology.
+- Added a useful Transcript shared-link empty state so first-time users can learn link creation, expiry, copying, and revocation before they have created a link.
+- Kept a full replay control in Settings that resets both local and cloud guide state and returns the user to the Dashboard introduction.
 - Added a registration timeline preview that calculates the final academic session automatically. For example, entry in 2022/2023 with a four-year duration ends in 2025/2026.
 - Added an editable Academic Timeline sheet in Settings with a 1–10 year stepper, common duration shortcuts, expected-graduation preview, input validation, and safe realignment of existing semester session labels.
 - Added a shared academic-plan engine that creates two ordered semester slots per programme year, recognizes existing and completed slots, and remains compatible with older profiles that only contain `currentSession`.
@@ -34,6 +38,7 @@ The navigable app now has a complete theme-aware interaction system, consistent 
 
 - Replaced every mobile `Alert.alert` confirmation with an AcadeGrade-styled animated bottom confirmation sheet.
 - Added explicit safe and destructive labels such as **Keep course** and **Delete course**.
+- Hardened the actual destructive action to a fixed deep-red fill (`#B91C1C`), dark-red border, and white label/icon, preventing the reported white-on-white **Delete course** and **Delete semester** buttons after light-mode switches or Fast Refresh.
 - Added destructive-action context, permanent-action warning, repeat-tap protection, progress state, backdrop dismissal, Android back handling, accessibility semantics, and haptic feedback.
 - Applied the confirmation system to courses, semesters, and shared transcript links.
 - Replaced informational and error system alerts with the existing themed toast system across Results, Transcript, Profile, scanner saving, notifications, and foreground push messages.

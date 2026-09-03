@@ -46,9 +46,9 @@ export default function OnboardingTour() {
     if (finishing) return;
     setFinishing(true);
     try {
-      // Kept for existing accounts that were already routed here by the
-      // previous onboarding flag. The contextual usage tour will receive
-      // its own state after its reviewed design is approved.
+      // Legacy authenticated profiles may still arrive here with the old
+      // introduction flag unset. Finish the intro without touching the
+      // separate contextual usage-tour progress.
       if (firebaseUser && profile) {
         await db.collection('users').doc(firebaseUser.uid).set({ mobileOnboardingCompleted: true }, { merge: true });
         router.replace('/(tabs)/dashboard');
