@@ -199,7 +199,7 @@ export default function RootLayout() {
         <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
         <BottomSheetModalProvider>
           <QueryClientProvider client={queryClient}>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: themeColors.void } }}>
+            <Stack screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: themeColors.void } }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
