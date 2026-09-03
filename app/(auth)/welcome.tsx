@@ -56,7 +56,7 @@ export default function Welcome() {
         </View>
 
         <Animated.View entering={FadeInUp.delay(300).duration(500)} style={{ gap: spacing.md }}>
-          <Button label="Get Started" onPress={() => router.push('/(auth)/register')} fullWidth />
+          <Button label="Get Started" onPress={() => router.push('/(auth)/onboarding-tour')} fullWidth />
           <Button label="Sign In" variant="secondary" onPress={() => router.push('/(auth)/login')} fullWidth />
           <Text style={{ color: c.textFaint, fontSize: 11, textAlign: 'center', marginTop: spacing.xs }}>
             By continuing, you agree to our Terms

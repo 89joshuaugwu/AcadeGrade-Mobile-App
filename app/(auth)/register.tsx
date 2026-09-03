@@ -159,7 +159,9 @@ export default function Register() {
         courseDuration: form.courseDuration ?? 4,
         graduationSession: graduationSession(form.currentSession ?? '', form.courseDuration ?? 4),
         isAdmin: false, disabled: false,
-        fcmToken: null, fcmTokens: [], mobileOnboardingCompleted: false,
+        // The user reached registration through the pre-auth product intro.
+        // The authenticated usage guide will keep its own versioned progress.
+        fcmToken: null, fcmTokens: [], mobileOnboardingCompleted: true,
         createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp(),
       });
     } catch (e: any) {

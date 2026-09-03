@@ -149,29 +149,7 @@ export function ConfirmDialogHost() {
             </View>
           )}
 
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={dialog.cancelLabel ?? 'Cancel'}
-              disabled={loading}
-              onPress={hide}
-              style={({ pressed }) => ({
-                flex: 1,
-                minHeight: 50,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: radius.md,
-                backgroundColor: colors.overlay,
-                borderWidth: 1,
-                borderColor: colors.border,
-                opacity: loading ? 0.55 : pressed ? 0.72 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              })}
-            >
-              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>
-                {dialog.cancelLabel ?? 'Keep it'}
-              </Text>
-            </Pressable>
+          <View style={{ gap: spacing.sm, marginTop: spacing.lg, width: '100%' }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={dialog.confirmLabel ?? 'Confirm'}
@@ -179,7 +157,7 @@ export function ConfirmDialogHost() {
               disabled={loading}
               onPress={confirm}
               style={({ pressed }) => ({
-                flex: 1.25,
+                width: '100%',
                 minHeight: 50,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -198,6 +176,28 @@ export function ConfirmDialogHost() {
                   {dialog.confirmLabel ?? 'Confirm'}
                 </Text>
               )}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={dialog.cancelLabel ?? 'Cancel'}
+              disabled={loading}
+              onPress={hide}
+              style={({ pressed }) => ({
+                width: '100%',
+                minHeight: 50,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: radius.md,
+                backgroundColor: colors.overlay,
+                borderWidth: 1,
+                borderColor: colors.border,
+                opacity: loading ? 0.55 : pressed ? 0.72 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
+            >
+              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>
+                {dialog.cancelLabel ?? 'Keep it'}
+              </Text>
             </Pressable>
           </View>
         </Animated.View>
