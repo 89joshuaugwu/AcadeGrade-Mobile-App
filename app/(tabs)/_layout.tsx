@@ -4,6 +4,7 @@ import { View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { LayoutDashboard, FileText, GraduationCap, MoreHorizontal, Settings, Bell, ChevronRight, Moon, Sun, Smartphone } from 'lucide-react-native';
+import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 import { radius, spacing } from '@/constants/theme';
 import { useThemeColors, useThemeStore, type ThemeMode } from '@/lib/store/themeStore';
 import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
@@ -66,27 +67,18 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textMuted,
-          tabBarShowLabel: true,
-          tabBarStyle: {
-            position: 'absolute', left: 0, right: 0, bottom: 0, height: 64 + insets.bottom,
-            paddingBottom: Math.max(insets.bottom, 5),
-            backgroundColor: colors.surface, borderTopWidth: 1, borderColor: colors.borderSubtle,
-            borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            elevation: 16, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: -4 },
-          },
-          tabBarItemStyle: { paddingTop: 7 },
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
+          tabBarStyle: { display: 'none' },
+          animation: 'fade',
         }}
+        tabBar={(props) => <CylindricalTabBar {...props} onOpenMore={openMore} bottomInset={insets.bottom} colors={colors} />}
       >
-        <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-dashboard" focused={focused} colors={colors}><LayoutDashboard color={color} size={size - 1} /></TabIcon> }} />
-        <Tabs.Screen name="results" options={{ title: 'Results', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-results" focused={focused} colors={colors}><FileText color={color} size={size - 1} /></TabIcon> }} />
-        <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ focused }) => <TabIcon tourId="nav-insights" focused={focused} colors={colors}><View style={{ opacity: focused ? 1 : 0.48 }}><AcadeMindMark size={20} /></View></TabIcon> }} />
-        <Tabs.Screen name="transcript" options={{ title: 'Transcript', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-transcript" focused={focused} colors={colors}><GraduationCap color={color} size={size - 1} /></TabIcon> }} />
+        <Tabs.Screen name="dashboard" options={{ title: 'Dashboard' }} />
+        <Tabs.Screen name="results" options={{ title: 'Results' }} />
+        <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
+        <Tabs.Screen name="transcript" options={{ title: 'Transcript' }} />
         <Tabs.Screen
           name="more"
-          options={{ title: 'More', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-more" focused={focused} colors={colors}><MoreHorizontal color={color} size={size - 1} /></TabIcon> }}
+          options={{ title: 'More' }}
           listeners={{ tabPress: (e) => { e.preventDefault(); openMore(); } }}
         />
         {/* Reachable via routing/the More sheet, hidden from the tab bar itself */}
@@ -124,25 +116,53 @@ export default function TabsLayout() {
   );
 }
 
-function TabIcon({ tourId, focused, children, colors }: { tourId: string; focused: boolean; children: React.ReactNode; colors: ReturnType<typeof useThemeColors> }) {
+const TAB_ITEMS = [
+  { name: 'dashboard', label: 'Dashboard', tourId: 'nav-dashboard', Icon: LayoutDashboard },
+  { name: 'results', label: 'Results', tourId: 'nav-results', Icon: FileText },
+  { name: 'insights', label: 'Insights', tourId: 'nav-insights', Icon: undefined },
+  { name: 'transcript', label: 'Transcript', tourId: 'nav-transcript', Icon: GraduationCap },
+  { name: 'more', label: 'More', tourId: 'nav-more', Icon: MoreHorizontal },
+] as const;
+
+function CylindricalTabBar({ state, navigation, onOpenMore, bottomInset, colors }: any & { onOpenMore: () => void; bottomInset: number; colors: ReturnType<typeof useThemeColors> }) {
+  const activeRouteName = state.routes[state.index]?.name;
+
   return (
-    <TourTarget
-      tourId={tourId}
-      style={{
-        minWidth: 38,
-        height: 29,
-        paddingHorizontal: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: radius.pill,
-        backgroundColor: focused ? colors.primaryDim : 'transparent',
-        borderWidth: focused ? 1 : 0,
-        borderColor: focused ? `${colors.primary}45` : 'transparent',
-        transform: [{ scale: focused ? 1 : 0.94 }],
-      }}
-    >
-      {children}
-    </TourTarget>
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center', paddingBottom: Math.max(bottomInset, spacing.sm), paddingHorizontal: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: 430, minHeight: 64, paddingHorizontal: 7, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 18 }}>
+        {TAB_ITEMS.map((item) => {
+          const routeIndex = state.routes.findIndex((route: { name: string }) => route.name === item.name);
+          if (routeIndex < 0) return null;
+          const focused = activeRouteName === item.name;
+          const route = state.routes[routeIndex];
+          const Icon = item.Icon;
+          const iconColor = focused ? colors.primaryGlow : colors.textMuted;
+          const onPress = () => {
+            if (item.name === 'more') {
+              onOpenMore();
+              return;
+            }
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+          };
+
+          return (
+            <TourTarget key={item.name} tourId={item.tourId}>
+              <Pressable accessibilityRole="tab" accessibilityState={{ selected: focused }} accessibilityLabel={item.label} onPress={onPress} style={{ minHeight: 50, justifyContent: 'center' }}>
+                <Animated.View
+                  layout={Layout.springify().damping(18).stiffness(220)}
+                  entering={FadeIn.duration(160)}
+                  style={{ minWidth: focused ? 106 : 46, height: 50, paddingHorizontal: focused ? 13 : 0, gap: focused ? 7 : 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: focused ? colors.primaryDim : 'transparent', borderWidth: focused ? 1 : 0, borderColor: focused ? `${colors.primary}55` : 'transparent' }}
+                >
+                  {item.name === 'insights' ? <View style={{ opacity: focused ? 1 : 0.58 }}><AcadeMindMark size={21} /></View> : Icon ? <Icon size={21} color={iconColor} strokeWidth={focused ? 2.7 : 2.1} /> : null}
+                  {focused && <Animated.Text entering={FadeIn.duration(150)} style={{ color: colors.primaryGlow, fontSize: 11, fontWeight: '900' }} numberOfLines={1}>{item.label}</Animated.Text>}
+                </Animated.View>
+              </Pressable>
+            </TourTarget>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 

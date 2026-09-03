@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Switch, Image, Pressable, Modal } from 'react-native';
+import { View, Text, ScrollView, Switch, Image, Pressable, Modal, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
@@ -10,7 +10,7 @@ import {
   User as UserIcon, ShieldCheck, ShieldAlert, LogOut, ChevronRight, Palette,
   Minus, Plus, PlayCircle,
 } from 'lucide-react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import firestore from '@react-native-firebase/firestore';
 import { spacing, radius } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
@@ -62,6 +62,7 @@ const CLOUDINARY_UPLOAD_PRESET = 'acadegrade_avatars';
 export default function Profile() {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const router = useRouter();
   const themeMode = useThemeStore((s) => s.mode);
   const setThemeMode = useThemeStore((s) => s.setMode);
@@ -84,9 +85,34 @@ export default function Profile() {
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [savingTimeline, setSavingTimeline] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const profileScrollY = useSharedValue(0);
   const resetTourForReplay = useTourStore((state) => state.resetForReplay);
   const startTourChapter = useTourStore((state) => state.startChapter);
   useAutoTour('settings', 650, !academicLoading);
+
+  const onProfileScroll = useAnimatedScrollHandler((event) => {
+    profileScrollY.value = event.contentOffset.y;
+  });
+  const avatarHeaderStyle = useAnimatedStyle(() => {
+    const progress = Math.min(Math.max(profileScrollY.value / 104, 0), 1);
+    const size = interpolate(progress, [0, 1], [88, 42]);
+    return {
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      left: interpolate(progress, [0, 1], [(width - 88) / 2, spacing.lg]),
+      top: interpolate(progress, [0, 1], [8, 11]),
+    };
+  });
+  const largeIdentityStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(profileScrollY.value, [0, 55, 88], [1, 0.35, 0]),
+    transform: [{ translateY: interpolate(profileScrollY.value, [0, 88], [0, -10]) }],
+  }));
+  const compactIdentityStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(profileScrollY.value, [45, 105], [0, 1]),
+    transform: [{ translateX: interpolate(profileScrollY.value, [45, 105], [-8, 0]) }],
+  }));
+  const headerSurfaceStyle = useAnimatedStyle(() => ({ opacity: interpolate(profileScrollY.value, [25, 95], [0, 1]) }));
 
   useEffect(() => { setNotifs(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true }); }, [profile?.notificationPreferences]);
 
@@ -256,10 +282,35 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
-      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 72, backgroundColor: c.void, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, zIndex: 4 }, headerSurfaceStyle]} />
+      <TourTarget tourId="settings-profile" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 164, zIndex: 5 }}>
+        <Animated.View style={[{ position: 'absolute', overflow: 'visible' }, avatarHeaderStyle]}>
+          <Pressable onPress={pickAvatar} style={{ flex: 1 }} accessibilityLabel="Change profile picture">
+            {profile?.avatarUrl ? (
+              <Image source={{ uri: profile.avatarUrl }} style={{ width: '100%', height: '100%', borderRadius: 999 }} />
+            ) : (
+              <View style={{ flex: 1, borderRadius: 999, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: c.primary, fontSize: 22, fontWeight: '800' }}>{profile?.fullName?.[0] ?? '?'}</Text>
+              </View>
+            )}
+            <View style={{ position: 'absolute', bottom: -2, right: -2, width: 27, height: 27, borderRadius: 14, backgroundColor: c.primaryHover, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.void }}>
+              {uploading ? <Text style={{ color: '#fff', fontSize: 10 }}>…</Text> : <Camera size={13} color="#fff" />}
+            </View>
+          </Pressable>
+        </Animated.View>
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 105, left: 0, right: 0, alignItems: 'center' }, largeIdentityStyle]}>
+          <Text style={{ color: c.text, fontSize: 19, fontWeight: '800' }}>{profile?.fullName}</Text>
+          <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>{profile?.department} · {profile?.currentLevel} Level</Text>
+        </Animated.View>
+        <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 70, right: spacing.lg, top: 14 }, compactIdentityStyle]}>
+          <Text style={{ color: c.text, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{profile?.fullName}</Text>
+          <Text style={{ color: c.textMuted, fontSize: 10, marginTop: 1 }} numberOfLines={1}>{profile?.department} · {profile?.currentLevel} Level</Text>
+        </Animated.View>
+      </TourTarget>
+      <Animated.ScrollView ref={scrollRef as any} onScroll={onProfileScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: spacing.lg, paddingTop: 174, paddingBottom: 120 }}>
         {/* AVATAR + IDENTITY */}
-        <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-          <TourTarget tourId="settings-profile" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ alignItems: 'center' }}>
+        <Animated.View entering={FadeInDown.duration(300)} style={{ display: 'none', alignItems: 'center', marginBottom: spacing.lg }}>
+          <TourTarget tourId="settings-profile-legacy" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ alignItems: 'center' }}>
           <Pressable onPress={pickAvatar} style={{ marginBottom: spacing.sm }}>
             {profile?.avatarUrl ? (
               <Image source={{ uri: profile.avatarUrl }} style={{ width: 88, height: 88, borderRadius: 44 }} />
@@ -366,7 +417,7 @@ export default function Profile() {
             {unreadCount} unread notification{unreadCount > 1 ? 's' : ''}
           </Text>
         )}
-      </ScrollView>
+      </Animated.ScrollView>
 
       <Modal visible={themeSheetOpen} transparent animationType="fade" onRequestClose={() => setThemeSheetOpen(false)}>
         <Pressable onPress={() => setThemeSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,9,15,0.55)' }}>
