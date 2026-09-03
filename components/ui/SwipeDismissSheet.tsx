@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Animated,
   PanResponder,
@@ -17,7 +17,7 @@ interface SwipeDismissSheetProps {
 
 /** Gives native Modal sheets the body-pan behaviour of a real bottom sheet. */
 export function SwipeDismissSheet({ children, onDismiss, disabled = false, canStart, style }: SwipeDismissSheetProps) {
-  const translateY = useRef(new Animated.Value(0)).current;
+  const [translateY] = useState(() => new Animated.Value(0));
 
   const panResponder = useMemo(() => {
     const shouldStart = (_: unknown, gesture: { dx: number; dy: number }) => (
