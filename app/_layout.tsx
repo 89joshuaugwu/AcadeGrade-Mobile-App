@@ -9,7 +9,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { onAuthStateChange, configureGoogleSignIn } from '@/lib/firebase/auth';
 import { db } from '@/lib/firebase/client';
-import { registerFcmToken, onForegroundMessage, onTokenRefresh } from '@/lib/firebase/fcm';
+import { getInitialNotificationRoute, onForegroundMessage, onNotificationOpened, onTokenRefresh, registerFcmToken } from '@/lib/firebase/fcm';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useResolvedThemeMode, useThemeColors, useThemeStore } from '@/lib/store/themeStore';
 import { RootErrorBoundary } from '@/components/RootErrorBoundary';
@@ -52,6 +52,7 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const safetyTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const initialNotificationHandled = useRef(false);
 
   const { firebaseUser, profile, setFirebaseUser, setProfile, setResolving } = useAuthStore();
   const hydrateTheme = useThemeStore((s) => s.hydrate);
@@ -67,6 +68,22 @@ export default function RootLayout() {
   useEffect(() => onForegroundMessage((title, body) => {
     showToast({ type: 'info', title, message: body, duration: 5000 });
   }), [showToast]);
+
+  // Background/quit notifications are presented by Android. Once the app is
+  // authenticated and ready, use the server payload to open the relevant
+  // screen instead of merely landing on the dashboard.
+  useEffect(() => {
+    if (!ready || !themeHydrated || !firebaseUser || !profile?.mobileOnboardingCompleted) return;
+
+    const unsubscribe = onNotificationOpened((route) => router.push(route as any));
+    if (!initialNotificationHandled.current) {
+      initialNotificationHandled.current = true;
+      getInitialNotificationRoute()
+        .then((route) => { if (route) router.push(route as any); })
+        .catch((error) => console.warn('[AcadeGrade] Initial notification lookup failed:', error));
+    }
+    return unsubscribe;
+  }, [firebaseUser, profile?.mobileOnboardingCompleted, ready, router, themeHydrated]);
 
   useEffect(() => {
     console.log('[AcadeGrade] Root layout mounted (attempt', retryKey + 1, '), configuring Google Sign-In...');

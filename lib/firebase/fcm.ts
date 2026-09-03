@@ -57,6 +57,40 @@ export function onForegroundMessage(callback: (title: string, body: string) => v
   });
 }
 
+/** Maps web notification URLs from the API into their mobile destinations. */
+export function getNotificationRoute(remoteMessage: { data?: Record<string, unknown> }): string {
+  const rawUrl = typeof remoteMessage.data?.url === 'string' ? remoteMessage.data.url : undefined;
+  let pathname = '/notifications';
+
+  if (rawUrl) {
+    try {
+      pathname = new URL(rawUrl, 'https://acadegrade.vercel.app').pathname;
+    } catch {
+      pathname = rawUrl.split('?')[0] || '/notifications';
+    }
+  }
+
+  const resultMatch = pathname.match(/^\/results\/([^/]+)$/);
+  if (resultMatch) return `/(tabs)/results/${encodeURIComponent(resultMatch[1])}`;
+  if (pathname === '/results') return '/(tabs)/results';
+  if (pathname === '/insights') return '/(tabs)/insights';
+  if (pathname === '/transcript') return '/(tabs)/transcript';
+  if (pathname === '/settings' || pathname === '/profile') return '/(tabs)/profile';
+  if (pathname === '/dashboard') return '/(tabs)/dashboard';
+  return '/(tabs)/notifications';
+}
+
+/** Fires when a system notification resumes the app from the background. */
+export function onNotificationOpened(callback: (route: string) => void) {
+  return fcm.onNotificationOpenedApp((remoteMessage) => callback(getNotificationRoute(remoteMessage)));
+}
+
+/** Reads the notification that launched a fully closed app, if any. */
+export async function getInitialNotificationRoute(): Promise<string | null> {
+  const remoteMessage = await fcm.getInitialNotification();
+  return remoteMessage ? getNotificationRoute(remoteMessage) : null;
+}
+
 /** Keeps a rotated FCM token registered while the session is active. */
 export function onTokenRefresh(uid: string) {
   return fcm.onTokenRefresh(async (token) => {

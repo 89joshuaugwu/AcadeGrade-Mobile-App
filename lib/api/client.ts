@@ -15,7 +15,7 @@
  *   /api/auth/otp/send                 POST
  *   /api/auth/otp/verify                POST
  *   /api/auth/password/reset           POST
- *   /api/notifications/send            POST (server-triggered, not called from client)
+ *   /api/notifications/send            POST (authenticated owner/admin notification trigger)
  *   /api/results/extract               POST  (AI OCR)
  *   /api/transcript/generate           POST
  *   /api/transcript/share              POST
@@ -106,6 +106,24 @@ export const resultsApi = {
       method: 'POST',
       body: { base64Data, mimeType },
     }),
+};
+
+// ── Notifications ────────────────────────────────────────────────────────
+export type NotificationEvent = 'semesterSaved' | 'degreeClass' | 'aiInsights';
+
+export const notificationsApi = {
+  /** Creates an inbox item and requests FCM delivery through the protected API. */
+  send: (payload: {
+    uid: string;
+    title: string;
+    message: string;
+    type?: string;
+    event?: NotificationEvent;
+    data?: { url?: string };
+  }) => request<{ success: boolean; message: string }>('/api/notifications/send', {
+    method: 'POST',
+    body: payload,
+  }),
 };
 
 // ── Transcript ──────────────────────────────────────────────────────────

@@ -19,7 +19,7 @@ import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 import { computeCourseMetrics, computeSemesterGPA } from '@/lib/cgpa/calculator';
 import { getGradeColor, getGradeForeground } from '@/lib/cgpa/gradeScale';
-import { resultsApi } from '@/lib/api/client';
+import { notificationsApi, resultsApi } from '@/lib/api/client';
 import type { CourseWithId, CourseInput } from '@/types/course';
 import type { SemesterWithId } from '@/types/semester';
 import { useThemeColors } from '@/lib/store/themeStore';
@@ -161,6 +161,16 @@ export default function SemesterDetail() {
         isComplete: true, updatedAt: firestore.FieldValue.serverTimestamp(),
       });
       markInsightsStale();
+      // Mirror the web completion flow without making a saved result depend
+      // on network or FCM delivery. The API creates the inbox entry too.
+      void notificationsApi.send({
+        uid,
+        title: 'Semester Saved 📝',
+        message: `Your results for ${semester?.label || 'this semester'} have been saved. GPA: ${semResult.gpa.toFixed(2)}`,
+        type: 'success',
+        event: 'semesterSaved',
+        data: { url: `/results/${semesterId}` },
+      }).catch((error) => console.warn('[AcadeGrade] Semester notification failed:', error));
       showToast({ type: 'success', title: 'Semester completed', message: 'Dashboard and transcript totals have been updated.' });
       router.back();
     } catch (e: any) {
