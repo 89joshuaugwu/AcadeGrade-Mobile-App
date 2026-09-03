@@ -6,6 +6,10 @@ import { colors, radius, type ThemeColors } from '@/constants/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
+// Kept independent from the hydrated theme object so Fast Refresh can never
+// leave a destructive button with an undefined (transparent) background.
+const DESTRUCTIVE_BUTTON_COLOR = '#B91C1C';
+
 interface ButtonProps extends Omit<PressableProps, 'style'> {
   label: string;
   variant?: Variant;
@@ -27,7 +31,7 @@ export function Button({ label, variant = 'primary', loading, fullWidth, icon, d
     primary: { bg: c.primaryHover, text: '#FFFFFF' },
     secondary: { bg: c.surface, text: c.text, border: c.border },
     ghost: { bg: 'transparent', text: c.primaryGlow },
-    danger: { bg: c.dangerAction, text: '#FFFFFF' },
+    danger: { bg: DESTRUCTIVE_BUTTON_COLOR, text: '#FFFFFF', border: '#991B1B' },
   }[variant];
 
   const animatedStyle = useAnimatedStyle(() => ({

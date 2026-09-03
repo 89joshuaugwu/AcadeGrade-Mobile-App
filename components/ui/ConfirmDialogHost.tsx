@@ -8,6 +8,11 @@ import { radius, spacing } from '@/constants/theme';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useConfirmDialogStore, type ConfirmDialogTone } from '@/lib/store/confirmDialogStore';
 
+// Explicit rather than a newly hydrated palette property: this guarantees
+// the red fill remains present after light/dark switches and Fast Refresh.
+const DESTRUCTIVE_BUTTON_COLOR = '#B91C1C';
+const DESTRUCTIVE_BUTTON_BORDER = '#991B1B';
+
 export function ConfirmDialogHost() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -26,7 +31,7 @@ export function ConfirmDialogHost() {
   const actionBackground = tone === 'primary'
     ? colors.primaryHover
     : tone === 'danger'
-      ? colors.dangerAction
+      ? DESTRUCTIVE_BUTTON_COLOR
       : accent;
   const actionForeground = tone === 'warning' ? '#1C1005' : '#FFFFFF';
 
@@ -180,6 +185,8 @@ export function ConfirmDialogHost() {
                 justifyContent: 'center',
                 borderRadius: radius.md,
                 backgroundColor: actionBackground,
+                borderWidth: 1,
+                borderColor: tone === 'danger' ? DESTRUCTIVE_BUTTON_BORDER : actionBackground,
                 opacity: loading ? 0.72 : pressed ? 0.84 : 1,
                 transform: [{ scale: pressed ? 0.98 : 1 }],
               })}
