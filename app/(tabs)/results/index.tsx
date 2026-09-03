@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,8 @@ import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import type { CourseWithId } from '@/types/course';
 import type { SemesterWithId } from '@/types/semester';
 import { getAcademicPlan } from '@/lib/academic/timeline';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
 
 export default function ResultsList() {
   const colors = useThemeColors();
@@ -26,6 +28,8 @@ export default function ResultsList() {
   const orderedSemesters = useMemo(() => [...semesters].reverse(), [semesters]);
   const academicPlan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  useAutoTour('results');
 
   function markInsightsStale() {
     if (!uid) return;
@@ -94,10 +98,12 @@ export default function ResultsList() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
       <ScrollView
+        ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }}
       >
         <View style={{ paddingBottom: spacing.lg }}>
+          <TourTarget tourId="results-overview" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}>
           <Text style={{ color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }}>Results Hub</Text>
           <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }} numberOfLines={1}>
             {[profile?.university, profile?.department].filter(Boolean).join(' · ') || 'Your academic record'}
@@ -108,7 +114,9 @@ export default function ResultsList() {
             <StatCard value={String(semesters.length)} label="Semesters" color={colors.info} />
             <StatCard value={String(totalCredits)} label="Credits" color={colors.success} />
           </View>
+          </TourTarget>
 
+          <TourTarget tourId="results-create">
           <Pressable
             disabled={academicPlan.isFullyCreated}
             onPress={() => router.push('/(tabs)/results/new')}
@@ -119,8 +127,10 @@ export default function ResultsList() {
             <Text style={{ color: academicPlan.isFullyCreated ? colors.textMuted : colors.primary, fontSize: 12, fontWeight: '800' }}>{academicPlan.isFullyCreated ? 'All programme semesters added' : 'Create next semester'}</Text>
           </Pressable>
           {academicPlan.isFullyCreated && <Text style={{ color: colors.textFaint, fontSize: 10, textAlign: 'center', marginTop: 6 }}>Increase programme duration in Settings to add another academic year.</Text>}
+          </TourTarget>
         </View>
 
+        <TourTarget tourId="results-semesters" onTourFocus={() => scrollRef.current?.scrollTo({ y: 215, animated: true })}>
         {loading && !orderedSemesters.length ? (
           <View style={{ paddingVertical: spacing.xxxl, alignItems: 'center' }}>
             <ActivityIndicator color={colors.primary} />
@@ -151,6 +161,7 @@ export default function ResultsList() {
             ))}
           </View>
         )}
+        </TourTarget>
       </ScrollView>
     </SafeAreaView>
   );

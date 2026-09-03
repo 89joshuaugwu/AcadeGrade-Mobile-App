@@ -13,6 +13,8 @@ import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 import { db } from '@/lib/firebase/client';
 import { getAcademicPlan, slotKey } from '@/lib/academic/timeline';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
 
 export default function NewSemester() {
   const colors = useThemeColors();
@@ -22,6 +24,7 @@ export default function NewSemester() {
   const showToast = useToastStore((state) => state.show);
   const { semesters, loading: academicLoading } = useAcademicData();
   const [creating, setCreating] = useState(false);
+  useAutoTour('new-semester');
 
   const plan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
   const nextSlot = plan.remainingSlots[0] ?? null;
@@ -88,6 +91,7 @@ export default function NewSemester() {
           <PlanProblem onOpenSettings={() => router.push('/(tabs)/profile')} />
         ) : (
           <>
+            <TourTarget tourId="new-semester-plan">
             <Animated.View entering={FadeInDown.duration(280)} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -106,10 +110,12 @@ export default function NewSemester() {
               </View>
               <Text style={{ color: colors.textFaint, fontSize: 10, marginTop: 7 }}>{plan.remainingSlots.length} semester slot{plan.remainingSlots.length === 1 ? '' : 's'} remaining</Text>
             </Animated.View>
+            </TourTarget>
 
             {nextSlot ? (
               <Animated.View entering={FadeInDown.delay(70).duration(300)}>
                 <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginVertical: spacing.md }}>NEXT AVAILABLE</Text>
+                <TourTarget tourId="new-semester-slot">
                 <View style={{ backgroundColor: colors.deep, borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg, shadowColor: colors.primary, shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: colors.primaryDim, alignItems: 'center', justifyContent: 'center' }}>
@@ -129,10 +135,11 @@ export default function NewSemester() {
                     <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 17, flex: 1 }}>Earlier slots already in Results are locked out, preventing duplicate levels and semesters.</Text>
                   </View>
                 </View>
+                </TourTarget>
 
-                <View style={{ marginTop: spacing.lg }}>
+                <TourTarget tourId="new-semester-create" style={{ marginTop: spacing.lg }}>
                   <Button label={`Create ${nextSlot.level}L ${nextSlot.semester === 1 ? 'First' : 'Second'} Semester`} onPress={createNextSemester} loading={creating} fullWidth themeColors={colors} icon={<ChevronRight size={17} color="#FFFFFF" />} />
-                </View>
+                </TourTarget>
               </Animated.View>
             ) : (
               <Animated.View entering={FadeInDown.delay(70).duration(300)} style={{ alignItems: 'center', backgroundColor: colors.successDim, borderWidth: 1, borderColor: `${colors.success}55`, borderRadius: radius.xl, padding: spacing.xl }}>

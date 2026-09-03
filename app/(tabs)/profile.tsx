@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Switch, Image, Pressable, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -25,6 +25,10 @@ import { useThemeStore } from '@/lib/store/themeStore';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 import { COURSE_DURATION_OPTIONS, MAX_COURSE_DURATION, MIN_COURSE_DURATION, formatAcademicSession, formatSessionInput, graduationSession, minimumDurationForSemesters, parseAcademicSession } from '@/lib/academic/timeline';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { useTourStore } from '@/lib/store/tourStore';
+import { TOUR_CHAPTERS, USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 
 interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
@@ -78,6 +82,10 @@ export default function Profile() {
   const [timelineDuration, setTimelineDuration] = useState(4);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [savingTimeline, setSavingTimeline] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const resetTourForReplay = useTourStore((state) => state.resetForReplay);
+  const startTourChapter = useTourStore((state) => state.startChapter);
+  useAutoTour('settings');
 
   useEffect(() => { setNotifs(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true }); }, [profile?.notificationPreferences]);
 
@@ -212,8 +220,16 @@ export default function Profile() {
 
   async function replayAppTour() {
     if (!uid) return;
-    await db.collection('users').doc(uid).set({ mobileOnboardingCompleted: false }, { merge: true });
-    router.push('/(auth)/onboarding-tour');
+    await db.collection('users').doc(uid).set({
+      mobileUsageTourVersion: USAGE_TOUR_VERSION,
+      mobileUsageTourCompletedChapters: [],
+      mobileUsageTourSkipped: false,
+      mobileUsageTourCompleted: false,
+      updatedAt: firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    resetTourForReplay();
+    router.replace('/(tabs)/dashboard');
+    setTimeout(() => startTourChapter(TOUR_CHAPTERS.dashboard, true), 450);
   }
 
   async function confirmDeleteAccount() {
@@ -235,9 +251,10 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
         {/* AVATAR + IDENTITY */}
         <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+          <TourTarget tourId="settings-profile" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ alignItems: 'center' }}>
           <Pressable onPress={pickAvatar} style={{ marginBottom: spacing.sm }}>
             {profile?.avatarUrl ? (
               <Image source={{ uri: profile.avatarUrl }} style={{ width: 88, height: 88, borderRadius: 44 }} />
@@ -252,6 +269,7 @@ export default function Profile() {
           </Pressable>
           <Text style={{ color: c.text, fontSize: 19, fontWeight: '800' }}>{profile?.fullName}</Text>
           <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>{profile?.department} · {profile?.currentLevel} Level</Text>
+          </TourTarget>
         </Animated.View>
 
         {/* STATS ROW */}
@@ -282,13 +300,16 @@ export default function Profile() {
         </Animated.View>
 
         {/* ACADEMIC PREFERENCES */}
+        <TourTarget tourId="settings-academic" onTourFocus={() => scrollRef.current?.scrollTo({ y: 300, animated: true })}>
         <Animated.View entering={FadeInDown.delay(140).duration(300)} style={{ marginBottom: spacing.lg }}>
           <SectionLabel label="Academic Preferences" />
           <View style={{ gap: 8 }}>
             <ListRow icon={<Star size={16} color={c.gold} />} title="Primary Metric" subtitle={profile?.gradeMode === 'pi' ? 'True Mastery (PI)' : 'CGPA (4.0 Scale)'} onPress={toggleGradeMode} />
             <ListRow icon={<Palette size={16} color={c.primary} />} title="Appearance" subtitle={themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark mode' : 'Light mode'} onPress={() => setThemeSheetOpen(true)} />
             <ListRow icon={<CalendarRange size={16} color={c.primary} />} title="Academic Timeline" subtitle={`${profile?.courseDuration ?? 4} years · ${profile?.entrySession || profile?.currentSession || 'Set entry session'} → ${profile?.graduationSession || graduationSession(profile?.entrySession || profile?.currentSession || '', profile?.courseDuration ?? 4) || 'Set graduation'}`} onPress={openTimelineSettings} />
-            <ListRow icon={<PlayCircle size={16} color={c.primary} />} title="Replay App Tour" subtitle="Review Dashboard, Results, Insights, Transcript, and More" onPress={replayAppTour} />
+            <TourTarget tourId="settings-replay" onTourFocus={() => scrollRef.current?.scrollTo({ y: 430, animated: true })}>
+              <ListRow icon={<PlayCircle size={16} color={c.primary} />} title="Replay Usage Guide" subtitle="Restart every contextual screen guide" onPress={replayAppTour} />
+            </TourTarget>
             <ListRow icon={<BellRing size={16} color={c.primary} />} title="Push Notifications" subtitle="Manage alerts on this device" onPress={enablePushNotifications} />
             <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
               <Text style={{ color: c.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm }}>
@@ -301,8 +322,10 @@ export default function Profile() {
             </View>
           </View>
         </Animated.View>
+        </TourTarget>
 
         {/* ACCOUNT & SECURITY */}
+        <TourTarget tourId="settings-account" onTourFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}>
         <Animated.View entering={FadeInDown.delay(180).duration(300)} style={{ marginBottom: spacing.lg }}>
           <SectionLabel label="Account & Security" />
           <View style={{ gap: 8 }}>
@@ -323,6 +346,7 @@ export default function Profile() {
           <LogOut size={16} color={c.danger} />
           <Text style={{ color: c.danger, fontWeight: '700', fontSize: 14 }}>Log Out</Text>
         </Pressable>
+        </TourTarget>
 
         {unreadCount > 0 && (
           <Text style={{ color: c.textFaint, fontSize: 11, textAlign: 'center', marginTop: spacing.sm }}>

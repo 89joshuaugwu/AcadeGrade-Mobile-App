@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Dimensions, Pressable, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { AlertTriangle, Clock3, GraduationCap, Minus, RefreshCw, Target, TrendingDown, TrendingUp } from 'lucide-react-native';
@@ -20,8 +20,9 @@ import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 import type { CourseWithId } from '@/types/course';
 import { getAcademicPlan } from '@/lib/academic/timeline';
-
-const { width: screenWidth } = Dimensions.get('window');
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { registerTourAction } from '@/lib/tour/registry';
 
 type TabType = 'forecast' | 'whatif' | 'risk' | 'analysis';
 type ProjectionMode = 'pi' | 'cgpa';
@@ -65,6 +66,18 @@ export default function Insights() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [retryCooldown, setRetryCooldown] = useState(0);
   const [clock, setClock] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  useAutoTour('insights', 750);
+
+  useEffect(() => {
+    const cleanups = [
+      registerTourAction('insights-show-forecast', () => { setTab('forecast'); scrollRef.current?.scrollTo({ y: 0, animated: true }); }),
+      registerTourAction('insights-show-whatif', () => { setTab('whatif'); scrollRef.current?.scrollTo({ y: 0, animated: true }); }),
+      registerTourAction('insights-show-risk', () => { setTab('risk'); scrollRef.current?.scrollTo({ y: 0, animated: true }); }),
+      registerTourAction('insights-show-analysis', () => { setTab('analysis'); scrollRef.current?.scrollTo({ y: 0, animated: true }); }),
+    ];
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, []);
 
   useEffect(() => setProjectionMode(profile?.gradeMode ?? 'pi'), [profile?.gradeMode]);
 
@@ -203,7 +216,7 @@ export default function Insights() {
         </View>
       </View>
 
-      <View style={{ marginHorizontal: spacing.lg, marginTop: spacing.sm, padding: 4, flexDirection: 'row', borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+      <TourTarget tourId="insights-tabs" style={{ marginHorizontal: spacing.lg, marginTop: spacing.sm, padding: 4, flexDirection: 'row', borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
           {TABS.map((item) => {
             const active = tab === item.id;
             return (
@@ -216,9 +229,9 @@ export default function Insights() {
               </Pressable>
             );
           })}
-      </View>
+      </TourTarget>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <RateLimitGuide tab={tab} />
 
         {!!requestError && (
@@ -230,6 +243,7 @@ export default function Insights() {
         )}
 
         {tab === 'forecast' && (
+          <TourTarget tourId="insights-forecast-panel">
           <ForecastTab
             forecast={forecast}
             loading={forecastLoading}
@@ -244,10 +258,12 @@ export default function Insights() {
             graduationSession={academicPlan.graduationSession}
             isGraduated={academicPlan.isGraduated}
           />
+          </TourTarget>
         )}
-        {tab === 'whatif' && <WhatIfTab currentCGPA={currentCGPA} totalCredits={totalCredits} remainingSemesterCount={academicPlan.remainingAcademicSemesters} graduationSession={academicPlan.graduationSession} />}
-        {tab === 'risk' && <RiskTab courses={flaggedCourses} forecast={forecast} />}
+        {tab === 'whatif' && <TourTarget tourId="insights-whatif-panel"><WhatIfTab currentCGPA={currentCGPA} totalCredits={totalCredits} remainingSemesterCount={academicPlan.remainingAcademicSemesters} graduationSession={academicPlan.graduationSession} /></TourTarget>}
+        {tab === 'risk' && <TourTarget tourId="insights-risk-panel"><RiskTab courses={flaggedCourses} forecast={forecast} /></TourTarget>}
         {tab === 'analysis' && (
+          <TourTarget tourId="insights-written-panel">
           <AnalysisTab
             insights={insights}
             loading={insightsLoading}
@@ -256,6 +272,7 @@ export default function Insights() {
             onRegenerate={() => loadInsights(true)}
             isGraduated={academicPlan.isGraduated}
           />
+          </TourTarget>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -293,6 +310,7 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpa
   isGraduated: boolean;
 }) {
   const colors = useThemeColors();
+  const { width: screenWidth } = useWindowDimensions();
   if (!hasHistory) return <EmptyState message="Complete at least one semester to unlock your forecast." />;
   if (isGraduated) return <GraduationState graduationSession={graduationSession} message="Your programme timeline is complete, so AcadeMind will not project semesters beyond graduation." />;
   if (loading && !forecast) return <LoadingState label="Forecasting your academic trajectory…" />;

@@ -15,6 +15,7 @@ import { useResolvedThemeMode, useThemeColors, useThemeStore } from '@/lib/store
 import { RootErrorBoundary } from '@/components/RootErrorBoundary';
 import { ToastHost } from '@/components/ui/ToastHost';
 import { ConfirmDialogHost } from '@/components/ui/ConfirmDialogHost';
+import { UsageTourHost } from '@/components/tour/UsageTourHost';
 import { useToastStore } from '@/lib/store/toastStore';
 import type { UserWithId } from '@/types/user';
 
@@ -186,6 +187,7 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
             </Stack>
+            <UsageTourHost />
             <ConfirmDialogHost />
             <ToastHost />
           </QueryClientProvider>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, FlatList, Modal, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -25,6 +25,8 @@ import type { SemesterWithId } from '@/types/semester';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -57,6 +59,8 @@ export default function SemesterDetail() {
   const [shareCode, setShareCode] = useState('');
   const [codeInput, setCodeInput] = useState('');
   const [codeWorking, setCodeWorking] = useState(false);
+  const listRef = useRef<FlatList<CourseWithId>>(null);
+  useAutoTour('semester', 750);
 
   function markInsightsStale() {
     if (!uid) return;
@@ -300,12 +304,14 @@ export default function SemesterDetail() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
       <FlatList
+        ref={listRef}
         data={courses}
         keyExtractor={(c) => c.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: 120, gap: spacing.sm }}
         ListHeaderComponent={
           <View style={{ paddingBottom: spacing.lg }}>
+            <TourTarget tourId="semester-summary" onTourFocus={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
               <Pressable onPress={() => router.back()} accessibilityLabel="Back to results" hitSlop={10} style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
                 <ArrowLeft size={20} color={colors.text} />
@@ -332,30 +338,35 @@ export default function SemesterDetail() {
                 <Metric label="Credits" value={String(semResult.creditLoaded)} colors={colors} />
               </View>
             </View>
+            </TourTarget>
 
+            <TourTarget tourId="semester-entry-actions">
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
               <View style={{ flex: 1 }}><Button label="Add course" icon={<Plus color="#fff" size={16} />} onPress={() => setModalOpen(true)} fullWidth themeColors={colors} /></View>
               <View style={{ flex: 1 }}><Button label={ocrLoading ? 'Scanning…' : 'Scan result'} variant="secondary" icon={<Camera color={colors.text} size={16} />} onPress={() => setScannerOpen(true)} loading={ocrLoading} fullWidth themeColors={colors} /></View>
             </View>
+            </TourTarget>
 
+            <TourTarget tourId="semester-code-actions">
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
               <CodeAction icon={<Download size={16} color={colors.primary} />} label="Import code" onPress={() => setCodeModal('import')} colors={colors} />
               <CodeAction icon={<Share2 size={16} color={colors.primary} />} label={codeWorking ? 'Creating…' : 'Export code'} onPress={generateShareCode} colors={colors} />
             </View>
+            </TourTarget>
 
-            <View style={{ marginTop: spacing.sm }}>
+            <TourTarget tourId="semester-complete" style={{ marginTop: spacing.sm }}>
               <Button label={semester?.isComplete ? 'Semester completed' : 'Complete semester'} variant="ghost" icon={semester?.isComplete ? <CheckCircle2 size={16} color={colors.success} /> : undefined} onPress={completeSemester} loading={completing} disabled={semester?.isComplete} fullWidth themeColors={colors} />
-            </View>
+            </TourTarget>
 
             {ocrError && <Animated.Text entering={FadeIn.duration(200)} style={{ color: colors.danger, fontSize: 12, marginTop: spacing.sm }}>{ocrError}</Animated.Text>}
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xl, marginBottom: 2 }}>
+            <TourTarget tourId="semester-courses" onTourFocus={() => listRef.current?.scrollToOffset({ offset: 390, animated: true })} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xl, marginBottom: 2 }}>
               <View>
                 <Text style={{ color: colors.text, fontSize: 16, fontWeight: '900' }}>Courses</Text>
                 <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 2 }}>Tap a course to edit its score or grade</Text>
               </View>
               <BookOpen size={18} color={colors.textFaint} />
-            </View>
+            </TourTarget>
           </View>
         }
         ListEmptyComponent={

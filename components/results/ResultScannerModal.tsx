@@ -15,6 +15,8 @@ import { radius, spacing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { useThemeColors } from '@/lib/store/themeStore';
 import type { CourseInput } from '@/types/course';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
 
 interface ResultScannerModalProps {
   visible: boolean;
@@ -51,6 +53,7 @@ export function ResultScannerModal({
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
   const scanProgress = useSharedValue(0);
+  useAutoTour('scanner', 700, visible);
 
   useEffect(() => {
     if (!visible) {
@@ -127,6 +130,7 @@ export function ResultScannerModal({
             </View>
           )}
           {!hasResults && (
+            <TourTarget tourId="scanner-frame">
             <View
               style={{
                 height: 276,
@@ -216,6 +220,7 @@ export function ResultScannerModal({
                 </Pressable>
               )}
             </View>
+            </TourTarget>
           )}
 
           {loading && (
@@ -300,15 +305,16 @@ export function ResultScannerModal({
           )}
 
           {!loading && !hasResults && (
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+            <TourTarget tourId="scanner-sources" style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
               <SourceButton icon={<ImageIcon size={17} color={colors.primary} />} label="Gallery" onPress={onGallery} />
               <SourceButton icon={<FileUp size={17} color={colors.primary} />} label="Document" onPress={onDocument} />
               {!!previewUri && <SourceButton icon={<RotateCcw size={17} color={colors.primary} />} label="Retake" onPress={reset} />}
-            </View>
+            </TourTarget>
           )}
         </ScrollView>
 
-        <View
+        <TourTarget
+          tourId="scanner-footer"
           style={{
             padding: spacing.lg,
             paddingBottom: spacing.xl,
@@ -335,7 +341,7 @@ export function ResultScannerModal({
               <Text style={{ color: colors.primaryGlow, fontWeight: '700', fontSize: 12 }}>Enter details manually</Text>
             </Pressable>
           )}
-        </View>
+        </TourTarget>
       </SafeAreaView>
     </Modal>
   );

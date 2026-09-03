@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, ScrollView, Share, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { File, Paths } from 'expo-file-system';
@@ -17,6 +17,8 @@ import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
 
 interface SharedTranscript {
   id: string;
@@ -55,6 +57,8 @@ export default function Transcript() {
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [sharedLinks, setSharedLinks] = useState<SharedTranscript[]>([]);
+  const scrollRef = useRef<ScrollView>(null);
+  useAutoTour('transcript');
 
   const completedSemesters = useMemo(
     () => semesters.filter((semester) => semester.isComplete),
@@ -156,12 +160,13 @@ export default function Transcript() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <View style={{ marginBottom: spacing.lg }}>
+      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+        <TourTarget tourId="transcript-heading" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ marginBottom: spacing.lg }}>
           <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.6 }}>Unofficial Transcript</Text>
           <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }}>Preview, export, and securely share your completed academic record.</Text>
-        </View>
+        </TourTarget>
 
+        <TourTarget tourId="transcript-actions">
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
           <Pressable
             onPress={() => setIncludePhoto((value) => !value)}
@@ -174,6 +179,7 @@ export default function Transcript() {
           <View style={{ flex: 1 }}><Button label="Share Link" variant="secondary" icon={<Link2 size={15} color={colors.text} />} onPress={createPublicLink} loading={sharing} fullWidth themeColors={colors} /></View>
         </View>
         <Button label="Generate & Share PDF" icon={<Download size={16} color="#FFFFFF" />} onPress={generateAndShare} loading={generating} fullWidth themeColors={colors} />
+        </TourTarget>
 
         {!!shareUrl && (
           <Animated.View entering={FadeInDown.duration(220)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primary }}>
@@ -183,6 +189,7 @@ export default function Transcript() {
         )}
 
         {sharedLinks.length > 0 && (
+          <TourTarget tourId="transcript-links" onTourFocus={() => scrollRef.current?.scrollTo({ y: 250, animated: true })}>
           <Card themeColors={colors} style={{ marginTop: spacing.lg, marginBottom: spacing.lg }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: spacing.md }}><Link2 size={16} color={colors.primary} /><Text style={{ color: colors.text, fontWeight: '900', fontSize: 13 }}>Active shared transcripts</Text></View>
             {sharedLinks.map((link, index) => {
@@ -197,8 +204,10 @@ export default function Transcript() {
               );
             })}
           </Card>
+          </TourTarget>
         )}
 
+        <TourTarget tourId="transcript-record" onTourFocus={() => scrollRef.current?.scrollTo({ y: sharedLinks.length ? 480 : 300, animated: true })}>
         <TranscriptPreview
           colors={colors}
           profile={profile}
@@ -208,6 +217,7 @@ export default function Transcript() {
           coursesBySemester={coursesBySemester}
           summary={summary}
         />
+        </TourTarget>
       </ScrollView>
     </SafeAreaView>
   );

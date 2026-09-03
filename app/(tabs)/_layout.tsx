@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,11 @@ import { LayoutDashboard, FileText, GraduationCap, MoreHorizontal, Settings, Bel
 import { radius, spacing } from '@/constants/theme';
 import { useThemeColors, useThemeStore, type ThemeMode } from '@/lib/store/themeStore';
 import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAuthStore } from '@/lib/store/authStore';
+import { useTourStore } from '@/lib/store/tourStore';
+import { TOUR_CHAPTERS } from '@/lib/tour/chapters';
+import { registerTourAction } from '@/lib/tour/registry';
 
 /**
  * REBUILT per direct reference (flush-bottom solid white bar, rounded top
@@ -24,9 +29,28 @@ export default function TabsLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const sheetRef = useRef<BottomSheetModal>(null);
+  const profile = useAuthStore((state) => state.profile);
+  const activeChapter = useTourStore((state) => state.activeChapter);
+  const completedLocally = useTourStore((state) => state.completedLocally);
+  const skippedLocally = useTourStore((state) => state.skippedLocally);
+  const startChapter = useTourStore((state) => state.startChapter);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const openMore = useCallback(() => sheetRef.current?.present(), []);
+  const openMore = useCallback(() => {
+    setMoreOpen(true);
+    sheetRef.current?.present();
+  }, []);
   const closeAnd = useCallback((fn: () => void) => { sheetRef.current?.dismiss(); fn(); }, []);
+
+  useEffect(() => registerTourAction('more-expand', () => sheetRef.current?.snapToIndex(1)), []);
+
+  useEffect(() => {
+    if (!moreOpen || activeChapter || skippedLocally || profile?.mobileUsageTourSkipped) return;
+    const completed = profile?.mobileUsageTourCompletedChapters ?? [];
+    if (completed.includes('more') || completedLocally.includes('more')) return;
+    const timer = setTimeout(() => startChapter(TOUR_CHAPTERS.more), 550);
+    return () => clearTimeout(timer);
+  }, [activeChapter, completedLocally, moreOpen, profile, skippedLocally, startChapter]);
 
   return (
     <>
@@ -47,13 +71,13 @@ export default function TabsLayout() {
           tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
         }}
       >
-        <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><LayoutDashboard color={color} size={size - 1} /></TabIcon> }} />
-        <Tabs.Screen name="results" options={{ title: 'Results', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><FileText color={color} size={size - 1} /></TabIcon> }} />
-        <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ focused }) => <TabIcon focused={focused} colors={colors}><View style={{ opacity: focused ? 1 : 0.48 }}><AcadeMindMark size={20} /></View></TabIcon> }} />
-        <Tabs.Screen name="transcript" options={{ title: 'Transcript', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><GraduationCap color={color} size={size - 1} /></TabIcon> }} />
+        <Tabs.Screen name="dashboard" options={{ title: 'Dashboard', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-dashboard" focused={focused} colors={colors}><LayoutDashboard color={color} size={size - 1} /></TabIcon> }} />
+        <Tabs.Screen name="results" options={{ title: 'Results', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-results" focused={focused} colors={colors}><FileText color={color} size={size - 1} /></TabIcon> }} />
+        <Tabs.Screen name="insights" options={{ title: 'Insights', tabBarIcon: ({ focused }) => <TabIcon tourId="nav-insights" focused={focused} colors={colors}><View style={{ opacity: focused ? 1 : 0.48 }}><AcadeMindMark size={20} /></View></TabIcon> }} />
+        <Tabs.Screen name="transcript" options={{ title: 'Transcript', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-transcript" focused={focused} colors={colors}><GraduationCap color={color} size={size - 1} /></TabIcon> }} />
         <Tabs.Screen
           name="more"
-          options={{ title: 'More', tabBarIcon: ({ color, size, focused }) => <TabIcon focused={focused} colors={colors}><MoreHorizontal color={color} size={size - 1} /></TabIcon> }}
+          options={{ title: 'More', tabBarIcon: ({ color, size, focused }) => <TabIcon tourId="nav-more" focused={focused} colors={colors}><MoreHorizontal color={color} size={size - 1} /></TabIcon> }}
           listeners={{ tabPress: (e) => { e.preventDefault(); openMore(); } }}
         />
         {/* Reachable via routing/the More sheet, hidden from the tab bar itself */}
@@ -67,13 +91,16 @@ export default function TabsLayout() {
         enableDynamicSizing={false}
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.border }}
+        onDismiss={() => setMoreOpen(false)}
       >
         <BottomSheetView style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}>
-          <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800', marginBottom: spacing.md }}>More</Text>
-          <MoreRow colors={colors} icon={<Bell size={18} color={colors.primary} />} label="Notifications" onPress={() => closeAnd(() => router.push('/(tabs)/notifications'))} />
-          <MoreRow colors={colors} icon={<Settings size={18} color={colors.primary} />} label="Settings" onPress={() => closeAnd(() => router.push('/(tabs)/profile'))} />
+          <TourTarget tourId="more-destinations">
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800', marginBottom: spacing.md }}>More</Text>
+            <MoreRow colors={colors} icon={<Bell size={18} color={colors.primary} />} label="Notifications" onPress={() => closeAnd(() => router.push('/(tabs)/notifications'))} />
+            <MoreRow colors={colors} icon={<Settings size={18} color={colors.primary} />} label="Settings" onPress={() => closeAnd(() => router.push('/(tabs)/profile'))} />
+          </TourTarget>
 
-          <View style={{ marginTop: spacing.xl, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
+          <TourTarget tourId="more-theme" onTourFocus={() => sheetRef.current?.snapToIndex(1)} style={{ marginTop: spacing.xl, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.borderSubtle }}>
             <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>Quick appearance</Text>
             <Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 3, marginBottom: spacing.sm }}>Swipe this sheet up anytime to change the app theme.</Text>
             <View style={{ flexDirection: 'row', gap: 7 }}>
@@ -81,16 +108,17 @@ export default function TabsLayout() {
               <ThemeChip mode="dark" active={themeMode === 'dark'} label="Dark" icon={<Moon size={15} color={themeMode === 'dark' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
               <ThemeChip mode="system" active={themeMode === 'system'} label="System" icon={<Smartphone size={15} color={themeMode === 'system' ? '#FFFFFF' : colors.textMuted} />} onPress={setThemeMode} colors={colors} />
             </View>
-          </View>
+          </TourTarget>
         </BottomSheetView>
       </BottomSheetModal>
     </>
   );
 }
 
-function TabIcon({ focused, children, colors }: { focused: boolean; children: React.ReactNode; colors: ReturnType<typeof useThemeColors> }) {
+function TabIcon({ tourId, focused, children, colors }: { tourId: string; focused: boolean; children: React.ReactNode; colors: ReturnType<typeof useThemeColors> }) {
   return (
-    <View
+    <TourTarget
+      tourId={tourId}
       style={{
         minWidth: 38,
         height: 29,
@@ -105,7 +133,7 @@ function TabIcon({ focused, children, colors }: { focused: boolean; children: Re
       }}
     >
       {children}
-    </View>
+    </TourTarget>
   );
 }
 

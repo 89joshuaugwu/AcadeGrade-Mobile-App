@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,7 @@ import { AlertTriangle, ShieldAlert, Sparkles } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useConfirmDialogStore, type ConfirmDialogTone } from '@/lib/store/confirmDialogStore';
+import { Button } from '@/components/ui/Button';
 
 // Explicit rather than a newly hydrated palette property: this guarantees
 // the red fill remains present after light/dark switches and Fast Refresh.
@@ -150,55 +151,26 @@ export function ConfirmDialogHost() {
           )}
 
           <View style={{ gap: spacing.sm, marginTop: spacing.lg, width: '100%' }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={dialog.confirmLabel ?? 'Confirm'}
-              accessibilityState={{ disabled: loading, busy: loading }}
-              disabled={loading}
-              onPress={confirm}
-              style={({ pressed }) => ({
-                width: '100%',
-                minHeight: 50,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: radius.md,
-                backgroundColor: actionBackground,
-                borderWidth: 1,
-                borderColor: tone === 'danger' ? DESTRUCTIVE_BUTTON_BORDER : actionBackground,
-                opacity: loading ? 0.72 : pressed ? 0.84 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              })}
-            >
-              {loading ? (
-                <ActivityIndicator color={actionForeground} />
-              ) : (
-                <Text style={{ color: actionForeground, fontSize: 14, fontWeight: '900' }}>
-                  {dialog.confirmLabel ?? 'Confirm'}
-                </Text>
-              )}
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={dialog.cancelLabel ?? 'Cancel'}
+            <View style={{ width: '100%', borderRadius: radius.md, backgroundColor: actionBackground, borderWidth: 1, borderColor: tone === 'danger' ? DESTRUCTIVE_BUTTON_BORDER : actionBackground, overflow: 'hidden' }}>
+              <Button
+                label={dialog.confirmLabel ?? 'Confirm'}
+                variant={tone === 'danger' ? 'danger' : 'primary'}
+                loading={loading}
+                disabled={loading}
+                onPress={confirm}
+                fullWidth
+                themeColors={colors}
+                icon={tone === 'danger' && !loading ? <ShieldAlert size={17} color={actionForeground} /> : undefined}
+              />
+            </View>
+            <Button
+              label={dialog.cancelLabel ?? 'Keep it'}
+              variant="secondary"
               disabled={loading}
               onPress={hide}
-              style={({ pressed }) => ({
-                width: '100%',
-                minHeight: 50,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: radius.md,
-                backgroundColor: colors.overlay,
-                borderWidth: 1,
-                borderColor: colors.border,
-                opacity: loading ? 0.55 : pressed ? 0.72 : 1,
-                transform: [{ scale: pressed ? 0.98 : 1 }],
-              })}
-            >
-              <Text style={{ color: colors.text, fontSize: 14, fontWeight: '800' }}>
-                {dialog.cancelLabel ?? 'Keep it'}
-              </Text>
-            </Pressable>
+              fullWidth
+              themeColors={colors}
+            />
           </View>
         </Animated.View>
       </View>

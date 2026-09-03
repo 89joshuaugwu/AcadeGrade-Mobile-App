@@ -44,6 +44,12 @@ export interface User {
   /** Mobile-only: has the user seen the mobile onboarding carousel? Stored
    *  under the same doc so state follows the user across devices. */
   mobileOnboardingCompleted?: boolean;
+  /** Versioned, chapter-level progress for contextual guides shown over the
+   * authenticated mobile interface. Separate from the pre-auth carousel. */
+  mobileUsageTourVersion?: number;
+  mobileUsageTourCompletedChapters?: string[];
+  mobileUsageTourSkipped?: boolean;
+  mobileUsageTourCompleted?: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

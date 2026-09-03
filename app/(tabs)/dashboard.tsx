@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Image, RefreshControl, Switch, Dimensions } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, Pressable, Image, RefreshControl, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,11 +10,10 @@ import { TrendChart } from '@/components/dashboard/TrendChart';
 import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
-import { db } from '@/lib/firebase/client';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { useThemeColors } from '@/lib/store/themeStore';
-
-const { width } = Dimensions.get('window');
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
 
 /**
  * REBUILT to match the inspiration reference exactly (image 4,
@@ -26,13 +25,13 @@ const { width } = Dimensions.get('window');
  */
 export default function Dashboard() {
   const c = useThemeColors();
+  const { width } = useWindowDimensions();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
-  const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const { semesters, allCourses, cgpa, pi, totalCredits, totalCourses, atRiskCount } = useAcademicData();
   const [refreshing, setRefreshing] = useState(false);
-  const [tourDismissed, setTourDismissed] = useState(!!profile?.mobileOnboardingCompleted);
-  useEffect(() => setTourDismissed(!!profile?.mobileOnboardingCompleted), [profile?.mobileOnboardingCompleted]);
+  const scrollRef = useRef<ScrollView>(null);
+  useAutoTour('dashboard', 850);
 
   const trendData = semesters.map((s, i) => ({ x: i + 1, gpa: s.gpa, pi: s.pi }));
   const recentGrades = useMemo(
@@ -42,38 +41,37 @@ export default function Dashboard() {
 
   const semesterDelta = semesters.length >= 2 ? semesters[semesters.length - 1].gpa - semesters[semesters.length - 2].gpa : 0;
 
-  async function handleToggleTour(value: boolean) {
-    setTourDismissed(!value);
-    if (firebaseUser) await db.collection('users').doc(firebaseUser.uid).update({ mobileOnboardingCompleted: !value });
-  }
-
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Student';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 500); }} tintColor={c.primary} />}
       >
         {/* HEADER */}
         <Animated.View entering={FadeIn.duration(300)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-          <View>
-            <Text style={{ color: c.text, fontSize: 22, fontWeight: '800' }}>Hello, {firstName}!</Text>
-            <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>Your academic journey is looking strong.</Text>
-          </View>
-          <Pressable onPress={() => router.push('/(tabs)/profile')}>
-            {profile?.avatarUrl ? (
-              <Image source={{ uri: profile.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
-            ) : (
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: c.primary, fontWeight: '800' }}>{firstName.charAt(0)}</Text>
-              </View>
-            )}
-          </Pressable>
+          <TourTarget tourId="dashboard-header" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={{ color: c.text, fontSize: 22, fontWeight: '800' }}>Hello, {firstName}!</Text>
+              <Text style={{ color: c.textMuted, fontSize: 13, marginTop: 2 }}>Your academic journey is looking strong.</Text>
+            </View>
+            <Pressable onPress={() => router.push('/(tabs)/profile')}>
+              {profile?.avatarUrl ? (
+                <Image source={{ uri: profile.avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+              ) : (
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: c.primary, fontWeight: '800' }}>{firstName.charAt(0)}</Text>
+                </View>
+              )}
+            </Pressable>
+          </TourTarget>
         </Animated.View>
 
         {/* GRADIENT HERO CARD */}
         <Animated.View entering={FadeInDown.delay(60).duration(350)}>
+          <TourTarget tourId="dashboard-performance">
           <LinearGradient
             colors={['#B45309', '#7C3AED', '#4F46E5']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -89,29 +87,21 @@ export default function Dashboard() {
               {semesterDelta !== 0 && <Pill label={`${semesterDelta > 0 ? '+' : ''}${semesterDelta.toFixed(1)} this semester`} />}
             </View>
           </LinearGradient>
+          </TourTarget>
         </Animated.View>
 
         {/* STAT PAIR */}
         <Animated.View entering={FadeInDown.delay(100).duration(350)} style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
-          <StatCard colors={c} icon={<GraduationCap size={16} color={c.primary} />} label="Courses" value={totalCourses} />
-          <StatCard colors={c} icon={<CheckCircle2 size={16} color={c.success} />} label="Credits" value={totalCredits} />
-          <StatCard colors={c} icon={<Lightbulb size={16} color={atRiskCount ? c.danger : c.success} />} label="At risk" value={atRiskCount} danger={atRiskCount > 0} />
+          <TourTarget tourId="dashboard-stats" style={{ flex: 1, flexDirection: 'row', gap: spacing.md }}>
+            <StatCard colors={c} icon={<GraduationCap size={16} color={c.primary} />} label="Courses" value={totalCourses} />
+            <StatCard colors={c} icon={<CheckCircle2 size={16} color={c.success} />} label="Credits" value={totalCredits} />
+            <StatCard colors={c} icon={<Lightbulb size={16} color={atRiskCount ? c.danger : c.success} />} label="At risk" value={atRiskCount} danger={atRiskCount > 0} />
+          </TourTarget>
         </Animated.View>
-
-        {/* TOUR NUDGE */}
-        {!tourDismissed && (
-          <Animated.View entering={FadeInDown.delay(140).duration(350)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: c.primaryDim, borderWidth: 1, borderColor: c.primary, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg }}>
-            <Lightbulb size={18} color={c.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.text, fontWeight: '700', fontSize: 13 }}>New to AcadeGrade?</Text>
-              <Text style={{ color: c.textMuted, fontSize: 12 }}>Take a 2-minute tour to set up your courses.</Text>
-            </View>
-            <Switch value={!tourDismissed} onValueChange={handleToggleTour} trackColor={{ true: c.primary, false: c.border }} thumbColor="#FFFFFF" />
-          </Animated.View>
-        )}
 
         {/* RECENT GRADES */}
         <Animated.View entering={FadeInDown.delay(180).duration(350)} style={{ marginBottom: spacing.lg }}>
+          <TourTarget tourId="dashboard-recent" onTourFocus={() => scrollRef.current?.scrollTo({ y: 270, animated: true })}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
             <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>Recent Grades</Text>
             <Pressable onPress={() => router.push('/(tabs)/results')} style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -143,6 +133,7 @@ export default function Dashboard() {
               })}
             </View>
           )}
+          </TourTarget>
         </Animated.View>
 
         {/* GPA TREND */}

@@ -162,6 +162,8 @@ export default function Register() {
         // The user reached registration through the pre-auth product intro.
         // The authenticated usage guide will keep its own versioned progress.
         fcmToken: null, fcmTokens: [], mobileOnboardingCompleted: true,
+        mobileUsageTourVersion: 1, mobileUsageTourCompletedChapters: [],
+        mobileUsageTourSkipped: false, mobileUsageTourCompleted: false,
         createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp(),
       });
     } catch (e: any) {

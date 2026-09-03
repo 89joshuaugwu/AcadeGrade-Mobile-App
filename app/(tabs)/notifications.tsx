@@ -9,6 +9,8 @@ import { spacing, radius } from '@/constants/theme';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
+import { TourTarget } from '@/components/tour/TourTarget';
+import { useAutoTour } from '@/lib/tour/useAutoTour';
 
 interface NotificationItem {
   id: string;
@@ -38,6 +40,7 @@ export default function Notifications() {
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const colors = useThemeColors();
   const [items, setItems] = useState<NotificationItem[]>([]);
+  useAutoTour('notifications');
 
   useEffect(() => {
     if (!uid) return;
@@ -75,7 +78,7 @@ export default function Notifications() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg }}>
+      <TourTarget tourId="notifications-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
             <ArrowLeft size={22} color={colors.text} />
@@ -88,8 +91,9 @@ export default function Notifications() {
             <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '700' }}>Mark all read</Text>
           </Pressable>
         )}
-      </View>
+      </TourTarget>
 
+      <TourTarget tourId="notifications-list" style={{ flex: 1 }}>
       <FlatList
         data={items}
         keyExtractor={(n) => n.id}
@@ -124,6 +128,7 @@ export default function Notifications() {
           );
         }}
       />
+      </TourTarget>
     </SafeAreaView>
   );
 }
