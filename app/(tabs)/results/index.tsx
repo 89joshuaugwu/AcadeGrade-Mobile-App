@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BookOpen, ChevronDown, GraduationCap, Plus, Trash2 } from 'lucide-react-native';
@@ -16,6 +16,7 @@ import type { SemesterWithId } from '@/types/semester';
 import { getAcademicPlan } from '@/lib/academic/timeline';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { SkeletonBlock, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 export default function ResultsList() {
   const colors = useThemeColors();
@@ -29,7 +30,7 @@ export default function ResultsList() {
   const academicPlan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  useAutoTour('results');
+  useAutoTour('results', 650, !loading);
 
   function markInsightsStale() {
     if (!uid) return;
@@ -95,6 +96,10 @@ export default function ResultsList() {
     });
   }
 
+  if (loading) {
+    return <ResultsSkeleton subtitle={[profile?.university, profile?.department].filter(Boolean).join(' · ') || 'Your academic record'} />;
+  }
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
       <ScrollView
@@ -131,12 +136,7 @@ export default function ResultsList() {
         </View>
 
         <TourTarget tourId="results-semesters" onTourFocus={() => scrollRef.current?.scrollTo({ y: 215, animated: true })}>
-        {loading && !orderedSemesters.length ? (
-          <View style={{ paddingVertical: spacing.xxxl, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.sm }}>Loading your results…</Text>
-          </View>
-        ) : !orderedSemesters.length ? (
+        {!orderedSemesters.length ? (
           <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
             <BookOpen size={32} color={colors.primary} />
             <Text style={{ color: colors.text, fontWeight: '800', marginTop: spacing.md }}>No semesters yet</Text>
@@ -162,6 +162,33 @@ export default function ResultsList() {
           </View>
         )}
         </TourTarget>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function ResultsSkeleton({ subtitle }: { subtitle: string }) {
+  const colors = useThemeColors();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }} scrollEnabled={false}>
+        <Text style={{ color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }}>Results Hub</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }} numberOfLines={1}>{subtitle}</Text>
+        <SkeletonPulse accessibilityLabel="Loading your results timeline" style={{ marginTop: spacing.lg }}>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <SkeletonBlock flex={1} height={72} />
+            <SkeletonBlock flex={1} height={72} />
+            <SkeletonBlock flex={1} height={72} />
+          </View>
+          <SkeletonBlock height={48} style={{ marginTop: spacing.md, marginBottom: spacing.xl }} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+            <SkeletonLine width="42%" height={13} />
+            <SkeletonLine width="16%" />
+          </View>
+          {[86, 112, 86, 86].map((height, index) => (
+            <SkeletonBlock key={`${height}-${index}`} height={height} style={{ marginBottom: spacing.sm }} />
+          ))}
+        </SkeletonPulse>
       </ScrollView>
     </SafeAreaView>
   );

@@ -19,6 +19,7 @@ import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 interface SharedTranscript {
   id: string;
@@ -51,14 +52,16 @@ export default function Transcript() {
   const profile = useAuthStore((state) => state.profile);
   const showToast = useToastStore((state) => state.show);
   const showConfirm = useConfirmDialogStore((state) => state.show);
-  const { semesters, coursesBySemester } = useAcademicData();
+  const { semesters, coursesBySemester, loading: academicLoading } = useAcademicData();
   const [includePhoto, setIncludePhoto] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [sharedLinks, setSharedLinks] = useState<SharedTranscript[]>([]);
+  const [linksLoading, setLinksLoading] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
-  useAutoTour('transcript');
+  const loading = academicLoading || linksLoading;
+  useAutoTour('transcript', 650, !loading);
 
   const completedSemesters = useMemo(
     () => semesters.filter((semester) => semester.isComplete),
@@ -82,7 +85,12 @@ export default function Transcript() {
   }, [completedSemesters]);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setSharedLinks([]);
+      setLinksLoading(false);
+      return;
+    }
+    setLinksLoading(true);
     return db.collection('shared_transcripts').where('uid', '==', uid).onSnapshot(
       (snapshot) => {
         const now = Date.now();
@@ -91,8 +99,12 @@ export default function Transcript() {
           .filter((link) => (toDate(link.expiresAt)?.getTime() ?? 0) > now)
           .sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
         setSharedLinks(links);
+        setLinksLoading(false);
       },
-      () => setSharedLinks([]),
+      () => {
+        setSharedLinks([]);
+        setLinksLoading(false);
+      },
     );
   }, [uid]);
 
@@ -158,6 +170,8 @@ export default function Transcript() {
 
   const photoUrl = profile?.avatarUrl || firebaseUser?.photoURL || null;
 
+  if (loading) return <TranscriptSkeleton />;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
       <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
@@ -221,6 +235,40 @@ export default function Transcript() {
           summary={summary}
         />
         </TourTarget>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function TranscriptSkeleton() {
+  const colors = useThemeColors();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} scrollEnabled={false}>
+        <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.6 }}>Unofficial Transcript</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3, marginBottom: spacing.lg }}>Preparing your completed academic record…</Text>
+        <SkeletonPulse accessibilityLabel="Loading your transcript">
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <SkeletonBlock flex={1} height={48} />
+            <SkeletonBlock flex={1} height={48} />
+          </View>
+          <SkeletonBlock height={50} style={{ marginTop: spacing.md }} />
+          <SkeletonBlock height={106} style={{ marginTop: spacing.lg, marginBottom: spacing.lg }} />
+          <View style={{ minHeight: 430, borderRadius: radius.lg, padding: spacing.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <View style={{ alignItems: 'center' }}>
+              <SkeletonCircle size={44} />
+              <SkeletonLine width="62%" height={13} style={{ marginTop: spacing.sm }} />
+              <SkeletonLine width="38%" height={8} style={{ marginTop: 7 }} />
+            </View>
+            <SkeletonBlock height={82} borderRadius={8} style={{ marginTop: spacing.lg }} />
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginVertical: spacing.lg }}>
+              <SkeletonBlock flex={1} height={54} />
+              <SkeletonBlock flex={1} height={54} />
+              <SkeletonBlock flex={1} height={54} />
+            </View>
+            {[0, 1, 2, 3].map((item) => <SkeletonLine key={item} width={item % 2 ? '82%' : '100%'} height={12} style={{ marginBottom: spacing.sm }} />)}
+          </View>
+        </SkeletonPulse>
       </ScrollView>
     </SafeAreaView>
   );

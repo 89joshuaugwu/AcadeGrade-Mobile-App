@@ -14,6 +14,7 @@ import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 /**
  * REBUILT to match the inspiration reference exactly (image 4,
@@ -28,10 +29,10 @@ export default function Dashboard() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
-  const { semesters, allCourses, cgpa, pi, totalCredits, totalCourses, atRiskCount } = useAcademicData();
+  const { semesters, allCourses, cgpa, pi, totalCredits, totalCourses, atRiskCount, loading } = useAcademicData();
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  useAutoTour('dashboard', 850);
+  useAutoTour('dashboard', 850, !loading);
 
   const trendData = semesters.map((s, i) => ({ x: i + 1, gpa: s.gpa, pi: s.pi }));
   const recentGrades = useMemo(
@@ -42,6 +43,8 @@ export default function Dashboard() {
   const semesterDelta = semesters.length >= 2 ? semesters[semesters.length - 1].gpa - semesters[semesters.length - 2].gpa : 0;
 
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Student';
+
+  if (loading) return <DashboardSkeleton firstName={firstName} avatarUrl={profile?.avatarUrl} colors={c} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
@@ -143,6 +146,37 @@ export default function Dashboard() {
             <TrendChart data={trendData} width={width - spacing.lg * 2 - 32} height={150} themeColors={c} />
           </Animated.View>
         )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function DashboardSkeleton({ firstName, avatarUrl, colors }: { firstName: string; avatarUrl?: string; colors: ThemeColors }) {
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} scrollEnabled={false}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: 22, fontWeight: '800' }}>Hello, {firstName}!</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 13, marginTop: 2 }}>Preparing your academic overview…</Text>
+          </View>
+          {avatarUrl ? <Image source={{ uri: avatarUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} /> : <SkeletonCircle size={44} />}
+        </View>
+
+        <SkeletonPulse accessibilityLabel="Loading your academic dashboard">
+          <SkeletonBlock height={150} borderRadius={radius.xl} style={{ marginBottom: spacing.md }} />
+          <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl }}>
+            <SkeletonBlock flex={1} height={82} />
+            <SkeletonBlock flex={1} height={82} />
+            <SkeletonBlock flex={1} height={82} />
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+            <SkeletonLine width="36%" height={14} />
+            <SkeletonLine width="18%" />
+          </View>
+          {[0, 1, 2].map((item) => <SkeletonBlock key={item} height={66} style={{ marginBottom: 8 }} />)}
+          <SkeletonBlock height={176} style={{ marginTop: spacing.md }} />
+        </SkeletonPulse>
       </ScrollView>
     </SafeAreaView>
   );

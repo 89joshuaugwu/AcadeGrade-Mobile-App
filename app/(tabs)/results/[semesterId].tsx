@@ -27,6 +27,7 @@ import { useToastStore } from '@/lib/store/toastStore';
 import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -47,6 +48,8 @@ export default function SemesterDetail() {
   const showConfirm = useConfirmDialogStore((state) => state.show);
   const [semester, setSemester] = useState<SemesterWithId | null>(null);
   const [courses, setCourses] = useState<CourseWithId[]>([]);
+  const [semesterSnapshotId, setSemesterSnapshotId] = useState<string | null>(null);
+  const [coursesSnapshotId, setCoursesSnapshotId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -60,7 +63,9 @@ export default function SemesterDetail() {
   const [codeInput, setCodeInput] = useState('');
   const [codeWorking, setCodeWorking] = useState(false);
   const listRef = useRef<FlatList<CourseWithId>>(null);
-  useAutoTour('semester', 750);
+  const initialLoading = !semesterId || semesterSnapshotId !== semesterId || coursesSnapshotId !== semesterId;
+  const semesterReady = semester?.id === semesterId;
+  useAutoTour('semester', 750, !initialLoading);
 
   function markInsightsStale() {
     if (!uid) return;
@@ -74,19 +79,23 @@ export default function SemesterDetail() {
 
   useEffect(() => {
     if (!uid || !semesterId) return;
+    setSemester(null);
+    setCourses([]);
     const unsubscribeSemester = db
       .collection('users').doc(uid)
       .collection('semesters').doc(semesterId)
       .onSnapshot((snap) => {
         if (snap.exists()) setSemester({ id: snap.id, ...(snap.data() as any) } as SemesterWithId);
-      });
+        setSemesterSnapshotId(semesterId);
+      }, () => setSemesterSnapshotId(semesterId));
     const unsubscribeCourses = db
       .collection('users').doc(uid)
       .collection('semesters').doc(semesterId)
       .collection('courses')
       .onSnapshot((snap) => {
         setCourses(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as CourseWithId[]);
-      });
+        setCoursesSnapshotId(semesterId);
+      }, () => setCoursesSnapshotId(semesterId));
     return () => {
       unsubscribeSemester();
       unsubscribeCourses();
@@ -99,14 +108,14 @@ export default function SemesterDetail() {
   const semResult = computeSemesterGPA(metrics);
 
   useEffect(() => {
-    if (!uid || !semesterId) return;
+    if (!uid || !semesterId || initialLoading || !semesterReady) return;
     db.collection('users').doc(uid).collection('semesters').doc(semesterId).update({
       gpa: semResult.gpa,
       pi: semResult.pi,
       creditLoaded: semResult.creditLoaded,
       updatedAt: firestore.FieldValue.serverTimestamp(),
     });
-  }, [courses.length, semResult.gpa, semResult.pi, semResult.creditLoaded, uid, semesterId]);
+  }, [courses.length, initialLoading, semResult.gpa, semResult.pi, semResult.creditLoaded, semesterReady, uid, semesterId]);
 
   async function completeSemester() {
     if (!uid || !semesterId) return;
@@ -301,6 +310,8 @@ export default function SemesterDetail() {
     }
   }
 
+  if (initialLoading) return <SemesterDetailSkeleton onBack={() => router.back()} />;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
       <FlatList
@@ -461,6 +472,49 @@ export default function SemesterDetail() {
         }}
       />
 
+    </SafeAreaView>
+  );
+}
+
+function SemesterDetailSkeleton({ onBack }: { onBack: () => void }) {
+  const colors = useThemeColors();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: 120 }} scrollEnabled={false}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
+          <Pressable onPress={onBack} accessibilityLabel="Back to results" hitSlop={10} style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+            <ArrowLeft size={20} color={colors.text} />
+          </Pressable>
+          <SkeletonPulse accessibilityLabel="Loading this semester" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: spacing.md }}>
+            <View style={{ flex: 1 }}>
+              <SkeletonLine width="64%" height={16} />
+              <SkeletonLine width="38%" height={9} style={{ marginTop: 7 }} />
+            </View>
+            <SkeletonCircle size={34} />
+          </SkeletonPulse>
+        </View>
+
+        <SkeletonPulse accessibilityLabel="Loading semester courses and totals">
+          <SkeletonBlock height={146} borderRadius={20} style={{ marginBottom: spacing.md }} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <SkeletonBlock flex={1} height={49} />
+            <SkeletonBlock flex={1} height={49} />
+          </View>
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+            <SkeletonBlock flex={1} height={46} />
+            <SkeletonBlock flex={1} height={46} />
+          </View>
+          <SkeletonBlock height={44} style={{ marginTop: spacing.sm }} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.xl, marginBottom: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <SkeletonLine width="28%" height={14} />
+              <SkeletonLine width="56%" height={9} style={{ marginTop: 6 }} />
+            </View>
+            <SkeletonCircle size={24} />
+          </View>
+          {[0, 1, 2].map((item) => <SkeletonBlock key={item} height={68} style={{ marginBottom: spacing.sm }} />)}
+        </SkeletonPulse>
+      </ScrollView>
     </SafeAreaView>
   );
 }

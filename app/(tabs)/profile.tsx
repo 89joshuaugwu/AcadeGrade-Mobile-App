@@ -29,6 +29,7 @@ import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { useTourStore } from '@/lib/store/tourStore';
 import { TOUR_CHAPTERS, USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
+import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
 
 interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
@@ -68,7 +69,7 @@ export default function Profile() {
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const showToast = useToastStore((s) => s.show);
-  const { cgpa, totalCredits, atRiskCount, semesters } = useAcademicData();
+  const { cgpa, totalCredits, atRiskCount, semesters, loading: academicLoading } = useAcademicData();
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [notifs, setNotifs] = useState(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true });
@@ -85,7 +86,7 @@ export default function Profile() {
   const scrollRef = useRef<ScrollView>(null);
   const resetTourForReplay = useTourStore((state) => state.resetForReplay);
   const startTourChapter = useTourStore((state) => state.startChapter);
-  useAutoTour('settings');
+  useAutoTour('settings', 650, !academicLoading);
 
   useEffect(() => { setNotifs(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true }); }, [profile?.notificationPreferences]);
 
@@ -273,13 +274,21 @@ export default function Profile() {
         </Animated.View>
 
         {/* STATS ROW */}
-        <Animated.View entering={FadeInDown.delay(60).duration(300)} style={{ flexDirection: 'row', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg }}>
-          <StatCell value={cgpa.toFixed(2)} label="Current GPA" />
-          <Divider />
-          <StatCell value={String(totalCredits)} label="Credits" />
-          <Divider />
-          <StatCell value={String(atRiskCount)} label="At Risk" danger={atRiskCount > 0} />
-        </Animated.View>
+        {academicLoading ? (
+          <SkeletonPulse accessibilityLabel="Loading academic totals" style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+            <SkeletonBlock flex={1} height={70} />
+            <SkeletonBlock flex={1} height={70} />
+            <SkeletonBlock flex={1} height={70} />
+          </SkeletonPulse>
+        ) : (
+          <Animated.View entering={FadeInDown.delay(60).duration(300)} style={{ flexDirection: 'row', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg }}>
+            <StatCell value={cgpa.toFixed(2)} label="Current GPA" />
+            <Divider />
+            <StatCell value={String(totalCredits)} label="Credits" />
+            <Divider />
+            <StatCell value={String(atRiskCount)} label="At Risk" danger={atRiskCount > 0} />
+          </Animated.View>
+        )}
 
         {/* INSTITUTION */}
         <Animated.View entering={FadeInDown.delay(100).duration(300)} style={{ marginBottom: spacing.lg }}>

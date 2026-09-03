@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import firestore from '@react-native-firebase/firestore';
@@ -15,6 +15,7 @@ import { db } from '@/lib/firebase/client';
 import { getAcademicPlan, slotKey } from '@/lib/academic/timeline';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { SkeletonBlock, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 export default function NewSemester() {
   const colors = useThemeColors();
@@ -24,7 +25,7 @@ export default function NewSemester() {
   const showToast = useToastStore((state) => state.show);
   const { semesters, loading: academicLoading } = useAcademicData();
   const [creating, setCreating] = useState(false);
-  useAutoTour('new-semester');
+  useAutoTour('new-semester', 650, !academicLoading);
 
   const plan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
   const nextSlot = plan.remainingSlots[0] ?? null;
@@ -83,10 +84,12 @@ export default function NewSemester() {
         </View>
 
         {academicLoading ? (
-          <View style={{ alignItems: 'center', paddingVertical: spacing.xxxl }}>
-            <ActivityIndicator color={colors.primary} />
-            <Text style={{ color: colors.textMuted, fontSize: 12, marginTop: spacing.sm }}>Checking your academic plan…</Text>
-          </View>
+          <SkeletonPulse accessibilityLabel="Checking your academic plan">
+            <SkeletonBlock height={132} borderRadius={radius.xl} style={{ marginBottom: spacing.xl }} />
+            <SkeletonLine width="38%" height={11} style={{ marginBottom: spacing.md }} />
+            <SkeletonBlock height={188} borderRadius={radius.xl} />
+            <SkeletonBlock height={50} style={{ marginTop: spacing.lg }} />
+          </SkeletonPulse>
         ) : !plan.slots.length ? (
           <PlanProblem onOpenSettings={() => router.push('/(tabs)/profile')} />
         ) : (

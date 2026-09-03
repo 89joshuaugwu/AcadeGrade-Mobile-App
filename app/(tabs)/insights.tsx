@@ -23,6 +23,7 @@ import { getAcademicPlan } from '@/lib/academic/timeline';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { registerTourAction } from '@/lib/tour/registry';
+import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 type TabType = 'forecast' | 'whatif' | 'risk' | 'analysis';
 type ProjectionMode = 'pi' | 'cgpa';
@@ -54,7 +55,7 @@ export default function Insights() {
   const uid = useAuthStore((state) => state.firebaseUser?.uid);
   const profile = useAuthStore((state) => state.profile);
   const showToast = useToastStore((state) => state.show);
-  const { semesters, coursesBySemester, loading } = useAcademicData();
+  const { semesters, coursesBySemester, loading: academicLoading } = useAcademicData();
   const [tab, setTab] = useState<TabType>('forecast');
   const [projectionMode, setProjectionMode] = useState<ProjectionMode>(profile?.gradeMode ?? 'pi');
   const [forecast, setForecast] = useState<ForecastResponse | null>(null);
@@ -66,8 +67,10 @@ export default function Insights() {
   const [requestError, setRequestError] = useState<string | null>(null);
   const [retryCooldown, setRetryCooldown] = useState(0);
   const [clock, setClock] = useState(0);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
-  useAutoTour('insights', 750);
+  const initialLoading = academicLoading || analyticsLoading;
+  useAutoTour('insights', 750, !initialLoading);
 
   useEffect(() => {
     const cleanups = [
@@ -113,15 +116,23 @@ export default function Insights() {
   );
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setForecast(null);
+      setInsights(null);
+      setAnalyticsLoading(false);
+      return;
+    }
+    setAnalyticsLoading(true);
     return db.collection('analytics').doc(uid).onSnapshot((snapshot) => {
       const data = snapshot.data();
-      if (data?.forecast) setForecast(data.forecast as ForecastResponse);
+      setForecast(data?.forecast ? data.forecast as ForecastResponse : null);
       if (data?.lastInsight?.data) setInsights(data.lastInsight.data as InsightsResponse);
       else if (data?.lastInsight?.strengths) setInsights(data.lastInsight as InsightsResponse);
+      else setInsights(null);
       setLastInsightAt(timestampToMillis(data?.lastInsight?.timestamp));
       setInsightsStale(Boolean(data?.insightsStale));
-    });
+      setAnalyticsLoading(false);
+    }, () => setAnalyticsLoading(false));
   }, [uid]);
 
   useEffect(() => {
@@ -187,12 +198,12 @@ export default function Insights() {
   }, [academicPlan.graduationSession, academicPlan.isGraduated, academicPlan.remainingSlots.length, retryCooldown, semesters, showToast, uid, writtenCooldownMs]);
 
   useEffect(() => {
-    if (loading) return;
+    if (initialLoading) return;
     if (!forecast && piHistory.length && !academicPlan.isGraduated) loadForecast();
     if (!insights && semesters.length) loadInsights(false);
     // The callbacks intentionally depend on retry state; auto-generation should only run after initial data load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
+  }, [initialLoading]);
 
   async function changeProjectionMode(mode: ProjectionMode) {
     setProjectionMode(mode);
@@ -203,6 +214,11 @@ export default function Insights() {
       // The local choice remains useful even if preference sync is temporarily offline.
     }
   }
+
+  const forecastIsLoading = forecastLoading || (!forecast && piHistory.length > 0 && !academicPlan.isGraduated && !requestError);
+  const insightsAreLoading = insightsLoading || (!insights && semesters.length > 0 && !requestError);
+
+  if (initialLoading) return <InsightsSkeletonScreen />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
@@ -246,7 +262,7 @@ export default function Insights() {
           <TourTarget tourId="insights-forecast-panel">
           <ForecastTab
             forecast={forecast}
-            loading={forecastLoading}
+            loading={forecastIsLoading}
             onRefresh={() => loadForecast(true)}
             hasHistory={piHistory.length > 0}
             piHistory={piHistory}
@@ -266,7 +282,7 @@ export default function Insights() {
           <TourTarget tourId="insights-written-panel">
           <AnalysisTab
             insights={insights}
-            loading={insightsLoading}
+            loading={insightsAreLoading}
             cooldownMs={writtenCooldownMs}
             stale={insightsStale}
             onRegenerate={() => loadInsights(true)}
@@ -275,6 +291,45 @@ export default function Insights() {
           </TourTarget>
         )}
       </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function InsightsSkeletonScreen() {
+  const colors = useThemeColors();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <AcadeMindMark size={24} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.5 }}>AI Insights Hub</Text>
+            <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>Preparing your academic intelligence…</Text>
+          </View>
+        </View>
+      </View>
+
+      <SkeletonPulse accessibilityLabel="Loading AI insights">
+        <View style={{ marginHorizontal: spacing.lg, marginTop: spacing.sm, padding: 4, flexDirection: 'row', gap: 4, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+          {[0, 1, 2, 3].map((item) => <SkeletonBlock key={item} flex={1} height={40} borderRadius={10} />)}
+        </View>
+        <View style={{ padding: spacing.lg, paddingTop: spacing.md }}>
+          <SkeletonBlock height={52} borderRadius={12} style={{ marginBottom: spacing.md }} />
+          <SkeletonBlock height={214} borderRadius={radius.lg} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+            <SkeletonBlock flex={1} height={86} />
+            <SkeletonBlock flex={1} height={86} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.lg }}>
+            <SkeletonCircle size={38} />
+            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+              <SkeletonLine width="56%" height={12} />
+              <SkeletonLine width="82%" height={9} style={{ marginTop: 7 }} />
+            </View>
+          </View>
+          <SkeletonBlock height={50} style={{ marginTop: spacing.lg }} />
+        </View>
+      </SkeletonPulse>
     </SafeAreaView>
   );
 }

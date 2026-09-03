@@ -11,6 +11,7 @@ import { db } from '@/lib/firebase/client';
 import { useAuthStore } from '@/lib/store/authStore';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
 
 interface NotificationItem {
   id: string;
@@ -40,15 +41,22 @@ export default function Notifications() {
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const colors = useThemeColors();
   const [items, setItems] = useState<NotificationItem[]>([]);
-  useAutoTour('notifications');
+  const [loading, setLoading] = useState(true);
+  useAutoTour('notifications', 650, !loading);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     const ref = db.collection('notifications').doc(uid).collection('items')
       .orderBy('createdAt', 'desc').limit(50);
     return ref.onSnapshot((snap) => {
       setItems(snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<NotificationItem, 'id'>) })));
-    });
+      setLoading(false);
+    }, () => setLoading(false));
   }, [uid]);
 
   async function markAsRead(id: string) {
@@ -94,6 +102,11 @@ export default function Notifications() {
       </TourTarget>
 
       <TourTarget tourId="notifications-list" style={{ flex: 1 }}>
+      {loading ? (
+        <SkeletonPulse accessibilityLabel="Loading notifications" style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
+          {[76, 92, 82, 88, 76].map((height, index) => <SkeletonBlock key={`${height}-${index}`} height={height} />)}
+        </SkeletonPulse>
+      ) : (
       <FlatList
         data={items}
         keyExtractor={(n) => n.id}
@@ -128,6 +141,7 @@ export default function Notifications() {
           );
         }}
       />
+      )}
       </TourTarget>
     </SafeAreaView>
   );

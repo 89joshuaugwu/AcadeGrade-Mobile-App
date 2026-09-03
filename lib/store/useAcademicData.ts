@@ -38,8 +38,27 @@ export function useAcademicData(): AcademicSnapshot {
       return;
     }
 
+    setSemesters([]);
+    setCoursesBySemester({});
     setLoading(true);
+    let active = true;
+    let semesterSnapshotReady = false;
+    let initialHydrationComplete = false;
+    let activeSemesterIds = new Set<string>();
+    const hydratedCourseIds = new Set<string>();
     const courseUnsubs: Record<string, () => void> = {};
+
+    const finishInitialHydration = () => {
+      if (
+        active
+        && !initialHydrationComplete
+        && semesterSnapshotReady
+        && [...activeSemesterIds].every((semesterId) => hydratedCourseIds.has(semesterId))
+      ) {
+        initialHydrationComplete = true;
+        setLoading(false);
+      }
+    };
 
     const unsub = db
       .collection('users')
@@ -60,11 +79,18 @@ export function useAcademicData(): AcademicSnapshot {
           .sort((a, b) => (a.level !== b.level ? a.level - b.level : a.semester - b.semester));
         setSemesters(sems);
 
-        const activeSemesterIds = new Set(sems.map((s) => s.id));
+        activeSemesterIds = new Set(sems.map((s) => s.id));
+        semesterSnapshotReady = true;
+        setCoursesBySemester((current) => Object.fromEntries(
+          sems
+            .filter((semester) => current[semester.id])
+            .map((semester) => [semester.id, current[semester.id]]),
+        ));
         Object.keys(courseUnsubs).forEach((semesterId) => {
           if (!activeSemesterIds.has(semesterId)) {
             courseUnsubs[semesterId]();
             delete courseUnsubs[semesterId];
+            hydratedCourseIds.delete(semesterId);
           }
         });
 
@@ -73,16 +99,28 @@ export function useAcademicData(): AcademicSnapshot {
           courseUnsubs[semester.id] = db
             .collection('users').doc(uid).collection('semesters').doc(semester.id).collection('courses')
             .onSnapshot((courseSnap) => {
+              hydratedCourseIds.add(semester.id);
               setCoursesBySemester((current) => ({
                 ...current,
                 [semester.id]: courseSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as CourseWithId[],
               }));
+              finishInitialHydration();
+            }, () => {
+              hydratedCourseIds.add(semester.id);
+              setCoursesBySemester((current) => ({ ...current, [semester.id]: [] }));
+              finishInitialHydration();
             });
         });
+        finishInitialHydration();
+      }, () => {
+        if (!active) return;
+        semesterSnapshotReady = true;
+        initialHydrationComplete = true;
         setLoading(false);
       });
 
     return () => {
+      active = false;
       unsub();
       Object.values(courseUnsubs).forEach((unsubscribe) => unsubscribe());
     };
