@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { Extrapolation, FadeIn, FadeInDown, interpolate, type SharedValue, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import {
-  BarChart3, Bell, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
+  Bell, BookOpen, Camera, Check, ChevronLeft, ChevronRight,
   FileText, GraduationCap, LayoutDashboard, Link2, MoreHorizontal, Palette,
   Plus, ScanLine, Settings, ShieldCheck, Sparkles, Target, TrendingUp,
 } from 'lucide-react-native';
@@ -14,6 +14,7 @@ import { Logo } from '@/components/ui/Logo';
 import { AcadeMindMark } from '@/components/ui/AcadeMindMark';
 import { useAuthStore } from '@/lib/store/authStore';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { useToastStore } from '@/lib/store/toastStore';
 import { db } from '@/lib/firebase/client';
 
 type TourKind = 'dashboard' | 'results' | 'semester' | 'scanner' | 'insights' | 'transcript' | 'more' | 'ready';
@@ -35,6 +36,7 @@ export default function OnboardingTour() {
   const router = useRouter();
   const firebaseUser = useAuthStore((state) => state.firebaseUser);
   const profile = useAuthStore((state) => state.profile);
+  const showToast = useToastStore((state) => state.show);
   const [index, setIndex] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const scrollX = useSharedValue(0);
@@ -56,6 +58,12 @@ export default function OnboardingTour() {
       } else {
         router.replace('/(auth)/register');
       }
+    } catch (error: any) {
+      showToast({
+        type: 'error',
+        title: 'Could not finish the tour',
+        message: error?.message ?? 'Check your connection and try again.',
+      });
     } finally {
       setFinishing(false);
     }
@@ -113,7 +121,7 @@ export default function OnboardingTour() {
               </Pressable>
             )}
             <View style={{ flex: 1 }}>
-              <Button label={isLast ? (isReplay ? 'Return to Dashboard' : 'Create My Account') : 'Next'} onPress={goNext} loading={finishing} fullWidth themeColors={colors} icon={!isLast ? <ChevronRight size={17} color="#FFFFFF" /> : <Check size={17} color="#FFFFFF" />} />
+              <Button label={isLast ? (isReplay ? 'Enter Dashboard' : 'Create My Account') : 'Next'} onPress={goNext} loading={finishing} fullWidth themeColors={colors} icon={!isLast ? <ChevronRight size={17} color="#FFFFFF" /> : <Check size={17} color="#FFFFFF" />} />
             </View>
           </View>
           {!isReplay && (

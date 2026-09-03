@@ -19,6 +19,19 @@ The navigable app now has a complete theme-aware interaction system, consistent 
 
 ## Changes completed
 
+### Guided onboarding and academic lifecycle
+
+- Rebuilt onboarding as an animated, swipeable eight-step product tour covering Dashboard, Results Hub, semester workspaces, AI result scanning, every Insights mode, Transcript, More/Settings, and the recommended first action.
+- Added progress feedback, Back, Next, Skip, responsive page sizing, light/dark styling, concise safety tips, and miniature code-native previews of the real app surfaces.
+- Moved the first-run tour to the correct point in the journey: registration happens first, then the authenticated tour teaches the working app before Dashboard opens. It can be replayed from Settings.
+- Added a registration timeline preview that calculates the final academic session automatically. For example, entry in 2022/2023 with a four-year duration ends in 2025/2026.
+- Added an editable Academic Timeline sheet in Settings with a 1–10 year stepper, common duration shortcuts, expected-graduation preview, input validation, and safe realignment of existing semester session labels.
+- Added a shared academic-plan engine that creates two ordered semester slots per programme year, recognizes existing and completed slots, and remains compatible with older profiles that only contain `currentSession`.
+- Rebuilt semester creation around the next valid missing slot. Users can no longer create duplicate level/semester combinations or accidentally jump ahead, and the button disables after every planned slot exists.
+- Increasing programme duration immediately exposes the next valid year; reducing it is blocked when the selected duration would conflict with an existing level or result.
+- Made Forecast, What-If, and Written Analysis graduation-aware. Charts and calculations are capped to the real remaining semesters, completed programmes receive a final-review state, and the server prompt/cache signature prevents stale or post-graduation projections.
+- Preserved all existing per-user AI abuse controls: cached normal reads, the 12-hour Written Analysis regeneration cooldown, and endpoint-level hourly/daily rate limits.
+
 - Replaced every mobile `Alert.alert` confirmation with an AcadeGrade-styled animated bottom confirmation sheet.
 - Added explicit safe and destructive labels such as **Keep course** and **Delete course**.
 - Added destructive-action context, permanent-action warning, repeat-tap protection, progress state, backdrop dismissal, Android back handling, accessibility semantics, and haptic feedback.
@@ -40,6 +53,13 @@ The navigable app now has a complete theme-aware interaction system, consistent 
 The strongest reusable ideas in the references are compact high-density cards, one dominant action per surface, restrained status colors, bottom-anchored actions, and clear expansion states. The app now follows those patterns without copying the references literally. The new confirmation sheet deliberately uses the same rounded geometry, dark/light surfaces, compact typography, and indigo/semantic accents as the rest of AcadeGrade.
 
 ## Final release checks
+
+Automated checks completed on 3 September 2026:
+
+- Mobile TypeScript: passed.
+- Mobile ESLint: passed with zero warnings.
+- Expo Android export: passed (3,812 modules bundled).
+- Web production build, including the updated Insights endpoint: passed.
 
 - Verify long course names and semester labels at the largest system font size.
 - Verify the confirmation sheet and keyboard behavior on a short-height Android device.
