@@ -78,10 +78,10 @@ async function request<T>(
 export const authApi = {
   sendOtp: (email: string, type: 'registration' | 'reset') =>
     request<{ success: boolean }>('/api/auth/otp/send', { method: 'POST', body: { email, type }, auth: false }),
-  verifyOtp: (email: string, otp: string, type: 'registration' | 'reset') =>
-    request<{ success: boolean }>('/api/auth/otp/verify', { method: 'POST', body: { email, otp, type }, auth: false }),
-  resetPassword: (email: string, otp: string, newPassword: string) =>
-    request<{ success: boolean }>('/api/auth/password/reset', { method: 'POST', body: { email, otp, newPassword }, auth: false }),
+  verifyOtp: (email: string, code: string, type: 'registration' | 'reset') =>
+    request<{ success: boolean }>('/api/auth/otp/verify', { method: 'POST', body: { email, code, type }, auth: false }),
+  resetPassword: (email: string, code: string, newPassword: string) =>
+    request<{ success: boolean }>('/api/auth/password/reset', { method: 'POST', body: { email, code, newPassword }, auth: false }),
 };
 
 // ── Results / OCR ───────────────────────────────────────────────────────
