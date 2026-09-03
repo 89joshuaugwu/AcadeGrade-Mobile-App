@@ -317,12 +317,22 @@ function TranscriptPreview({ colors, profile, photoUrl, showPhoto, semesters, co
             <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 9 }}>{semester.label}</Text>
             <Text style={{ color: '#C7D2FE', fontWeight: '900', fontSize: 9 }}>GPA {Number(semester.gpa || 0).toFixed(2)}</Text>
           </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 23, paddingHorizontal: spacing.sm, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#D1D5DB' }}>
+            <Text style={{ flex: 1, color: '#6B7280', fontSize: 7, fontWeight: '900' }}>COURSE</Text>
+            <Text style={{ color: '#6B7280', fontSize: 7, fontWeight: '900', width: 24, textAlign: 'center' }}>CR</Text>
+            <Text style={{ color: '#6B7280', fontSize: 7, fontWeight: '900', width: 25, textAlign: 'center' }}>CA</Text>
+            <Text style={{ color: '#6B7280', fontSize: 7, fontWeight: '900', width: 31, textAlign: 'center' }}>EXAM</Text>
+            <Text style={{ color: '#6B7280', fontSize: 7, fontWeight: '900', width: 27, textAlign: 'center' }}>GRD</Text>
+            <Text style={{ color: '#6B7280', fontSize: 7, fontWeight: '900', width: 35, textAlign: 'right' }}>TOTAL</Text>
+          </View>
           {(coursesBySemester[semester.id] ?? []).map((course: any, index: number) => (
             <View key={course.id} style={{ flexDirection: 'row', alignItems: 'center', minHeight: 34, paddingHorizontal: spacing.sm, borderWidth: 1, borderTopWidth: index ? 0 : 1, borderColor: '#D1D5DB' }}>
               <View style={{ flex: 1 }}><Text style={{ color: '#111827', fontWeight: '800', fontSize: 8 }}>{course.code}</Text><Text style={{ color: '#6B7280', fontSize: 7 }} numberOfLines={1}>{course.title}</Text></View>
-              <Text style={{ color: '#4B5563', fontSize: 8, width: 28, textAlign: 'center' }}>{course.units}</Text>
-              <Text style={{ color: getGradeColor(course.grade ?? 'F'), fontWeight: '900', fontSize: 9, width: 28, textAlign: 'center' }}>{course.isAR ? 'AR' : course.grade}</Text>
-              <Text style={{ color: '#111827', fontWeight: '800', fontSize: 8, width: 34, textAlign: 'right' }}>{course.totalScore == null || course.isAR ? '—' : course.totalScore}</Text>
+              <Text style={{ color: '#4B5563', fontSize: 8, width: 24, textAlign: 'center' }}>{course.units}</Text>
+              <Text style={{ color: '#4B5563', fontSize: 8, width: 25, textAlign: 'center' }}>{course.caScore == null || course.isAR ? '—' : course.caScore}</Text>
+              <Text style={{ color: '#4B5563', fontSize: 8, width: 31, textAlign: 'center' }}>{course.examScore == null || course.isAR ? '—' : course.examScore}</Text>
+              <Text style={{ color: getGradeColor(course.grade ?? 'F'), fontWeight: '900', fontSize: 9, width: 27, textAlign: 'center' }}>{course.isAR ? 'AR' : course.grade}</Text>
+              <Text style={{ color: '#111827', fontWeight: '800', fontSize: 8, width: 35, textAlign: 'right' }}>{course.totalScore == null || course.isAR ? '—' : course.totalScore}</Text>
             </View>
           ))}
         </View>
