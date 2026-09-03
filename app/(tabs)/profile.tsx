@@ -31,6 +31,7 @@ import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { useTourStore } from '@/lib/store/tourStore';
 import { TOUR_CHAPTERS, USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
+import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
 
 interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
@@ -66,6 +67,7 @@ export default function Profile() {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const profileHeaderTop = Math.max(insets.top, 24) + spacing.md;
   const router = useRouter();
   const themeMode = useThemeStore((s) => s.mode);
   const setThemeMode = useThemeStore((s) => s.setMode);
@@ -107,7 +109,7 @@ export default function Profile() {
       height: size,
       borderRadius: size / 2,
       left: interpolate(progress, [0, 1], [(width - 88) / 2, spacing.lg]),
-      top: interpolate(progress, [0, 1], [16, 13]),
+      top: interpolate(progress, [0, 1], [6, 4]),
     };
   });
   const largeIdentityStyle = useAnimatedStyle(() => ({
@@ -316,8 +318,8 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
-      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: 78, backgroundColor: c.void, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, zIndex: 4 }, headerSurfaceStyle]} />
-      <TourTarget tourId="settings-profile" style={{ position: 'absolute', top: spacing.sm, left: 0, right: 0, height: 176, zIndex: 5 }}>
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: profileHeaderTop + 72, backgroundColor: c.void, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, zIndex: 4 }, headerSurfaceStyle]} />
+      <TourTarget tourId="settings-profile" style={{ position: 'absolute', top: profileHeaderTop, left: 0, right: 0, height: 176, zIndex: 5 }}>
         <Animated.View style={[{ position: 'absolute', overflow: 'visible' }, avatarHeaderStyle]}>
           <Pressable onPress={pickAvatar} style={{ flex: 1 }} accessibilityLabel="Change profile picture">
             {profile?.avatarUrl ? (
@@ -341,7 +343,7 @@ export default function Profile() {
           <Text style={{ color: c.textMuted, fontSize: 10, marginTop: 1 }} numberOfLines={1}>{profile?.department} · {profile?.currentLevel} Level</Text>
         </Animated.View>
       </TourTarget>
-      <Animated.ScrollView ref={scrollRef as any} onScroll={onProfileScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: spacing.lg, paddingTop: 190, paddingBottom: 120 }}>
+      <Animated.ScrollView ref={scrollRef as any} onScroll={onProfileScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: spacing.lg, paddingTop: profileHeaderTop + 176, paddingBottom: 120 }}>
         {/* AVATAR + IDENTITY */}
         <Animated.View entering={FadeInDown.duration(300)} style={{ display: 'none', alignItems: 'center', marginBottom: spacing.lg }}>
           <TourTarget tourId="settings-profile-legacy" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ alignItems: 'center' }}>
@@ -457,6 +459,7 @@ export default function Profile() {
       <Modal visible={themeSheetOpen} transparent animationType="fade" onRequestClose={() => setThemeSheetOpen(false)}>
         <Pressable onPress={() => setThemeSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(7,9,15,0.55)' }}>
           <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: spacing.xxl }}>
+            <SwipeDownHandle onDismiss={() => setThemeSheetOpen(false)} color={c.border} style={{ marginBottom: spacing.sm }} />
             <Text style={{ color: c.text, fontSize: 18, fontWeight: '800', marginBottom: 4 }}>Appearance</Text>
             <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: spacing.lg }}>Choose how AcadeGrade looks on this device.</Text>
             {(['light', 'dark', 'system'] as const).map((mode) => (
@@ -473,7 +476,7 @@ export default function Profile() {
         <Pressable onPress={() => setShareAppOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.72)' }}>
           <Animated.View entering={FadeInDown.springify().damping(21)}>
             <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.deep, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border, padding: spacing.lg, paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }}>
-              <View style={{ width: 38, height: 4, borderRadius: radius.pill, backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+              <SwipeDownHandle onDismiss={() => setShareAppOpen(false)} color={c.border} style={{ marginBottom: spacing.lg }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
                 <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}><Share2 size={21} color={c.primary} /></View>
                 <View style={{ flex: 1 }}>
@@ -514,7 +517,7 @@ export default function Profile() {
         <Pressable disabled={savingTimeline} onPress={() => setTimelineSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.72)' }}>
           <Animated.View entering={FadeInDown.springify().damping(21)}>
             <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.deep, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border, padding: spacing.lg, paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }}>
-              <View style={{ width: 38, height: 4, borderRadius: radius.pill, backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+              <SwipeDownHandle onDismiss={() => setTimelineSheetOpen(false)} disabled={savingTimeline} color={c.border} style={{ marginBottom: spacing.lg }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
                 <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}><CalendarRange size={22} color={c.primary} /></View>
                 <View style={{ flex: 1 }}>
@@ -576,7 +579,7 @@ export default function Profile() {
               paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md),
             }}
           >
-            <View style={{ width: 38, height: 4, borderRadius: radius.pill, backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+            <SwipeDownHandle onDismiss={() => setDeleteSheetOpen(false)} disabled={deleting} color={c.border} style={{ marginBottom: spacing.lg }} />
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, marginBottom: spacing.lg }}>
               <View style={{ width: 48, height: 48, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: c.dangerDim, borderWidth: 1, borderColor: `${c.danger}42` }}>
                 <ShieldAlert size={23} color={c.danger} />

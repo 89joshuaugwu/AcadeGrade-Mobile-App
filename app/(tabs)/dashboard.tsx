@@ -41,6 +41,15 @@ function getPerformanceClass(value: number) {
   return { ...degreeClass, gradient: PERFORMANCE_GRADIENTS[gradientKey] };
 }
 
+function blendHexColors(first: string, second: string, firstWeight: number) {
+  const parse = (hex: string) => [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
+  const [firstRed, firstGreen, firstBlue] = parse(first);
+  const [secondRed, secondGreen, secondBlue] = parse(second);
+  const secondWeight = 1 - firstWeight;
+  const channel = (a: number, b: number) => Math.round(a * firstWeight + b * secondWeight).toString(16).padStart(2, '0');
+  return `#${channel(firstRed, secondRed)}${channel(firstGreen, secondGreen)}${channel(firstBlue, secondBlue)}`;
+}
+
 export default function Dashboard() {
   const c = useThemeColors();
   const { width } = useWindowDimensions();
@@ -63,12 +72,12 @@ export default function Dashboard() {
   const secondaryMetric = isPiPrimary ? cgpa : pi;
   const primaryClass = getPerformanceClass(primaryMetric);
   const secondaryClass = getPerformanceClass(secondaryMetric);
-  // The primary metric owns its literal share of the left-to-right card.
-  // Switching primary mode therefore reverses the order, while the larger
-  // metric still occupies the larger part of the gradient.
+  // The blend stays soft like the card reference: metric values influence
+  // where the centre colour sits, never creating a visible hard split.
   const primaryGradientShare = Math.min(0.88, Math.max(0.12, primaryMetric / Math.max(primaryMetric + secondaryMetric, 0.01)));
-  const gradientColors = [primaryClass.gradient, primaryClass.gradient, secondaryClass.gradient, secondaryClass.gradient] as const;
-  const gradientLocations = [0, primaryGradientShare - 0.025, primaryGradientShare + 0.025, 1] as const;
+  const gradientMidpoint = blendHexColors(primaryClass.gradient, secondaryClass.gradient, primaryGradientShare);
+  const gradientColors = [primaryClass.gradient, gradientMidpoint, secondaryClass.gradient] as const;
+  const gradientLocations = [0, primaryGradientShare, 1] as const;
 
   if (loading) return <DashboardSkeleton firstName={firstName} avatarUrl={profile?.avatarUrl ?? undefined} colors={c} />;
 

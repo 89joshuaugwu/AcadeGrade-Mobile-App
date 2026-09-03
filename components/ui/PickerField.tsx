@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import { BottomSheetModal, BottomSheetView, BottomSheetTextInput, BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView, BottomSheetTextInput, BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { ChevronDown, Check, Search } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useThemeColors } from '@/lib/store/themeStore';
@@ -31,6 +31,7 @@ export function PickerField({ label, value, onChange, options, placeholder, erro
     const q = query.toLowerCase();
     return options.filter((o) => o.toLowerCase().includes(q));
   }, [query, options]);
+  const renderBackdrop = useCallback((props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" opacity={0.48} />, []);
 
   const open = useCallback(() => {
     setQuery('');
@@ -69,6 +70,8 @@ export function PickerField({ label, value, onChange, options, placeholder, erro
       <BottomSheetModal
         ref={sheetRef}
         snapPoints={['75%']}
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.border }}
       >

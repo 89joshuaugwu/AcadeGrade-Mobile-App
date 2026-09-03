@@ -28,6 +28,7 @@ import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
+import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -596,7 +597,7 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.7)' }}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
         <View style={{ backgroundColor: colors.deep, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xxl }}>
-          <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+          <SwipeDownHandle onDismiss={onClose} color={colors.border} style={{ marginBottom: spacing.lg }} />
           <TourTarget tourId="course-code-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1, paddingRight: spacing.md }}>
               <Text style={{ color: colors.text, fontSize: 19, fontWeight: '900' }}>{mode === 'share' ? 'Share course list' : 'Import course list'}</Text>
@@ -713,7 +714,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
             paddingTop: spacing.sm,
           }}
         >
-          <View style={{ width: 42, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.md }} />
+          <SwipeDownHandle onDismiss={onClose} color={colors.border} style={{ marginBottom: spacing.md }} />
           <ScrollView ref={formScrollRef} contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
               <View>

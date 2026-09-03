@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import { LayoutDashboard, FileText, GraduationCap, MoreHorizontal, Settings, Bell, ChevronRight, Moon, Sun, Smartphone } from 'lucide-react-native';
 import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 import { radius, spacing } from '@/constants/theme';
@@ -45,6 +45,7 @@ export default function TabsLayout() {
     sheetRef.current?.present();
   }, []);
   const closeAnd = useCallback((fn: () => void) => { sheetRef.current?.dismiss(); fn(); }, []);
+  const renderBackdrop = useCallback((props: any) => <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} pressBehavior="close" opacity={0.48} />, []);
 
   useEffect(() => registerTourAction('more-expand', () => sheetRef.current?.snapToIndex(1)), []);
 
@@ -92,6 +93,8 @@ export default function TabsLayout() {
         ref={sheetRef}
         snapPoints={['31%', '47%']}
         enableDynamicSizing={false}
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
         backgroundStyle={{ backgroundColor: colors.surface }}
         handleIndicatorStyle={{ backgroundColor: colors.border }}
         onChange={(index) => setMoreExpanded(index === 1)}

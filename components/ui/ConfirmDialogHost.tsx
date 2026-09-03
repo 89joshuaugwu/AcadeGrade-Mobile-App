@@ -8,6 +8,7 @@ import { radius, spacing } from '@/constants/theme';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useConfirmDialogStore, type ConfirmDialogTone } from '@/lib/store/confirmDialogStore';
 import { Button } from '@/components/ui/Button';
+import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
 
 // Explicit rather than a newly hydrated palette property: this guarantees
 // the red fill remains present after light/dark switches and Fast Refresh.
@@ -94,16 +95,7 @@ export function ConfirmDialogHost() {
             elevation: 24,
           }}
         >
-          <View
-            style={{
-              width: 38,
-              height: 4,
-              borderRadius: radius.pill,
-              backgroundColor: colors.border,
-              alignSelf: 'center',
-              marginBottom: spacing.lg,
-            }}
-          />
+          <SwipeDownHandle onDismiss={hide} disabled={loading} color={colors.border} style={{ marginBottom: spacing.lg }} />
 
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
             <View
