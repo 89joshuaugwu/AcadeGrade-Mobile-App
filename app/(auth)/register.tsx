@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import firestore from '@react-native-firebase/firestore';
 import { User, Mail, Lock, Eye, EyeOff, KeyRound, Check } from 'lucide-react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, FadeInLeft, FadeInRight, FadeOutLeft, FadeOutRight } from 'react-native-reanimated';
 import { spacing, radius } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 import { PickerField } from '@/components/ui/PickerField';
+import { GoogleIcon } from '@/components/ui/GoogleIcon';
 import { SegmentedPill } from './login';
 import { getGoogleSignInErrorMessage, signOut, signUpWithEmail, signInWithGoogle } from '@/lib/firebase/auth';
 import { db, firebaseAuth } from '@/lib/firebase/client';
@@ -41,6 +42,8 @@ export default function Register() {
   const { firebaseUser } = useAuthStore();
   const showToast = useToastStore((state) => state.show);
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [stepDirection, setStepDirection] = useState<'forward' | 'backward'>('forward');
+  const registrationScrollRef = useRef<ScrollView>(null);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('email');
   const [pendingAccountUid, setPendingAccountUid] = useState<string | null>(null);
   const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
@@ -65,6 +68,18 @@ export default function Register() {
     university: DEFAULT_UNIVERSITY, currentLevel: 100, courseDuration: 4, recordMode: 'fromScratch',
   });
   function update<K extends string>(key: K, value: any) { setForm((f) => ({ ...f, [key]: value })); }
+
+  /**
+   * Keep the wizard feeling like one continuous journey: forward steps enter
+   * from the right, Back brings the prior step back from the left, and every
+   * phase starts at its heading instead of preserving a lower scroll offset.
+   */
+  function moveToStep(nextStep: 1 | 2 | 3) {
+    if (nextStep === step) return;
+    setStepDirection(nextStep > step ? 'forward' : 'backward');
+    registrationScrollRef.current?.scrollTo({ y: 0, animated: false });
+    setStep(nextStep);
+  }
 
   function handleEmailChange(value: string) {
     const changed = value.trim().toLowerCase() !== email.trim().toLowerCase();
@@ -183,14 +198,14 @@ export default function Register() {
 
     if (authMethod === 'google') {
       if (!pendingAccountUid && !firebaseAuth.currentUser?.uid) return setError('Your Google session expired. Please choose your Google account again.');
-      setStep(2);
+      moveToStep(2);
       return;
     }
 
     if (!password || password.length < 6) return setError('Password must be at least 6 characters');
     if (password !== confirmPassword) return setError('Passwords do not match');
     if (verifiedEmail === normalizedEmail) {
-      setStep(2);
+      moveToStep(2);
       return;
     }
     if (!codeSent) return setError('Tap "Get Code" to receive your verification code first');
@@ -200,7 +215,7 @@ export default function Register() {
     try {
       await authApi.verifyOtp(normalizedEmail, otp, 'registration');
       setVerifiedEmail(normalizedEmail);
-      setStep(2);
+      moveToStep(2);
       showToast({ type: 'success', title: 'Email verified', message: 'Now add your academic details.' });
     } catch (e: any) {
       const message = e.message ?? 'Invalid or expired code';
@@ -219,7 +234,7 @@ export default function Register() {
     if (parseAcademicSession(form.currentSession) == null) {
       return setError('Entry session must be consecutive years, for example 2022/2023');
     }
-    setStep(3);
+    moveToStep(3);
   }
 
   async function handleFinish() {
@@ -281,7 +296,7 @@ export default function Register() {
     <View style={{ flex: 1, backgroundColor: c.void }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={{ padding: spacing.xl }}>
+          <ScrollView ref={registrationScrollRef} contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
             <Animated.View entering={FadeInDown.duration(300)} style={{ alignItems: 'center', marginBottom: spacing.lg }}>
               <Logo size={52} tagline="Master Your Academic Journey" themeColors={c} />
             </Animated.View>
@@ -295,11 +310,16 @@ export default function Register() {
             </View>
 
             {step === 1 && (
-              <Animated.View entering={FadeIn.duration(250)}>
+              <Animated.View
+                key="registration-step-1"
+                entering={stepDirection === 'forward' ? FadeInRight.duration(240) : FadeInLeft.duration(240)}
+                exiting={stepDirection === 'forward' ? FadeOutLeft.duration(150) : FadeOutRight.duration(150)}
+              >
                 {authMethod === 'email' && <Pressable
                   onPress={handleGoogleSignup}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, marginBottom: spacing.md }}
                 >
+                  <GoogleIcon size={18} />
                   <Text style={{ color: c.text, fontWeight: '600', fontSize: 15 }}>Continue with Google</Text>
                 </Pressable>}
                 {authMethod === 'email' && <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
@@ -406,7 +426,11 @@ export default function Register() {
             )}
 
             {step === 2 && (
-              <Animated.View entering={FadeIn.duration(250)}>
+              <Animated.View
+                key="registration-step-2"
+                entering={stepDirection === 'forward' ? FadeInRight.duration(240) : FadeInLeft.duration(240)}
+                exiting={stepDirection === 'forward' ? FadeOutLeft.duration(150) : FadeOutRight.duration(150)}
+              >
                 <Text style={{ color: c.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.md }}>Academic details</Text>
                 <PickerField label="University" value={form.university ?? ''} onChange={(v) => update('university', v)} options={NIGERIAN_UNIVERSITIES} />
                 <PickerField label="Department" value={form.department ?? ''} onChange={(v) => update('department', v)} options={ACADEMIC_DEPARTMENTS} placeholder="e.g. Computer Science" />
@@ -447,14 +471,18 @@ export default function Register() {
 
                 {error && <Text style={{ color: c.danger, marginBottom: spacing.md }}>{error}</Text>}
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                  <Button label="Back" variant="secondary" onPress={() => setStep(1)} />
+                  <Button label="Back" variant="secondary" onPress={() => moveToStep(1)} />
                   <View style={{ flex: 1 }}><Button label="Continue" onPress={handleContinueStep2} fullWidth /></View>
                 </View>
               </Animated.View>
             )}
 
             {step === 3 && (
-              <Animated.View entering={FadeIn.duration(250)}>
+              <Animated.View
+                key="registration-step-3"
+                entering={stepDirection === 'forward' ? FadeInRight.duration(240) : FadeInLeft.duration(240)}
+                exiting={stepDirection === 'forward' ? FadeOutLeft.duration(150) : FadeOutRight.duration(150)}
+              >
                 <Text style={{ color: c.text, fontSize: 20, fontWeight: '700', marginBottom: spacing.md }}>How do you want to track?</Text>
                 <Pressable onPress={() => update('recordMode', 'fromScratch')} style={{ borderRadius: 16, padding: spacing.lg, borderWidth: 2, marginBottom: spacing.md, borderColor: form.recordMode === 'fromScratch' ? c.primary : c.border, backgroundColor: form.recordMode === 'fromScratch' ? c.primaryDim : c.surface }}>
                   <Text style={{ color: c.text, fontWeight: '700', marginBottom: 4 }}>From Scratch</Text>
@@ -467,7 +495,7 @@ export default function Register() {
 
                 {error && <Text style={{ color: c.danger, marginBottom: spacing.md }}>{error}</Text>}
                 <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                  <Button label="Back" variant="secondary" onPress={() => setStep(2)} />
+                  <Button label="Back" variant="secondary" onPress={() => moveToStep(2)} />
                   <View style={{ flex: 1 }}><Button label="Create Account" onPress={handleFinish} loading={loading} fullWidth /></View>
                 </View>
               </Animated.View>
