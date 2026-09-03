@@ -74,7 +74,7 @@ Automated checks completed on 3 September 2026:
 
 - Mobile TypeScript: passed.
 - Mobile ESLint: passed with zero warnings.
-- Expo Android export: passed (3,820 modules bundled).
+- Expo Android export: passed (3,821 modules bundled).
 - Web production build, including the updated Insights endpoint: passed.
 
 - Verify long course names and semester labels at the largest system font size.
