@@ -5,6 +5,8 @@ import { computeCumulativeCGPA } from '@/lib/cgpa/calculator';
 import type { SemesterWithId } from '@/types/semester';
 import type { CourseWithId } from '@/types/course';
 
+const INITIAL_SYNC_TIMEOUT_MS = 12000;
+
 export interface AcademicSnapshot {
   loading: boolean;
   semesters: SemesterWithId[];
@@ -47,6 +49,7 @@ export function useAcademicData(): AcademicSnapshot {
     let activeSemesterIds = new Set<string>();
     const hydratedCourseIds = new Set<string>();
     const courseUnsubs: Record<string, () => void> = {};
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
     const finishInitialHydration = () => {
       if (
@@ -56,9 +59,18 @@ export function useAcademicData(): AcademicSnapshot {
         && [...activeSemesterIds].every((semesterId) => hydratedCourseIds.has(semesterId))
       ) {
         initialHydrationComplete = true;
+        if (fallbackTimer) clearTimeout(fallbackTimer);
         setLoading(false);
       }
     };
+
+    // An offline client with no local cache may never receive a server-backed
+    // snapshot. Keep the skeleton useful, but never trap the page forever.
+    fallbackTimer = setTimeout(() => {
+      if (!active || initialHydrationComplete) return;
+      initialHydrationComplete = true;
+      setLoading(false);
+    }, INITIAL_SYNC_TIMEOUT_MS);
 
     const unsub = db
       .collection('users')
@@ -74,13 +86,15 @@ export function useAcademicData(): AcademicSnapshot {
       // sort client-side by level/semester instead, matching web's actual
       // `useSemesters.ts` (`orderBy('level', 'asc')`) — and unlike a
       // Firestore orderBy, a client-side sort never excludes a document.
-      .onSnapshot((snap) => {
+      .onSnapshot({ includeMetadataChanges: true }, (snap) => {
         const sems = (snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as SemesterWithId[])
           .sort((a, b) => (a.level !== b.level ? a.level - b.level : a.semester - b.semester));
         setSemesters(sems);
 
         activeSemesterIds = new Set(sems.map((s) => s.id));
-        semesterSnapshotReady = true;
+        // Empty cache snapshots are provisional: wait for the server to
+        // confirm emptiness so real cloud data never flashes in late.
+        if (!snap.metadata.fromCache || snap.docs.length > 0) semesterSnapshotReady = true;
         setCoursesBySemester((current) => Object.fromEntries(
           sems
             .filter((semester) => current[semester.id])
@@ -98,8 +112,10 @@ export function useAcademicData(): AcademicSnapshot {
           if (courseUnsubs[semester.id]) return;
           courseUnsubs[semester.id] = db
             .collection('users').doc(uid).collection('semesters').doc(semester.id).collection('courses')
-            .onSnapshot((courseSnap) => {
-              hydratedCourseIds.add(semester.id);
+            .onSnapshot({ includeMetadataChanges: true }, (courseSnap) => {
+              if (!courseSnap.metadata.fromCache || courseSnap.docs.length > 0) {
+                hydratedCourseIds.add(semester.id);
+              }
               setCoursesBySemester((current) => ({
                 ...current,
                 [semester.id]: courseSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as CourseWithId[],
@@ -116,11 +132,13 @@ export function useAcademicData(): AcademicSnapshot {
         if (!active) return;
         semesterSnapshotReady = true;
         initialHydrationComplete = true;
+        if (fallbackTimer) clearTimeout(fallbackTimer);
         setLoading(false);
       });
 
     return () => {
       active = false;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
       unsub();
       Object.values(courseUnsubs).forEach((unsubscribe) => unsubscribe());
     };

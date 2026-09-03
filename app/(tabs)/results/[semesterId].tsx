@@ -81,22 +81,48 @@ export default function SemesterDetail() {
     if (!uid || !semesterId) return;
     setSemester(null);
     setCourses([]);
+    let semesterSettled = false;
+    let coursesSettled = false;
+    const finishIfReady = () => {
+      if (semesterSettled && coursesSettled) clearTimeout(timeout);
+    };
+    const timeout = setTimeout(() => {
+      setSemesterSnapshotId(semesterId);
+      setCoursesSnapshotId(semesterId);
+    }, 12000);
     const unsubscribeSemester = db
       .collection('users').doc(uid)
       .collection('semesters').doc(semesterId)
-      .onSnapshot((snap) => {
+      .onSnapshot({ includeMetadataChanges: true }, (snap) => {
         if (snap.exists()) setSemester({ id: snap.id, ...(snap.data() as any) } as SemesterWithId);
+        if (!snap.metadata.fromCache || snap.exists()) {
+          semesterSettled = true;
+          setSemesterSnapshotId(semesterId);
+          finishIfReady();
+        }
+      }, () => {
+        semesterSettled = true;
         setSemesterSnapshotId(semesterId);
-      }, () => setSemesterSnapshotId(semesterId));
+        finishIfReady();
+      });
     const unsubscribeCourses = db
       .collection('users').doc(uid)
       .collection('semesters').doc(semesterId)
       .collection('courses')
-      .onSnapshot((snap) => {
+      .onSnapshot({ includeMetadataChanges: true }, (snap) => {
         setCourses(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as CourseWithId[]);
+        if (!snap.metadata.fromCache || snap.docs.length > 0) {
+          coursesSettled = true;
+          setCoursesSnapshotId(semesterId);
+          finishIfReady();
+        }
+      }, () => {
+        coursesSettled = true;
         setCoursesSnapshotId(semesterId);
-      }, () => setCoursesSnapshotId(semesterId));
+        finishIfReady();
+      });
     return () => {
+      clearTimeout(timeout);
       unsubscribeSemester();
       unsubscribeCourses();
     };

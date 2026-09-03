@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { View, type DimensionValue, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   cancelAnimation,
+  FadeIn,
+  FadeOut,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -33,6 +35,8 @@ export function SkeletonPulse({ children, accessibilityLabel = 'Content is loadi
 
   return (
     <Animated.View
+      entering={reduceMotion ? undefined : FadeIn.duration(140)}
+      exiting={reduceMotion ? undefined : FadeOut.duration(180)}
       accessible
       accessibilityRole="progressbar"
       accessibilityLabel={accessibilityLabel}

@@ -123,7 +123,8 @@ export default function Insights() {
       return;
     }
     setAnalyticsLoading(true);
-    return db.collection('analytics').doc(uid).onSnapshot((snapshot) => {
+    const timeout = setTimeout(() => setAnalyticsLoading(false), 12000);
+    const unsubscribe = db.collection('analytics').doc(uid).onSnapshot({ includeMetadataChanges: true }, (snapshot) => {
       const data = snapshot.data();
       setForecast(data?.forecast ? data.forecast as ForecastResponse : null);
       if (data?.lastInsight?.data) setInsights(data.lastInsight.data as InsightsResponse);
@@ -131,8 +132,18 @@ export default function Insights() {
       else setInsights(null);
       setLastInsightAt(timestampToMillis(data?.lastInsight?.timestamp));
       setInsightsStale(Boolean(data?.insightsStale));
+      if (!snapshot.metadata.fromCache || snapshot.exists()) {
+        clearTimeout(timeout);
+        setAnalyticsLoading(false);
+      }
+    }, () => {
+      clearTimeout(timeout);
       setAnalyticsLoading(false);
-    }, () => setAnalyticsLoading(false));
+    });
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, [uid]);
 
   useEffect(() => {

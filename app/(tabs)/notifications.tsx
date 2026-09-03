@@ -53,10 +53,21 @@ export default function Notifications() {
     setLoading(true);
     const ref = db.collection('notifications').doc(uid).collection('items')
       .orderBy('createdAt', 'desc').limit(50);
-    return ref.onSnapshot((snap) => {
+    const timeout = setTimeout(() => setLoading(false), 12000);
+    const unsubscribe = ref.onSnapshot({ includeMetadataChanges: true }, (snap) => {
       setItems(snap.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<NotificationItem, 'id'>) })));
+      if (!snap.metadata.fromCache || snap.docs.length > 0) {
+        clearTimeout(timeout);
+        setLoading(false);
+      }
+    }, () => {
+      clearTimeout(timeout);
       setLoading(false);
-    }, () => setLoading(false));
+    });
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, [uid]);
 
   async function markAsRead(id: string) {

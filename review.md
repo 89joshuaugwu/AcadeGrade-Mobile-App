@@ -53,6 +53,17 @@ The navigable app now has a complete theme-aware interaction system, consistent 
 - Cleared all TypeScript and ESLint errors and warnings.
 - Preserved the existing compact course form, semester import/export, live result scanner, Insights sections, transcript actions, and More-sheet quick theme controls.
 
+### First-load and perceived performance
+
+- Removed the false-empty-state flash across Dashboard, Results, semester setup/detail, Insights, Transcript, Notifications, and the academic totals in Settings.
+- Added reusable theme-aware skeleton primitives with a restrained pulse, soft enter/exit transition, screen-reader loading labels, and reduced-motion support.
+- Matched each skeleton to the geometry of its destination screen so the final cards replace stable placeholders instead of causing large layout jumps.
+- Changed academic hydration to wait for the first course snapshot for every semester, preventing zero totals from appearing before course data arrives.
+- Distinguished an empty Firestore cache from a server-confirmed empty collection. Cached real data renders immediately; an empty cache remains in its loading state until cloud data arrives or a 12-second offline safety timeout is reached.
+- Added independent first-snapshot handling for analytics, shared transcript links, notifications, and semester detail data.
+- Delayed contextual usage tours until their real screen content is ready, so spotlights never attach to temporary placeholders.
+- Prevented Semester Detail from calculating and writing a temporary `0.00` GPA while its course collection is still hydrating.
+
 ## Inspiration-image findings
 
 The strongest reusable ideas in the references are compact high-density cards, one dominant action per surface, restrained status colors, bottom-anchored actions, and clear expansion states. The app now follows those patterns without copying the references literally. The new confirmation sheet deliberately uses the same rounded geometry, dark/light surfaces, compact typography, and indigo/semantic accents as the rest of AcadeGrade.

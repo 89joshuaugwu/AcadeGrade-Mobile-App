@@ -91,7 +91,9 @@ export default function Transcript() {
       return;
     }
     setLinksLoading(true);
-    return db.collection('shared_transcripts').where('uid', '==', uid).onSnapshot(
+    const timeout = setTimeout(() => setLinksLoading(false), 12000);
+    const unsubscribe = db.collection('shared_transcripts').where('uid', '==', uid).onSnapshot(
+      { includeMetadataChanges: true },
       (snapshot) => {
         const now = Date.now();
         const links = snapshot.docs
@@ -99,13 +101,21 @@ export default function Transcript() {
           .filter((link) => (toDate(link.expiresAt)?.getTime() ?? 0) > now)
           .sort((a, b) => (toDate(b.createdAt)?.getTime() ?? 0) - (toDate(a.createdAt)?.getTime() ?? 0));
         setSharedLinks(links);
-        setLinksLoading(false);
+        if (!snapshot.metadata.fromCache || snapshot.docs.length > 0) {
+          clearTimeout(timeout);
+          setLinksLoading(false);
+        }
       },
       () => {
+        clearTimeout(timeout);
         setSharedLinks([]);
         setLinksLoading(false);
       },
     );
+    return () => {
+      clearTimeout(timeout);
+      unsubscribe();
+    };
   }, [uid]);
 
   async function generateAndShare() {
