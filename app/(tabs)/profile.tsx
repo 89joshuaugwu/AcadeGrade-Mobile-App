@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Switch, Image, Pressable, Modal } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  Camera, GraduationCap, BadgeCheck, Star, CalendarDays, BellRing,
+  Camera, GraduationCap, BadgeCheck, Star, CalendarRange, BellRing,
   User as UserIcon, ShieldCheck, ShieldAlert, LogOut, ChevronRight, Palette,
+  Minus, Plus, PlayCircle,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import firestore from '@react-native-firebase/firestore';
 import { spacing, radius } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -21,6 +24,7 @@ import { userApi, transcriptApi } from '@/lib/api/client';
 import { useThemeStore } from '@/lib/store/themeStore';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
+import { COURSE_DURATION_OPTIONS, MAX_COURSE_DURATION, MIN_COURSE_DURATION, formatAcademicSession, formatSessionInput, graduationSession, minimumDurationForSemesters, parseAcademicSession } from '@/lib/academic/timeline';
 
 interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
@@ -53,13 +57,14 @@ const CLOUDINARY_UPLOAD_PRESET = 'acadegrade_avatars';
 export default function Profile() {
   const c = useThemeColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const themeMode = useThemeStore((s) => s.mode);
   const setThemeMode = useThemeStore((s) => s.setMode);
   const profile = useAuthStore((s) => s.profile);
   const firebaseUser = useAuthStore((s) => s.firebaseUser);
   const uid = useAuthStore((s) => s.firebaseUser?.uid);
   const showToast = useToastStore((s) => s.show);
-  const { cgpa, totalCredits, atRiskCount } = useAcademicData();
+  const { cgpa, totalCredits, atRiskCount, semesters } = useAcademicData();
   const [uploading, setUploading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [notifs, setNotifs] = useState(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true });
@@ -68,6 +73,11 @@ export default function Profile() {
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [timelineSheetOpen, setTimelineSheetOpen] = useState(false);
+  const [timelineEntry, setTimelineEntry] = useState('');
+  const [timelineDuration, setTimelineDuration] = useState(4);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
+  const [savingTimeline, setSavingTimeline] = useState(false);
 
   useEffect(() => { setNotifs(profile?.notificationPreferences ?? { semesterSaved: true, degreeClass: true, aiInsights: true, adminBroadcasts: true }); }, [profile?.notificationPreferences]);
 
@@ -149,6 +159,63 @@ export default function Profile() {
     setDeleteSheetOpen(true);
   }
 
+  function openTimelineSettings() {
+    setTimelineEntry(profile?.entrySession || profile?.currentSession || '');
+    setTimelineDuration(profile?.courseDuration ?? Math.max(4, minimumDurationForSemesters(semesters)));
+    setTimelineError(null);
+    setTimelineSheetOpen(true);
+  }
+
+  async function saveTimeline() {
+    if (!uid) return;
+    const entryStart = parseAcademicSession(timelineEntry);
+    if (entryStart == null) {
+      setTimelineError('Use consecutive years in YYYY/YYYY format, for example 2022/2023.');
+      return;
+    }
+    const minimumDuration = Math.max(
+      minimumDurationForSemesters(semesters),
+      Math.ceil((Number(profile?.currentLevel) || 100) / 100),
+    );
+    if (timelineDuration < minimumDuration) {
+      setTimelineError(`Your existing level/results require at least ${minimumDuration} years.`);
+      return;
+    }
+
+    setSavingTimeline(true);
+    setTimelineError(null);
+    try {
+      const batch = db.batch();
+      batch.update(db.collection('users').doc(uid), {
+        entrySession: timelineEntry,
+        currentSession: timelineEntry,
+        courseDuration: timelineDuration,
+        graduationSession: graduationSession(timelineEntry, timelineDuration),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      });
+      semesters.forEach((semester) => {
+        const yearOffset = Math.max(0, Math.floor(Number(semester.level) / 100) - 1);
+        batch.update(
+          db.collection('users').doc(uid).collection('semesters').doc(semester.id),
+          { session: formatAcademicSession(entryStart + yearOffset), updatedAt: firestore.FieldValue.serverTimestamp() },
+        );
+      });
+      await batch.commit();
+      setTimelineSheetOpen(false);
+      showToast({ type: 'success', title: 'Academic timeline updated', message: `Graduation session is now ${graduationSession(timelineEntry, timelineDuration)}.` });
+    } catch (error: any) {
+      setTimelineError(error?.message ?? 'Could not update your academic timeline.');
+    } finally {
+      setSavingTimeline(false);
+    }
+  }
+
+  async function replayAppTour() {
+    if (!uid) return;
+    await db.collection('users').doc(uid).set({ mobileOnboardingCompleted: false }, { merge: true });
+    router.push('/(auth)/onboarding-tour');
+  }
+
   async function confirmDeleteAccount() {
     setDeleteError(null);
     setDeleting(true);
@@ -220,7 +287,8 @@ export default function Profile() {
           <View style={{ gap: 8 }}>
             <ListRow icon={<Star size={16} color={c.gold} />} title="Primary Metric" subtitle={profile?.gradeMode === 'pi' ? 'True Mastery (PI)' : 'CGPA (4.0 Scale)'} onPress={toggleGradeMode} />
             <ListRow icon={<Palette size={16} color={c.primary} />} title="Appearance" subtitle={themeMode === 'system' ? 'System default' : themeMode === 'dark' ? 'Dark mode' : 'Light mode'} onPress={() => setThemeSheetOpen(true)} />
-            <ListRow icon={<CalendarDays size={16} color={c.primary} />} title="Current Session" subtitle={profile?.currentSession ?? '—'} />
+            <ListRow icon={<CalendarRange size={16} color={c.primary} />} title="Academic Timeline" subtitle={`${profile?.courseDuration ?? 4} years · ${profile?.entrySession || profile?.currentSession || 'Set entry session'} → ${profile?.graduationSession || graduationSession(profile?.entrySession || profile?.currentSession || '', profile?.courseDuration ?? 4) || 'Set graduation'}`} onPress={openTimelineSettings} />
+            <ListRow icon={<PlayCircle size={16} color={c.primary} />} title="Replay App Tour" subtitle="Review Dashboard, Results, Insights, Transcript, and More" onPress={replayAppTour} />
             <ListRow icon={<BellRing size={16} color={c.primary} />} title="Push Notifications" subtitle="Manage alerts on this device" onPress={enablePushNotifications} />
             <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
               <Text style={{ color: c.text, fontWeight: '700', fontSize: 13, marginBottom: spacing.sm }}>
@@ -275,6 +343,56 @@ export default function Profile() {
               </Pressable>
             ))}
           </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={timelineSheetOpen} transparent statusBarTranslucent animationType="fade" onRequestClose={() => { if (!savingTimeline) setTimelineSheetOpen(false); }}>
+        <Pressable disabled={savingTimeline} onPress={() => setTimelineSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.72)' }}>
+          <Animated.View entering={FadeInDown.springify().damping(21)}>
+            <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.deep, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border, padding: spacing.lg, paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }}>
+              <View style={{ width: 38, height: 4, borderRadius: radius.pill, backgroundColor: c.border, alignSelf: 'center', marginBottom: spacing.lg }} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
+                <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}><CalendarRange size={22} color={c.primary} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontSize: 19, fontWeight: '900' }}>Academic timeline</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 12, marginTop: 3 }}>Correct your entry year or programme length.</Text>
+                </View>
+              </View>
+
+              <Input label="Entry session" placeholder="2022/2023" value={timelineEntry} onChangeText={(value) => setTimelineEntry(formatSessionInput(value))} maxLength={9} keyboardType="number-pad" themeColors={c} />
+
+              <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: '600', marginBottom: spacing.sm }}>Programme duration</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.sm }}>
+                <Pressable accessibilityLabel="Reduce duration" onPress={() => setTimelineDuration((value) => Math.max(MIN_COURSE_DURATION, value - 1))} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: c.overlay, alignItems: 'center', justifyContent: 'center' }}><Minus size={18} color={c.text} /></Pressable>
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ color: c.text, fontSize: 24, fontWeight: '900' }}>{timelineDuration}</Text>
+                  <Text style={{ color: c.textMuted, fontSize: 10 }}>years · {timelineDuration * 2} semesters</Text>
+                </View>
+                <Pressable accessibilityLabel="Increase duration" onPress={() => setTimelineDuration((value) => Math.min(MAX_COURSE_DURATION, value + 1))} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: c.primaryDim, alignItems: 'center', justifyContent: 'center' }}><Plus size={18} color={c.primary} /></Pressable>
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 7, paddingVertical: 3, marginBottom: spacing.md }}>
+                {COURSE_DURATION_OPTIONS.map((duration) => (
+                  <Pressable key={duration} onPress={() => setTimelineDuration(duration)} style={{ minWidth: 52, paddingHorizontal: 10, paddingVertical: 9, alignItems: 'center', borderRadius: 10, backgroundColor: timelineDuration === duration ? c.primaryDim : c.surface, borderWidth: 1, borderColor: timelineDuration === duration ? c.primary : c.border }}>
+                    <Text style={{ color: timelineDuration === duration ? c.primary : c.textMuted, fontSize: 11, fontWeight: '800' }}>{duration} yrs</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {parseAcademicSession(timelineEntry) != null && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.primaryDim, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
+                  <View><Text style={{ color: c.textMuted, fontSize: 10 }}>EXPECTED GRADUATION</Text><Text style={{ color: c.text, fontWeight: '900', marginTop: 3 }}>{graduationSession(timelineEntry, timelineDuration)}</Text></View>
+                  <GraduationCap size={23} color={c.primary} />
+                </View>
+              )}
+
+              {!!timelineError && <View accessibilityRole="alert" style={{ backgroundColor: c.dangerDim, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}><Text style={{ color: c.text, fontSize: 12, lineHeight: 18, fontWeight: '700' }}>{timelineError}</Text></View>}
+
+              <Button label="Save academic timeline" onPress={saveTimeline} loading={savingTimeline} fullWidth themeColors={c} />
+              <View style={{ height: spacing.sm }} />
+              <Button label="Cancel" variant="secondary" disabled={savingTimeline} onPress={() => setTimelineSheetOpen(false)} fullWidth themeColors={c} />
+            </Pressable>
+          </Animated.View>
         </Pressable>
       </Modal>
 

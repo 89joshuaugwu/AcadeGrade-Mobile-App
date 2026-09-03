@@ -2,7 +2,7 @@ import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 
 type Timestamp = FirebaseFirestoreTypes.Timestamp;
 
-export const STUDENT_LEVELS = [100, 200, 300, 400, 500] as const;
+export const STUDENT_LEVELS = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000] as const;
 export type StudentLevel = typeof STUDENT_LEVELS[number];
 
 export type RecordMode = 'fromScratch' | 'complete';
@@ -24,6 +24,11 @@ export interface User {
   recordMode: RecordMode;
   gradeMode: GradeMode;
   currentSession: string;
+  /** Explicit academic-plan fields. `currentSession` remains the legacy
+   * entry-session field shared with the web app. */
+  entrySession?: string;
+  graduationSession?: string;
+  courseDuration?: number;
   isAdmin: boolean;
   disabled: boolean;
   fcmToken: string | null;
@@ -58,6 +63,9 @@ export interface RegisterFormData {
   programme: string;
   currentLevel: StudentLevel;
   currentSession: string;
+  entrySession?: string;
+  graduationSession?: string;
+  courseDuration: number;
   recordMode: RecordMode;
   semestersCompleted?: number;
 }

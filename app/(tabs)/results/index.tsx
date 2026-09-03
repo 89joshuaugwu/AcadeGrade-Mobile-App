@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { BookOpen, ChevronDown, Plus, Trash2 } from 'lucide-react-native';
+import { BookOpen, ChevronDown, GraduationCap, Plus, Trash2 } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useAcademicData } from '@/lib/store/useAcademicData';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -13,6 +13,7 @@ import { useConfirmDialogStore } from '@/lib/store/confirmDialogStore';
 import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import type { CourseWithId } from '@/types/course';
 import type { SemesterWithId } from '@/types/semester';
+import { getAcademicPlan } from '@/lib/academic/timeline';
 
 export default function ResultsList() {
   const colors = useThemeColors();
@@ -23,6 +24,7 @@ export default function ResultsList() {
   const showConfirm = useConfirmDialogStore((state) => state.show);
   const { semesters, coursesBySemester, cgpa, totalCredits, loading } = useAcademicData();
   const orderedSemesters = useMemo(() => [...semesters].reverse(), [semesters]);
+  const academicPlan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   function markInsightsStale() {
@@ -108,12 +110,15 @@ export default function ResultsList() {
           </View>
 
           <Pressable
+            disabled={academicPlan.isFullyCreated}
             onPress={() => router.push('/(tabs)/results/new')}
-            style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, borderRadius: radius.md, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.primaryDim }}
+            accessibilityState={{ disabled: academicPlan.isFullyCreated }}
+            style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingVertical: 13, borderRadius: radius.md, borderWidth: 1, borderColor: academicPlan.isFullyCreated ? colors.border : colors.primary, backgroundColor: academicPlan.isFullyCreated ? colors.overlay : colors.primaryDim, opacity: academicPlan.isFullyCreated ? 0.72 : 1 }}
           >
-            <Plus size={16} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>New semester</Text>
+            {academicPlan.isFullyCreated ? <GraduationCap size={16} color={colors.success} /> : <Plus size={16} color={colors.primary} />}
+            <Text style={{ color: academicPlan.isFullyCreated ? colors.textMuted : colors.primary, fontSize: 12, fontWeight: '800' }}>{academicPlan.isFullyCreated ? 'All programme semesters added' : 'Create next semester'}</Text>
           </Pressable>
+          {academicPlan.isFullyCreated && <Text style={{ color: colors.textFaint, fontSize: 10, textAlign: 'center', marginTop: 6 }}>Increase programme duration in Settings to add another academic year.</Text>}
         </View>
 
         {loading && !orderedSemesters.length ? (

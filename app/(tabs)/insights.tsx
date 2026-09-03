@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import { AlertTriangle, Clock3, Minus, RefreshCw, Target, TrendingDown, TrendingUp } from 'lucide-react-native';
+import { AlertTriangle, Clock3, GraduationCap, Minus, RefreshCw, Target, TrendingDown, TrendingUp } from 'lucide-react-native';
 import Slider from '@react-native-community/slider';
 import Svg, { Circle } from 'react-native-svg';
 import { radius, spacing } from '@/constants/theme';
@@ -19,6 +19,7 @@ import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { useToastStore } from '@/lib/store/toastStore';
 import type { CourseWithId } from '@/types/course';
+import { getAcademicPlan } from '@/lib/academic/timeline';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -71,6 +72,7 @@ export default function Insights() {
     () => semesters.filter((semester) => semester.isComplete),
     [semesters],
   );
+  const academicPlan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
 
   // Web forecasts semester PI values, while CGPA is cumulative. Keep the mobile contract identical.
   const piHistory = useMemo(
@@ -126,7 +128,7 @@ export default function Insights() {
     : Math.max(0, (12 * 60 * 60 * 1000) - (clock - lastInsightAt));
 
   const loadForecast = useCallback(async (force = false) => {
-    if (!piHistory.length || retryCooldown > 0) return;
+    if (!piHistory.length || retryCooldown > 0 || academicPlan.isGraduated) return;
     setForecastLoading(true);
     setRequestError(null);
     try {
@@ -141,7 +143,7 @@ export default function Insights() {
     } finally {
       setForecastLoading(false);
     }
-  }, [cgpaHistory, piHistory, retryCooldown, showToast]);
+  }, [academicPlan.isGraduated, cgpaHistory, piHistory, retryCooldown, showToast]);
 
   const loadInsights = useCallback(async (force = false) => {
     if (!semesters.length || retryCooldown > 0) return;
@@ -152,7 +154,11 @@ export default function Insights() {
     setInsightsLoading(true);
     setRequestError(null);
     try {
-      const data = await aiApi.insights(force, semesters);
+      const data = await aiApi.insights(force, semesters, {
+        remainingSemesters: academicPlan.remainingSlots.length,
+        isGraduated: academicPlan.isGraduated,
+        graduationSession: academicPlan.graduationSession,
+      });
       setInsights(data);
       setInsightsStale(false);
       if (uid) await db.collection('analytics').doc(uid).set({ insightsStale: false }, { merge: true });
@@ -165,11 +171,11 @@ export default function Insights() {
     } finally {
       setInsightsLoading(false);
     }
-  }, [retryCooldown, semesters, showToast, uid, writtenCooldownMs]);
+  }, [academicPlan.graduationSession, academicPlan.isGraduated, academicPlan.remainingSlots.length, retryCooldown, semesters, showToast, uid, writtenCooldownMs]);
 
   useEffect(() => {
     if (loading) return;
-    if (!forecast && piHistory.length) loadForecast();
+    if (!forecast && piHistory.length && !academicPlan.isGraduated) loadForecast();
     if (!insights && semesters.length) loadInsights(false);
     // The callbacks intentionally depend on retry state; auto-generation should only run after initial data load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,9 +240,12 @@ export default function Insights() {
             mode={projectionMode}
             onModeChange={changeProjectionMode}
             retryCooldown={retryCooldown}
+            remainingSemesterCount={academicPlan.remainingAcademicSemesters}
+            graduationSession={academicPlan.graduationSession}
+            isGraduated={academicPlan.isGraduated}
           />
         )}
-        {tab === 'whatif' && <WhatIfTab currentCGPA={currentCGPA} totalCredits={totalCredits} />}
+        {tab === 'whatif' && <WhatIfTab currentCGPA={currentCGPA} totalCredits={totalCredits} remainingSemesterCount={academicPlan.remainingAcademicSemesters} graduationSession={academicPlan.graduationSession} />}
         {tab === 'risk' && <RiskTab courses={flaggedCourses} forecast={forecast} />}
         {tab === 'analysis' && (
           <AnalysisTab
@@ -245,6 +254,7 @@ export default function Insights() {
             cooldownMs={writtenCooldownMs}
             stale={insightsStale}
             onRegenerate={() => loadInsights(true)}
+            isGraduated={academicPlan.isGraduated}
           />
         )}
       </ScrollView>
@@ -268,7 +278,7 @@ function RateLimitGuide({ tab }: { tab: TabType }) {
   );
 }
 
-function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpaHistory, mode, onModeChange, retryCooldown }: {
+function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpaHistory, mode, onModeChange, retryCooldown, remainingSemesterCount, graduationSession, isGraduated }: {
   forecast: ForecastResponse | null;
   loading: boolean;
   onRefresh: () => void;
@@ -278,24 +288,31 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpa
   mode: ProjectionMode;
   onModeChange: (mode: ProjectionMode) => void;
   retryCooldown: number;
+  remainingSemesterCount: number;
+  graduationSession: string;
+  isGraduated: boolean;
 }) {
   const colors = useThemeColors();
   if (!hasHistory) return <EmptyState message="Complete at least one semester to unlock your forecast." />;
+  if (isGraduated) return <GraduationState graduationSession={graduationSession} message="Your programme timeline is complete, so AcadeMind will not project semesters beyond graduation." />;
   if (loading && !forecast) return <LoadingState label="Forecasting your academic trajectory…" />;
   if (!forecast) return <EmptyState message="No forecast is available yet." onRetry={onRefresh} />;
 
   const trend = forecast.trendDirection ?? (forecast.slope > 0.02 ? 'improving' : forecast.slope < -0.02 ? 'declining' : 'stable');
+  const projectionCount = Math.min(2, remainingSemesterCount);
+  const projectedPi = (forecast.projectedPi ?? forecast.projected ?? []).slice(0, projectionCount);
+  const projectedCgpa = (forecast.projectedCgpa ?? forecast.projected ?? []).slice(0, projectionCount);
   const chartData = [
     ...piHistory.map((value, index) => ({ x: index + 1, pi: value, gpa: cgpaHistory[index] ?? value })),
-    ...(forecast.projectedPi ?? forecast.projected ?? []).map((value, index) => ({
+    ...projectedPi.map((value, index) => ({
       x: piHistory.length + index + 1,
       pi: value,
-      gpa: forecast.projectedCgpa?.[index] ?? forecast.projected?.[index] ?? value,
+      gpa: projectedCgpa[index] ?? value,
     })),
   ];
   const projected = mode === 'pi'
-    ? (forecast.projectedPi ?? forecast.projected)?.[0]
-    : (forecast.projectedCgpa ?? forecast.projected)?.[0];
+    ? projectedPi[0]
+    : projectedCgpa[0];
 
   return (
     <Animated.View entering={FadeInDown.duration(280)}>
@@ -303,7 +320,7 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpa
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
           <View style={{ flex: 1, paddingRight: spacing.sm }}>
             <Text style={{ color: colors.text, fontWeight: '900', fontSize: 15 }}>{mode === 'pi' ? 'Performance Index Projection' : 'Cumulative GPA Projection'}</Text>
-            <Text style={{ color: colors.textFaint, fontSize: 10, marginTop: 3 }}>Completed history + next two semesters</Text>
+            <Text style={{ color: colors.textFaint, fontSize: 10, marginTop: 3 }}>Completed history + next {projectionCount} of {remainingSemesterCount} remaining</Text>
           </View>
           <ModeToggle mode={mode} onChange={onModeChange} />
         </View>
@@ -344,18 +361,19 @@ function ModeToggle({ mode, onChange }: { mode: ProjectionMode; onChange: (mode:
   );
 }
 
-function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCredits: number }) {
+function WhatIfTab({ currentCGPA, totalCredits, remainingSemesterCount, graduationSession }: { currentCGPA: number; totalCredits: number; remainingSemesterCount: number; graduationSession: string }) {
   const colors = useThemeColors();
   const showToast = useToastStore((state) => state.show);
   const [targetCGPA, setTargetCGPA] = useState(Math.min(5, currentCGPA + 0.2));
-  const [remainingSemesters, setRemainingSemesters] = useState('2');
+  const [remainingSemesters, setRemainingSemesters] = useState(String(Math.max(1, Math.min(2, remainingSemesterCount))));
   const [creditLoad, setCreditLoad] = useState('18');
   const [result, setResult] = useState<WhatIfResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const futureCredits = Math.max(1, Number(remainingSemesters) || 1) * Math.max(1, Number(creditLoad) || 1);
+  const scenarioSemesters = Math.max(1, Math.min(remainingSemesterCount || 1, Number(remainingSemesters) || 1));
+  const futureCredits = scenarioSemesters * Math.max(1, Number(creditLoad) || 1);
   const requiredGPA = ((targetCGPA * (totalCredits + futureCredits)) - (currentCGPA * totalCredits)) / futureCredits;
   const requiredAverage = (requiredGPA / 5) * 100;
 
@@ -365,12 +383,16 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  useEffect(() => {
+    setRemainingSemesters((value) => String(Math.max(1, Math.min(remainingSemesterCount || 1, Number(value) || 1))));
+  }, [remainingSemesterCount]);
+
   async function calculate() {
     if (loading || cooldown > 0) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await aiApi.whatIf(currentCGPA, totalCredits, targetCGPA, Number(remainingSemesters) || 1, Number(creditLoad) || 18);
+      const data = await aiApi.whatIf(currentCGPA, totalCredits, targetCGPA, scenarioSemesters, Number(creditLoad) || 18);
       setResult(data);
       setCooldown(30);
       showToast({ type: 'success', title: 'Scenario analyzed', message: 'AI guidance is ready below.' });
@@ -382,6 +404,10 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
     } finally {
       setLoading(false);
     }
+  }
+
+  if (remainingSemesterCount <= 0) {
+    return <GraduationState graduationSession={graduationSession} message="What-If scenarios are closed because every semester in your programme has been completed." />;
   }
 
   return (
@@ -399,7 +425,7 @@ function WhatIfTab({ currentCGPA, totalCredits }: { currentCGPA: number; totalCr
           </View>
           <Slider minimumValue={Math.min(currentCGPA, 5)} maximumValue={5} step={0.01} value={targetCGPA} onValueChange={setTargetCGPA} minimumTrackTintColor={colors.primary} maximumTrackTintColor={colors.border} thumbTintColor={colors.primaryGlow} style={{ marginTop: spacing.sm }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-            <View style={{ flex: 1 }}><Input label="Remaining semesters" keyboardType="number-pad" value={remainingSemesters} onChangeText={setRemainingSemesters} themeColors={colors} /></View>
+            <View style={{ flex: 1 }}><Input label={`Remaining semesters (max ${remainingSemesterCount})`} keyboardType="number-pad" maxLength={2} value={remainingSemesters} onChangeText={(value) => setRemainingSemesters(value === '' ? '' : String(Math.min(remainingSemesterCount, Math.max(1, Number(value) || 1))))} themeColors={colors} /></View>
             <View style={{ flex: 1 }}><Input label="Units / semester" keyboardType="number-pad" value={creditLoad} onChangeText={setCreditLoad} themeColors={colors} /></View>
           </View>
         </View>
@@ -479,7 +505,7 @@ function RiskTab({ courses, forecast }: { courses: CourseWithId[]; forecast: For
   );
 }
 
-function AnalysisTab({ insights, loading, cooldownMs, stale, onRegenerate }: { insights: InsightsResponse | null; loading: boolean; cooldownMs: number; stale: boolean; onRegenerate: () => void }) {
+function AnalysisTab({ insights, loading, cooldownMs, stale, onRegenerate, isGraduated }: { insights: InsightsResponse | null; loading: boolean; cooldownMs: number; stale: boolean; onRegenerate: () => void; isGraduated: boolean }) {
   const colors = useThemeColors();
   if (loading && !insights) return <LoadingState label="AcadeMind is writing your analysis…" />;
   if (!insights) return <EmptyState message="No written analysis is available yet." onRetry={onRegenerate} />;
@@ -487,12 +513,13 @@ function AnalysisTab({ insights, loading, cooldownMs, stale, onRegenerate }: { i
 
   return (
     <Animated.View entering={FadeInDown.duration(280)} style={{ gap: spacing.md }}>
+      {isGraduated && <NoticeCard icon={<GraduationCap size={16} color={colors.success} />} color={colors.success} title="Final academic review" body="Your programme timeline is complete. Degree Outlook is treated as a final summary, not a future projection." />}
       {locked && <NoticeCard icon={<Clock3 size={16} color={colors.warning} />} color={colors.warning} title="Quota protection is active" body={`Written Analysis can be regenerated in ${formatCooldown(cooldownMs)}. Cached analysis remains available.`} />}
       <InsightSection title="Identified Strengths" items={insights.strengths} color={colors.success} />
       <InsightSection title="Areas of Concern" items={insights.concerns} color={colors.warning} />
       <InsightSection title="Actionable Recommendations" items={insights.recommendations} color={colors.primary} />
       <Card themeColors={colors}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: spacing.sm }}><AcadeMindMark size={16} /><Text style={{ color: colors.text, fontWeight: '900' }}>Degree Outlook</Text></View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: spacing.sm }}><AcadeMindMark size={16} /><Text style={{ color: colors.text, fontWeight: '900' }}>{isGraduated ? 'Final Degree Review' : 'Degree Outlook'}</Text></View>
         <Text style={{ color: colors.textMuted, fontSize: 13, lineHeight: 20 }}>{insights.degreeOutlook}</Text>
       </Card>
       <Button label={locked ? `Unlocks in ${formatCooldown(cooldownMs)}` : stale ? 'Refresh written analysis' : 'Regenerate written analysis'} variant="secondary" onPress={onRegenerate} loading={loading} disabled={locked} fullWidth themeColors={colors} />
@@ -518,6 +545,20 @@ function NoticeCard({ icon, color, title, body }: { icon: React.ReactNode; color
       {icon}
       <View style={{ flex: 1 }}><Text style={{ color, fontWeight: '900', fontSize: 12 }}>{title}</Text><Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 16, marginTop: 3 }}>{body}</Text></View>
     </View>
+  );
+}
+
+function GraduationState({ graduationSession, message }: { graduationSession: string; message: string }) {
+  const colors = useThemeColors();
+  return (
+    <Animated.View entering={FadeInDown.duration(280)} style={{ alignItems: 'center', backgroundColor: colors.successDim, borderWidth: 1, borderColor: `${colors.success}55`, borderRadius: radius.xl, padding: spacing.xl }}>
+      <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+        <GraduationCap size={31} color={colors.success} />
+      </View>
+      <Text style={{ color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center', marginTop: spacing.md }}>Graduation point reached</Text>
+      {!!graduationSession && <Text style={{ color: colors.success, fontSize: 12, fontWeight: '900', marginTop: 5 }}>{graduationSession}</Text>}
+      <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 18, textAlign: 'center', marginTop: spacing.sm }}>{message}</Text>
+    </Animated.View>
   );
 }
 

@@ -136,6 +136,12 @@ export interface InsightsResponse {
   degreeOutlook: string;
 }
 
+export interface AcademicInsightContext {
+  remainingSemesters: number;
+  isGraduated: boolean;
+  graduationSession?: string;
+}
+
 export interface ForecastResponse {
   slope: number;
   projected: [number, number];
@@ -154,9 +160,12 @@ export interface WhatIfResponse {
 }
 
 export const aiApi = {
-  /** Web sends `{ forceRegenerate, semesterData }`, not `{ force }`. */
-  insights: (forceRegenerate: boolean, semesterData: unknown) =>
-    request<InsightsResponse>('/api/ai/insights', { method: 'POST', body: { forceRegenerate, semesterData } }),
+  /** Academic context keeps written guidance inside the student's real programme timeline. */
+  insights: (forceRegenerate: boolean, semesterData: unknown, academicContext?: AcademicInsightContext) =>
+    request<InsightsResponse>('/api/ai/insights', {
+      method: 'POST',
+      body: { forceRegenerate, semesterData, academicContext },
+    }),
   /** Web requires BOTH `piHistory` and `cgpaHistory` — sending only one silently produces a degraded/wrong forecast. */
   forecast: (piHistory: number[], cgpaHistory: number[], forceRegenerate = false) =>
     request<ForecastResponse>('/api/ai/forecast', { method: 'POST', body: { piHistory, cgpaHistory, forceRegenerate } }),

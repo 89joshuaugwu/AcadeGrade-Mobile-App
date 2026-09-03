@@ -18,6 +18,7 @@ import { authApi } from '@/lib/api/client';
 import { NIGERIAN_UNIVERSITIES, ACADEMIC_DEPARTMENTS, ACADEMIC_PROGRAMMES } from '@/lib/data/academic-data';
 import type { RegisterFormData, StudentLevel } from '@/types/user';
 import { useThemeColors } from '@/lib/store/themeStore';
+import { COURSE_DURATION_OPTIONS, formatSessionInput, graduationSession, inferCurrentLevel, parseAcademicSession } from '@/lib/academic/timeline';
 
 type AuthMethod = 'email' | 'google';
 const DEFAULT_UNIVERSITY = 'ESUT Agbani';
@@ -54,7 +55,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState<Partial<RegisterFormData> & { courseDuration?: number }>({
+  const [form, setForm] = useState<Partial<RegisterFormData>>({
     university: DEFAULT_UNIVERSITY, currentLevel: 100, courseDuration: 4, recordMode: 'fromScratch',
   });
   function update<K extends string>(key: K, value: any) { setForm((f) => ({ ...f, [key]: value })); }
@@ -67,12 +68,8 @@ export default function Register() {
 
   useEffect(() => {
     const session = form.currentSession;
-    if (session && /^\d{4}\/\d{4}$/.test(session)) {
-      const startYear = parseInt(session.split('/')[0], 10);
-      const currentYear = new Date().getFullYear();
-      let calculated = (currentYear - startYear) * 100 + 100;
-      calculated = Math.max(100, Math.min((form.courseDuration ?? 4) * 100, calculated));
-      update('currentLevel', calculated as StudentLevel);
+    if (parseAcademicSession(session) != null) {
+      update('currentLevel', inferCurrentLevel(session!, form.courseDuration ?? 4) as StudentLevel);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.currentSession, form.courseDuration]);
@@ -133,6 +130,9 @@ export default function Register() {
     if (!form.university || !form.department || !form.programme || !form.currentSession) {
       return setError('Fill in all academic details');
     }
+    if (parseAcademicSession(form.currentSession) == null) {
+      return setError('Entry session must be consecutive years, for example 2022/2023');
+    }
     setStep(3);
   }
 
@@ -154,7 +154,11 @@ export default function Register() {
         department: form.department, currentLevel: form.currentLevel ?? 100,
         programme: form.programme, university: form.university ?? DEFAULT_UNIVERSITY,
         avatarUrl: null, recordMode: form.recordMode ?? 'fromScratch', gradeMode: 'cgpa',
-        currentSession: form.currentSession, isAdmin: false, disabled: false,
+        currentSession: form.currentSession,
+        entrySession: form.currentSession,
+        courseDuration: form.courseDuration ?? 4,
+        graduationSession: graduationSession(form.currentSession ?? '', form.courseDuration ?? 4),
+        isAdmin: false, disabled: false,
         fcmToken: null, fcmTokens: [], mobileOnboardingCompleted: false,
         createdAt: firestore.FieldValue.serverTimestamp(), updatedAt: firestore.FieldValue.serverTimestamp(),
       });
@@ -203,7 +207,7 @@ export default function Register() {
 
                 <View style={{ marginBottom: spacing.md }}>
                   <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: 6, fontWeight: '500' }}>University Email</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                     <View style={{ flex: 1 }}>
                       <Input placeholder="name@university.edu.ng" autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={(v) => { setEmail(v); setCodeSent(false); }} themeColors={c} leftIcon={<Mail size={16} color={c.textFaint} />} style={{ marginBottom: 0 }} />
                     </View>
@@ -256,15 +260,24 @@ export default function Register() {
                 <View style={{ marginBottom: spacing.md }}>
                   <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: 8 }}>Course duration (years)</Text>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {[3, 4, 5, 6].map((d) => (
-                      <Pressable key={d} onPress={() => update('courseDuration', d)} style={{ flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: form.courseDuration === d ? c.primary : c.border, backgroundColor: form.courseDuration === d ? c.primaryDim : c.surface }}>
+                    {COURSE_DURATION_OPTIONS.map((d) => (
+                      <Pressable key={d} onPress={() => update('courseDuration', d)} style={{ minWidth: '29%', flexGrow: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: form.courseDuration === d ? c.primary : c.border, backgroundColor: form.courseDuration === d ? c.primaryDim : c.surface }}>
                         <Text style={{ color: form.courseDuration === d ? c.primary : c.textMuted, fontWeight: '600', fontSize: 13 }}>{d} yrs</Text>
                       </Pressable>
                     ))}
                   </View>
                 </View>
 
-                <Input label="Entry year/session" placeholder="e.g. 2022/2023" value={form.currentSession ?? ''} onChangeText={(v) => update('currentSession', v)} themeColors={c} />
+                <Input label="Entry year/session" placeholder="e.g. 2022/2023" value={form.currentSession ?? ''} onChangeText={(v) => update('currentSession', formatSessionInput(v))} keyboardType="number-pad" maxLength={9} themeColors={c} />
+
+                {parseAcademicSession(form.currentSession) != null && (
+                  <Animated.View entering={FadeIn.duration(180)} style={{ backgroundColor: c.primaryDim, borderWidth: 1, borderColor: `${c.primary}45`, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
+                    <Text style={{ color: c.text, fontSize: 13, fontWeight: '800' }}>Academic timeline</Text>
+                    <Text style={{ color: c.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 }}>
+                      {form.courseDuration ?? 4} academic years · {form.currentSession} to {graduationSession(form.currentSession ?? '', form.courseDuration ?? 4)} · {(form.courseDuration ?? 4) * 2} semester slots
+                    </Text>
+                  </Animated.View>
+                )}
 
                 <View style={{ marginBottom: spacing.md }}>
                   <Text style={{ color: c.textMuted, fontSize: 13, marginBottom: 8 }}>Current level</Text>
