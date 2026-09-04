@@ -76,16 +76,26 @@ export function HeaderFadeEdge({ height = 18, visible = true, style }: HeaderFad
       >
         <Defs>
           <SvgLinearGradient id="header-edge-stroke" x1="0%" y1="0%" x2="100%" y2="0%">
-            <Stop offset="0%" stopColor={colors.border} stopOpacity={0} />
-            <Stop offset="14%" stopColor={colors.border} stopOpacity={0.62} />
-            <Stop offset="50%" stopColor={colors.border} stopOpacity={0.82} />
-            <Stop offset="86%" stopColor={colors.border} stopOpacity={0.62} />
-            <Stop offset="100%" stopColor={colors.border} stopOpacity={0} />
+            <Stop offset="0%" stopColor={colors.textMuted} stopOpacity={0.18} />
+            <Stop offset="10%" stopColor={colors.textMuted} stopOpacity={0.58} />
+            <Stop offset="22%" stopColor={colors.textMuted} stopOpacity={0.78} />
+            <Stop offset="50%" stopColor={colors.textMuted} stopOpacity={0.88} />
+            <Stop offset="78%" stopColor={colors.textMuted} stopOpacity={0.78} />
+            <Stop offset="90%" stopColor={colors.textMuted} stopOpacity={0.58} />
+            <Stop offset="100%" stopColor={colors.textMuted} stopOpacity={0.18} />
           </SvgLinearGradient>
         </Defs>
-        {/* The centre dips toward the content: a true downward header arc. */}
-        <Path d="M 0 0 H 100 V 1 Q 50 15 0 1 Z" fill={colors.void} />
-        <Path d="M 0 1 Q 50 15 100 1" fill="none" stroke="url(#header-edge-stroke)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+        {/* Inverse cap: /────────\ — a level centre with ends curving down. */}
+        <Path d="M 0 0 H 100 V 10 C 96 10 96 2 86 2 H 14 C 4 2 4 10 0 10 Z" fill={colors.void} />
+        <Path
+          d="M 0 10 C 4 10 4 2 14 2 H 86 C 96 2 96 10 100 10"
+          fill="none"
+          stroke="url(#header-edge-stroke)"
+          strokeWidth={1.25}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
       </Svg>
     </Animated.View>
   );
