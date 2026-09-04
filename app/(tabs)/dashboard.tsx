@@ -204,16 +204,16 @@ export default function Dashboard() {
                       accessibilityLabel={`Open ${course.code || course.title} result`}
                       accessibilityHint="Opens the semester containing this course"
                       onPress={() => router.push({ pathname: '/(tabs)/results/[semesterId]', params: { semesterId: course.semesterId } })}
-                      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: pressed ? c.primary : c.border, borderRadius: radius.md, padding: spacing.md, opacity: pressed ? 0.86 : 1, transform: [{ scale: pressed ? 0.992 : 1 }] })}
+                      style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}
                     >
                       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${gradeColor}18`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
                         <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 13 }}>{course.grade}</Text>
                       </View>
-                      <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flex: 1 }}>
                         <Text style={{ color: c.text, fontWeight: '600', fontSize: 13 }} numberOfLines={1}>{course.title || course.code}</Text>
                         <Text style={{ color: c.textFaint, fontSize: 11 }}>{course.grade} · {course.units} Credits</Text>
                       </View>
-                      <View style={{ minWidth: 62, alignItems: 'flex-end' }}>
+                      <View style={{ alignItems: 'flex-end' }}>
                         <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 14 }}>{course.totalScore == null ? displayGradePoint.toFixed(1) : `${course.totalScore}/100`}</Text>
                         <Text style={{ color: c.textFaint, fontSize: 10 }}>{course.totalScore == null ? 'Grade point' : 'Score'}</Text>
                       </View>
