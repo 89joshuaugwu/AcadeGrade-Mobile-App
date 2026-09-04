@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent, StyleProp, ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from 'react-native-svg';
 import { useThemeColors } from '@/lib/store/themeStore';
 
 interface HeaderFadeEdgeProps {
@@ -32,7 +32,7 @@ export function useHeaderScrollEdge(threshold = 6) {
 export function HeaderFadeEdge({ height = 18, visible = true, style }: HeaderFadeEdgeProps) {
   const colors = useThemeColors();
   const progress = useSharedValue(visible ? 1 : 0);
-  const capHeight = Math.min(8, Math.max(5, height * 0.42));
+  const curveHeight = Math.min(11, Math.max(8, height * 0.5));
 
   useEffect(() => {
     progress.value = withTiming(visible ? 1 : 0, {
@@ -57,32 +57,36 @@ export function HeaderFadeEdge({ height = 18, visible = true, style }: HeaderFad
         height,
       }, animatedStyle, style]}
     >
-      <View
-        style={{
-          height: capHeight,
-          marginHorizontal: 6,
-          backgroundColor: colors.void,
-          borderLeftWidth: 1,
-          borderRightWidth: 1,
-          borderBottomWidth: 1,
-          borderBottomColor: `${colors.border}A3`,
-          borderLeftColor: `${colors.border}66`,
-          borderRightColor: `${colors.border}66`,
-          borderBottomLeftRadius: 22,
-          borderBottomRightRadius: 22,
-          overflow: 'hidden',
-        }}
-      />
       <LinearGradient
-        colors={[`${colors.void}A8`, `${colors.void}70`, `${colors.void}2E`, `${colors.void}00`]}
-        locations={[0, 0.28, 0.66, 1]}
+        colors={[`${colors.void}C2`, `${colors.void}82`, `${colors.void}36`, `${colors.void}00`]}
+        locations={[0, 0.32, 0.7, 1]}
         style={{
-          flex: 1,
-          marginHorizontal: 14,
-          borderBottomLeftRadius: 20,
-          borderBottomRightRadius: 20,
+          position: 'absolute',
+          top: 0,
+          left: 10,
+          right: 10,
+          height,
         }}
       />
+      <Svg
+        width="100%"
+        height={curveHeight}
+        viewBox="0 0 100 12"
+        preserveAspectRatio="none"
+      >
+        <Defs>
+          <SvgLinearGradient id="header-edge-stroke" x1="0%" y1="0%" x2="100%" y2="0%">
+            <Stop offset="0%" stopColor={colors.border} stopOpacity={0} />
+            <Stop offset="14%" stopColor={colors.border} stopOpacity={0.62} />
+            <Stop offset="50%" stopColor={colors.border} stopOpacity={0.82} />
+            <Stop offset="86%" stopColor={colors.border} stopOpacity={0.62} />
+            <Stop offset="100%" stopColor={colors.border} stopOpacity={0} />
+          </SvgLinearGradient>
+        </Defs>
+        {/* The centre dips toward the content: a true downward header arc. */}
+        <Path d="M 0 0 H 100 V 1 Q 50 15 0 1 Z" fill={colors.void} />
+        <Path d="M 0 1 Q 50 15 100 1" fill="none" stroke="url(#header-edge-stroke)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      </Svg>
     </Animated.View>
   );
 }

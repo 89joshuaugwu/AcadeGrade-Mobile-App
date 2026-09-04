@@ -78,24 +78,28 @@ export default function Dashboard() {
 
   const trendData = semesters.map((s, i) => ({ x: i + 1, gpa: s.gpa, pi: s.pi }));
   const recentGrades = useMemo(() => {
-    const semesterById = new Map(semesters.map((semester) => [semester.id, semester]));
-    return Object.entries(coursesBySemester)
-      .flatMap(([semesterId, courses]) => courses.map((course) => ({
-        ...course,
-        semesterId,
-        semester: semesterById.get(semesterId),
-      })))
-      .filter((course) => Boolean(course.grade) && !course.pending)
-      .sort((a, b) => {
-        const updatedDifference = timestampMillis(b.updatedAt ?? b.createdAt) - timestampMillis(a.updatedAt ?? a.createdAt);
-        if (updatedDifference !== 0) return updatedDifference;
-        const levelDifference = (b.semester?.level ?? 0) - (a.semester?.level ?? 0);
-        if (levelDifference !== 0) return levelDifference;
-        const semesterDifference = (b.semester?.semester ?? 0) - (a.semester?.semester ?? 0);
-        if (semesterDifference !== 0) return semesterDifference;
-        return (a.code || a.title).localeCompare(b.code || b.title);
-      })
-      .slice(0, 3);
+    const newestSemesters = [...semesters].sort((a, b) => (
+      b.level !== a.level ? b.level - a.level : b.semester - a.semester
+    ));
+
+    for (const semester of newestSemesters) {
+      const finalizedGrades = (coursesBySemester[semester.id] ?? [])
+        // Pending/AR rows are not grades yet and must never enter this feed.
+        .filter((course) => Boolean(course.grade) && !course.pending && !course.isAR)
+        .sort((a, b) => {
+          const updatedDifference = timestampMillis(b.updatedAt ?? b.createdAt) - timestampMillis(a.updatedAt ?? a.createdAt);
+          if (updatedDifference !== 0) return updatedDifference;
+          return (a.code || a.title).localeCompare(b.code || b.title);
+        });
+
+      // Keep the feed academically recent: editing an old 100L result must
+      // not move it above grades from a newer 400L semester.
+      if (finalizedGrades.length) {
+        return finalizedGrades.slice(0, 3).map((course) => ({ ...course, semesterId: semester.id }));
+      }
+    }
+
+    return [];
   }, [coursesBySemester, semesters]);
   const semesterDelta = semesters.length >= 2 ? semesters[semesters.length - 1].gpa - semesters[semesters.length - 2].gpa : 0;
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Student';
@@ -179,7 +183,7 @@ export default function Dashboard() {
           <TourTarget tourId="dashboard-recent" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
               <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>Recent Grades</Text>
-              <Pressable onPress={() => router.push('/(tabs)/results')} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable onPress={() => router.navigate('/(tabs)/results')} style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700' }}>View All</Text>
                 <ChevronRight size={14} color={c.primary} />
               </Pressable>
@@ -190,6 +194,9 @@ export default function Dashboard() {
               <View style={{ gap: 8 }}>
                 {recentGrades.map((course) => {
                   const gradeColor = getGradeColor(course.grade!);
+                  const storedGradePoint = Number(course.gradePoint);
+                  const fallbackGradePoint = ({ A: 5, B: 4, C: 3, D: 2, E: 1, F: 0 } as Record<string, number>)[course.grade ?? ''] ?? 0;
+                  const displayGradePoint = Number.isFinite(storedGradePoint) ? storedGradePoint : fallbackGradePoint;
                   return (
                     <Pressable
                       key={`${course.semesterId}-${course.id}`}
@@ -207,7 +214,7 @@ export default function Dashboard() {
                         <Text style={{ color: c.textFaint, fontSize: 11 }}>{course.grade} · {course.units} Credits</Text>
                       </View>
                       <View style={{ minWidth: 62, alignItems: 'flex-end' }}>
-                        <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 14 }}>{course.totalScore == null ? course.gradePoint.toFixed(1) : `${course.totalScore}/100`}</Text>
+                        <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 14 }}>{course.totalScore == null ? displayGradePoint.toFixed(1) : `${course.totalScore}/100`}</Text>
                         <Text style={{ color: c.textFaint, fontSize: 10 }}>{course.totalScore == null ? 'Grade point' : 'Score'}</Text>
                       </View>
                     </Pressable>
