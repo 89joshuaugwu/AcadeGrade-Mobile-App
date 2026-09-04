@@ -80,7 +80,7 @@ export default function TabsLayout() {
         tabBar={(props) => <CylindricalTabBar {...props} onOpenMore={openMore} bottomInset={insets.bottom} colors={colors} />}
       >
         <Tabs.Screen name="dashboard" options={{ title: 'Dashboard' }} />
-        <Tabs.Screen name="results" options={{ title: 'Results' }} />
+        <Tabs.Screen name="results" options={{ title: 'Results', popToTopOnBlur: true }} />
         <Tabs.Screen name="insights" options={{ title: 'Insights' }} />
         <Tabs.Screen name="transcript" options={{ title: 'Transcript' }} />
         <Tabs.Screen
@@ -166,7 +166,15 @@ function CylindricalTabBar({ state, navigation, onOpenMore, bottomInset, colors 
               return;
             }
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+            if (event.defaultPrevented) return;
+            // The custom tab bar must reproduce the native tab bar's
+            // pop-to-root behaviour. Otherwise a previously opened semester
+            // remains the active Results destination.
+            if (item.name === 'results') {
+              navigation.navigate(route.name, { screen: 'index' });
+              return;
+            }
+            if (!focused) navigation.navigate(route.name);
           };
 
           return (

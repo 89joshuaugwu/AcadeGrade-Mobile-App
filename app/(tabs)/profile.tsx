@@ -349,7 +349,7 @@ export default function Profile() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
       <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: profileHeaderTop + 72, backgroundColor: c.void, zIndex: 4 }, headerSurfaceStyle]}>
-        <HeaderFadeEdge height={14} />
+        <HeaderFadeEdge height={18} />
       </Animated.View>
       <TourTarget tourId="settings-profile" style={{ position: 'absolute', top: profileHeaderTop, left: 0, right: 0, height: 176, zIndex: 5 }}>
         <Animated.View style={[{ position: 'absolute', overflow: 'visible' }, avatarHeaderStyle]}>

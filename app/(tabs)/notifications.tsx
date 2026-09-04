@@ -126,7 +126,7 @@ export default function Notifications() {
           </Pressable>
         )}
       </TourTarget>
-      <HeaderFadeEdge height={12} visible={edgeVisible} />
+      <HeaderFadeEdge height={18} visible={edgeVisible} />
       </View>
 
       <TourTarget tourId="notifications-list" style={{ flex: 1 }}>

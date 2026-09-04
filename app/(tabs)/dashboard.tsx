@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, useWindowDime
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GraduationCap, CheckCircle2, Lightbulb, ChevronRight, BookOpen } from 'lucide-react-native';
+import { GraduationCap, CheckCircle2, Lightbulb, ChevronRight } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { DEGREE_CLASSES, spacing, radius, type ThemeColors } from '@/constants/theme';
 import { TrendChart } from '@/components/dashboard/TrendChart';
@@ -178,30 +178,18 @@ export default function Dashboard() {
         <Animated.View entering={FadeInDown.delay(160).duration(350)} style={{ marginBottom: spacing.lg }}>
           <TourTarget tourId="dashboard-recent" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryDim }}>
-                  <BookOpen size={15} color={c.primary} />
-                </View>
-                <View>
-                  <Text style={{ color: c.text, fontWeight: '800', fontSize: 16 }}>Recent grades</Text>
-                  <Text style={{ color: c.textFaint, fontSize: 10, marginTop: 1 }}>Your latest result updates</Text>
-                </View>
-              </View>
+              <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>Recent Grades</Text>
               <Pressable onPress={() => router.push('/(tabs)/results')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: c.primary, fontSize: 12, fontWeight: '800' }}>View all</Text>
+                <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700' }}>View All</Text>
                 <ChevronRight size={14} color={c.primary} />
               </Pressable>
             </View>
             {recentGrades.length === 0 ? (
-              <View style={{ minHeight: 92, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}>
-                <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: '700' }}>No graded courses yet</Text>
-                <Text style={{ color: c.textFaint, fontSize: 11, marginTop: 3 }}>Your newest results will appear here.</Text>
-              </View>
+              <Text style={{ color: c.textFaint, fontSize: 13 }}>No graded courses yet.</Text>
             ) : (
-              <View style={{ borderRadius: radius.lg, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
-                {recentGrades.map((course, index) => {
+              <View style={{ gap: 8 }}>
+                {recentGrades.map((course) => {
                   const gradeColor = getGradeColor(course.grade!);
-                  const hasNumericScore = course.totalScore != null;
                   return (
                     <Pressable
                       key={`${course.semesterId}-${course.id}`}
@@ -209,34 +197,19 @@ export default function Dashboard() {
                       accessibilityLabel={`Open ${course.code || course.title} result`}
                       accessibilityHint="Opens the semester containing this course"
                       onPress={() => router.push({ pathname: '/(tabs)/results/[semesterId]', params: { semesterId: course.semesterId } })}
-                      style={({ pressed }) => ({
-                        minHeight: 78,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingHorizontal: spacing.md,
-                        paddingVertical: 11,
-                        backgroundColor: pressed ? c.overlay : c.surface,
-                        borderTopWidth: index === 0 ? 0 : 1,
-                        borderTopColor: c.borderSubtle,
-                        opacity: pressed ? 0.9 : 1,
-                      })}
+                      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: pressed ? c.primary : c.border, borderRadius: radius.md, padding: spacing.md, opacity: pressed ? 0.86 : 1, transform: [{ scale: pressed ? 0.992 : 1 }] })}
                     >
-                      <View style={{ position: 'absolute', left: 0, top: 13, bottom: 13, width: 3, borderTopRightRadius: 3, borderBottomRightRadius: 3, backgroundColor: gradeColor }} />
-                      <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: `${gradeColor}18`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
-                        <Text style={{ color: gradeColor, fontWeight: '900', fontSize: 16 }}>{course.grade}</Text>
+                      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${gradeColor}18`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                        <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 13 }}>{course.grade}</Text>
                       </View>
-                      <View style={{ flex: 1, minWidth: 0, paddingRight: spacing.sm }}>
-                        <Text style={{ color: c.text, fontWeight: '800', fontSize: 12 }} numberOfLines={1}>{course.code || 'COURSE'}</Text>
-                        <Text style={{ color: c.textMuted, fontWeight: '600', fontSize: 11, marginTop: 2 }} numberOfLines={1}>{course.title || 'Untitled course'}</Text>
-                        <Text style={{ color: c.textFaint, fontSize: 9, marginTop: 3 }} numberOfLines={1}>{course.semester?.label ?? 'Semester result'} · {course.units} unit{course.units === 1 ? '' : 's'}</Text>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={{ color: c.text, fontWeight: '600', fontSize: 13 }} numberOfLines={1}>{course.title || course.code}</Text>
+                        <Text style={{ color: c.textFaint, fontSize: 11 }}>{course.grade} · {course.units} Credits</Text>
                       </View>
-                      <View style={{ minWidth: 57, alignItems: 'flex-end' }}>
-                        <View style={{ paddingHorizontal: 9, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: `${gradeColor}14` }}>
-                          <Text style={{ color: gradeColor, fontWeight: '900', fontSize: 12, fontVariant: ['tabular-nums'] }}>{hasNumericScore ? course.totalScore : course.gradePoint.toFixed(1)}</Text>
-                        </View>
-                        <Text style={{ color: c.textFaint, fontSize: 9, marginTop: 3 }}>{hasNumericScore ? 'out of 100' : 'grade point'}</Text>
+                      <View style={{ minWidth: 62, alignItems: 'flex-end' }}>
+                        <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 14 }}>{course.totalScore == null ? course.gradePoint.toFixed(1) : `${course.totalScore}/100`}</Text>
+                        <Text style={{ color: c.textFaint, fontSize: 10 }}>{course.totalScore == null ? 'Grade point' : 'Score'}</Text>
                       </View>
-                      <ChevronRight size={14} color={c.textFaint} style={{ marginLeft: 4 }} />
                     </Pressable>
                   );
                 })}

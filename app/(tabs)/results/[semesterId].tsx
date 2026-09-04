@@ -177,7 +177,7 @@ export default function SemesterDetail() {
         data: { url: `/results/${semesterId}` },
       }).catch((error) => console.warn('[AcadeGrade] Semester notification failed:', error));
       showToast({ type: 'success', title: 'Semester completed', message: 'Dashboard and transcript totals have been updated.' });
-      router.back();
+      router.replace('/(tabs)/results');
     } catch (e: any) {
       showToast({ type: 'error', title: 'Could not complete semester', message: e?.message ?? 'Please try again.' });
     } finally {
@@ -365,14 +365,14 @@ export default function SemesterDetail() {
     }
   }
 
-  if (initialLoading) return <SemesterDetailSkeleton onBack={() => router.back()} />;
+  if (initialLoading) return <SemesterDetailSkeleton onBack={() => router.replace('/(tabs)/results')} />;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
       <FixedPageHeader
         title={semester?.label ?? 'Semester results'}
         subtitle={semester?.session || 'Course record'}
-        onBack={() => router.back()}
+        onBack={() => router.replace('/(tabs)/results')}
         right={(
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 99, backgroundColor: semester?.isComplete ? colors.successDim : `${colors.warning}18` }}>
             {semester?.isComplete ? <CheckCircle2 size={12} color={colors.success} /> : null}
