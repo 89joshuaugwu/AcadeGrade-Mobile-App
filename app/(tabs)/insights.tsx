@@ -23,6 +23,7 @@ import { getAcademicPlan } from '@/lib/academic/timeline';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { registerTourAction } from '@/lib/tour/registry';
+import { HeaderFadeEdge } from '@/components/ui/HeaderFadeEdge';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 type TabType = 'forecast' | 'whatif' | 'risk' | 'analysis';
@@ -233,6 +234,7 @@ export default function Insights() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <View style={{ backgroundColor: colors.void, zIndex: 3 }}>
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <AcadeMindMark size={24} />
@@ -243,7 +245,7 @@ export default function Insights() {
         </View>
       </View>
 
-      <TourTarget tourId="insights-tabs" style={{ marginHorizontal: spacing.lg, marginTop: spacing.sm, padding: 4, flexDirection: 'row', borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
+      <TourTarget tourId="insights-tabs" style={{ marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.sm, padding: 4, flexDirection: 'row', borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
           {TABS.map((item) => {
             const active = tab === item.id;
             return (
@@ -261,6 +263,8 @@ export default function Insights() {
             );
           })}
       </TourTarget>
+      <HeaderFadeEdge />
+      </View>
 
       <ScrollView
         ref={scrollRef}

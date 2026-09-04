@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useThemeColors } from '@/lib/store/themeStore';
 import { TourTarget } from '@/components/tour/TourTarget';
+import { HeaderFadeEdge } from '@/components/ui/HeaderFadeEdge';
 
 interface FixedPageHeaderProps {
   title: string;
@@ -12,10 +13,11 @@ interface FixedPageHeaderProps {
   onBack?: () => void;
   right?: ReactNode;
   tourId?: string;
+  edge?: 'fade' | 'line' | 'none';
 }
 
 /** A compact header intended to sit above, rather than inside, page scrolling. */
-export function FixedPageHeader({ title, subtitle, onBack, right, tourId }: FixedPageHeaderProps) {
+export function FixedPageHeader({ title, subtitle, onBack, right, tourId, edge = 'fade' }: FixedPageHeaderProps) {
   const colors = useThemeColors();
 
   const header = (
@@ -28,7 +30,7 @@ export function FixedPageHeader({ title, subtitle, onBack, right, tourId }: Fixe
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.void,
-        borderBottomWidth: 1,
+        borderBottomWidth: edge === 'line' ? 1 : 0,
         borderBottomColor: colors.borderSubtle,
         zIndex: 5,
       }}
@@ -51,6 +53,8 @@ export function FixedPageHeader({ title, subtitle, onBack, right, tourId }: Fixe
       </View>
 
       {right ? <View style={{ marginLeft: spacing.md }}>{right}</View> : null}
+
+      {edge === 'fade' ? <HeaderFadeEdge /> : null}
     </Animated.View>
   );
 

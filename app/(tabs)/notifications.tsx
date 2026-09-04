@@ -13,6 +13,7 @@ import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
 import { useToastStore } from '@/lib/store/toastStore';
+import { HeaderFadeEdge } from '@/components/ui/HeaderFadeEdge';
 
 interface NotificationItem {
   id: string;
@@ -109,6 +110,7 @@ export default function Notifications() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <View style={{ backgroundColor: colors.void, zIndex: 3 }}>
       <TourTarget tourId="notifications-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Pressable onPress={() => router.back()} hitSlop={10}>
@@ -123,17 +125,19 @@ export default function Notifications() {
           </Pressable>
         )}
       </TourTarget>
+      <HeaderFadeEdge height={12} />
+      </View>
 
       <TourTarget tourId="notifications-list" style={{ flex: 1 }}>
       {loading ? (
-        <SkeletonPulse accessibilityLabel="Loading notifications" style={{ paddingHorizontal: spacing.lg, gap: spacing.sm }}>
+        <SkeletonPulse accessibilityLabel="Loading notifications" style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm }}>
           {[76, 92, 82, 88, 76].map((height, index) => <SkeletonBlock key={`${height}-${index}`} height={height} />)}
         </SkeletonPulse>
       ) : (
       <FlatList
         data={items}
         keyExtractor={(n) => n.id}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm }}
+        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm }}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', paddingTop: spacing.xxl }}>
             <Bell size={40} color={colors.textFaint} />

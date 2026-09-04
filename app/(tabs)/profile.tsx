@@ -33,6 +33,7 @@ import { TOUR_CHAPTERS, USAGE_TOUR_VERSION } from '@/lib/tour/chapters';
 import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
 import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
 import { SwipeDismissSheet } from '@/components/ui/SwipeDismissSheet';
+import { HeaderFadeEdge } from '@/components/ui/HeaderFadeEdge';
 
 interface NotificationItem { id: string; title: string; body?: string; message?: string; read: boolean; createdAt?: { toMillis?: () => number } | number; }
 
@@ -347,7 +348,9 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
-      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: profileHeaderTop + 72, backgroundColor: c.void, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, zIndex: 4 }, headerSurfaceStyle]} />
+      <Animated.View pointerEvents="none" style={[{ position: 'absolute', top: 0, left: 0, right: 0, height: profileHeaderTop + 72, backgroundColor: c.void, zIndex: 4 }, headerSurfaceStyle]}>
+        <HeaderFadeEdge height={14} />
+      </Animated.View>
       <TourTarget tourId="settings-profile" style={{ position: 'absolute', top: profileHeaderTop, left: 0, right: 0, height: 176, zIndex: 5 }}>
         <Animated.View style={[{ position: 'absolute', overflow: 'visible' }, avatarHeaderStyle]}>
           <Pressable onPress={pickAvatar} style={{ flex: 1 }} accessibilityLabel="Change profile picture">
