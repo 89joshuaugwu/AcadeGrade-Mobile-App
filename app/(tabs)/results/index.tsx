@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BookOpen, ChevronDown, GraduationCap, Plus, Trash2 } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { useAcademicData } from '@/lib/store/useAcademicData';
@@ -17,6 +18,7 @@ import { getAcademicPlan } from '@/lib/academic/timeline';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
+import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
 
 export default function ResultsList() {
   const colors = useThemeColors();
@@ -102,6 +104,10 @@ export default function ResultsList() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <FixedPageHeader
+        title="Results Hub"
+        subtitle={[profile?.university, profile?.department].filter(Boolean).join(' · ') || 'Your academic record'}
+      />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -109,16 +115,11 @@ export default function ResultsList() {
       >
         <View style={{ paddingBottom: spacing.lg }}>
           <TourTarget tourId="results-overview" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}>
-          <Text style={{ color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }}>Results Hub</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }} numberOfLines={1}>
-            {[profile?.university, profile?.department].filter(Boolean).join(' · ') || 'Your academic record'}
-          </Text>
-
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+          <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)} style={{ flexDirection: 'row', gap: spacing.sm }}>
             <StatCard value={cgpa.toFixed(2)} label="CGPA" color={colors.primaryGlow} />
             <StatCard value={String(semesters.length)} label="Semesters" color={colors.info} />
             <StatCard value={String(totalCredits)} label="Credits" color={colors.success} />
-          </View>
+          </Animated.View>
           </TourTarget>
 
           <TourTarget tourId="results-create">
@@ -146,9 +147,9 @@ export default function ResultsList() {
           </View>
         ) : (
           <View style={{ gap: spacing.sm }}>
-            {orderedSemesters.map((item) => (
+            {orderedSemesters.map((item, index) => (
+              <Animated.View key={item.id} entering={FadeInDown.delay(index * 35).springify().damping(20).stiffness(185)}>
               <SemesterCard
-                key={item.id}
                 semester={item}
                 courses={coursesBySemester[item.id] ?? []}
                 expanded={expandedId === item.id}
@@ -158,6 +159,7 @@ export default function ResultsList() {
                 onDeleteSemester={() => confirmDeleteSemester(item)}
                 onDeleteCourse={(course) => confirmDeleteCourse(item.id, course)}
               />
+              </Animated.View>
             ))}
           </View>
         )}
@@ -171,10 +173,9 @@ function ResultsSkeleton({ subtitle }: { subtitle: string }) {
   const colors = useThemeColors();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <FixedPageHeader title="Results Hub" subtitle={subtitle} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }} scrollEnabled={false}>
-        <Text style={{ color: colors.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.7 }}>Results Hub</Text>
-        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }} numberOfLines={1}>{subtitle}</Text>
-        <SkeletonPulse accessibilityLabel="Loading your results timeline" style={{ marginTop: spacing.lg }}>
+        <SkeletonPulse accessibilityLabel="Loading your results timeline">
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <SkeletonBlock flex={1} height={72} />
             <SkeletonBlock flex={1} height={72} />

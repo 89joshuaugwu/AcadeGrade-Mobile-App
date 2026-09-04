@@ -409,7 +409,7 @@ function ForecastTab({ forecast, loading, onRefresh, hasHistory, piHistory, cgpa
     : projectedCgpa[0];
 
   return (
-    <Animated.View entering={FadeInDown.duration(280)}>
+    <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)}>
       <Card themeColors={colors} style={{ marginBottom: spacing.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
           <View style={{ flex: 1, paddingRight: spacing.sm }}>
@@ -508,7 +508,7 @@ function WhatIfTab({ currentCGPA, totalCredits, remainingSemesterCount, graduati
   }
 
   return (
-    <Animated.View entering={FadeInDown.duration(280)}>
+    <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)}>
       <Card themeColors={colors} style={{ marginBottom: spacing.md, padding: 0, overflow: 'hidden' }}>
         <View style={{ padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.borderSubtle }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -561,7 +561,7 @@ function RiskTab({ courses, forecast }: { courses: CourseWithId[]; forecast: For
   const circumference = 2 * Math.PI * 49;
 
   return (
-    <Animated.View entering={FadeInDown.duration(280)}>
+    <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)}>
       <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
         <Card themeColors={colors} style={{ width: 142, alignItems: 'center' }}>
           <Text style={{ color: colors.textFaint, fontSize: 10, fontWeight: '800', marginBottom: spacing.sm }}>RISK LEVEL</Text>
@@ -609,7 +609,7 @@ function AnalysisTab({ insights, loading, cooldownMs, stale, onRegenerate, isGra
   const locked = cooldownMs > 0;
 
   return (
-    <Animated.View entering={FadeInDown.duration(280)} style={{ gap: spacing.md }}>
+    <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)} style={{ gap: spacing.md }}>
       {isGraduated && <NoticeCard icon={<GraduationCap size={16} color={colors.success} />} color={colors.success} title="Final academic review" body="Your programme timeline is complete. Degree Outlook is treated as a final summary, not a future projection." />}
       {locked && <NoticeCard icon={<Clock3 size={16} color={colors.warning} />} color={colors.warning} title="Quota protection is active" body={`Written Analysis can be regenerated in ${formatCooldown(cooldownMs)}. Cached analysis remains available.`} />}
       <InsightSection title="Identified Strengths" items={insights.strengths} color={colors.success} />
@@ -648,7 +648,7 @@ function NoticeCard({ icon, color, title, body }: { icon: React.ReactNode; color
 function GraduationState({ graduationSession, message }: { graduationSession: string; message: string }) {
   const colors = useThemeColors();
   return (
-    <Animated.View entering={FadeInDown.duration(280)} style={{ alignItems: 'center', backgroundColor: colors.successDim, borderWidth: 1, borderColor: `${colors.success}55`, borderRadius: radius.xl, padding: spacing.xl }}>
+    <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)} style={{ alignItems: 'center', backgroundColor: colors.successDim, borderWidth: 1, borderColor: `${colors.success}55`, borderRadius: radius.xl, padding: spacing.xl }}>
       <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
         <GraduationCap size={31} color={colors.success} />
       </View>

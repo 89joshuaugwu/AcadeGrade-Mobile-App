@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import firestore from '@react-native-firebase/firestore';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ArrowLeft, CalendarRange, Check, ChevronRight, GraduationCap, LockKeyhole } from 'lucide-react-native';
+import { CalendarRange, Check, ChevronRight, GraduationCap, LockKeyhole } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -16,6 +16,7 @@ import { getAcademicPlan, slotKey } from '@/lib/academic/timeline';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
+import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
 
 export default function NewSemester() {
   const colors = useThemeColors();
@@ -72,17 +73,12 @@ export default function NewSemester() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <FixedPageHeader
+        title="Build your timeline"
+        subtitle="Only the next valid semester can be created."
+        onBack={() => router.back()}
+      />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxxl }} showsVerticalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
-          <Pressable accessibilityLabel="Back to results" onPress={() => router.back()} hitSlop={10} style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <ArrowLeft size={20} color={colors.text} />
-          </Pressable>
-          <View style={{ flex: 1, marginLeft: spacing.md }}>
-            <Text style={{ color: colors.text, fontSize: 21, fontWeight: '900' }}>Build your timeline</Text>
-            <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>Only the next valid semester can be created.</Text>
-          </View>
-        </View>
-
         {academicLoading ? (
           <SkeletonPulse accessibilityLabel="Checking your academic plan">
             <SkeletonBlock height={132} borderRadius={radius.xl} style={{ marginBottom: spacing.xl }} />
@@ -95,7 +91,7 @@ export default function NewSemester() {
         ) : (
           <>
             <TourTarget tourId="new-semester-plan">
-            <Animated.View entering={FadeInDown.duration(280)} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}>
+            <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)} style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                   <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: colors.primaryDim, alignItems: 'center', justifyContent: 'center' }}>
@@ -116,7 +112,7 @@ export default function NewSemester() {
             </TourTarget>
 
             {nextSlot ? (
-              <Animated.View entering={FadeInDown.delay(70).duration(300)}>
+              <Animated.View entering={FadeInDown.delay(70).springify().damping(20).stiffness(190)}>
                 <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginVertical: spacing.md }}>NEXT AVAILABLE</Text>
                 <TourTarget tourId="new-semester-slot">
                 <View style={{ backgroundColor: colors.deep, borderWidth: 1.5, borderColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg, shadowColor: colors.primary, shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } }}>
@@ -145,7 +141,7 @@ export default function NewSemester() {
                 </TourTarget>
               </Animated.View>
             ) : (
-              <Animated.View entering={FadeInDown.delay(70).duration(300)} style={{ alignItems: 'center', backgroundColor: colors.successDim, borderWidth: 1, borderColor: `${colors.success}55`, borderRadius: radius.xl, padding: spacing.xl }}>
+              <Animated.View entering={FadeInDown.delay(70).springify().damping(20).stiffness(190)} style={{ alignItems: 'center', backgroundColor: colors.successDim, borderWidth: 1, borderColor: `${colors.success}55`, borderRadius: radius.xl, padding: spacing.xl }}>
                 <View style={{ width: 64, height: 64, borderRadius: 22, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
                   <GraduationCap size={30} color={colors.success} />
                 </View>

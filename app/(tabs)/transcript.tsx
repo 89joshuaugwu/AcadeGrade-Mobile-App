@@ -20,6 +20,7 @@ import { getGradeColor } from '@/lib/cgpa/gradeScale';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
+import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
 
 interface SharedTranscript {
   id: string;
@@ -184,12 +185,12 @@ export default function Transcript() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <FixedPageHeader
+        title="Unofficial Transcript"
+        subtitle="Preview, export, and securely share your completed academic record."
+        tourId="transcript-heading"
+      />
       <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <TourTarget tourId="transcript-heading" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })} style={{ marginBottom: spacing.lg }}>
-          <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.6 }}>Unofficial Transcript</Text>
-          <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3 }}>Preview, export, and securely share your completed academic record.</Text>
-        </TourTarget>
-
         <TourTarget tourId="transcript-actions">
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
           <Pressable
@@ -206,7 +207,7 @@ export default function Transcript() {
         </TourTarget>
 
         {!!shareUrl && (
-          <Animated.View entering={FadeInDown.duration(220)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primary }}>
+          <Animated.View entering={FadeInDown.springify().damping(20).stiffness(195)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primaryDim, borderWidth: 1, borderColor: colors.primary }}>
             <View style={{ flex: 1 }}><Text style={{ color: colors.primaryGlow, fontWeight: '800', fontSize: 11 }}>Link copied</Text><Text style={{ color: colors.textMuted, fontSize: 10, marginTop: 3 }} numberOfLines={1}>{shareUrl}</Text></View>
             <Pressable onPress={() => Share.share({ title: 'AcadeGrade Transcript', message: shareUrl })} hitSlop={8}><Share2 size={18} color={colors.primaryGlow} /></Pressable>
           </Animated.View>
@@ -254,9 +255,8 @@ function TranscriptSkeleton() {
   const colors = useThemeColors();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <FixedPageHeader title="Unofficial Transcript" subtitle="Preparing your completed academic record…" />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} scrollEnabled={false}>
-        <Text style={{ color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.6 }}>Unofficial Transcript</Text>
-        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 3, marginBottom: spacing.lg }}>Preparing your completed academic record…</Text>
         <SkeletonPulse accessibilityLabel="Loading your transcript">
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <SkeletonBlock flex={1} height={48} />

@@ -5,12 +5,13 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import Animated, {
   Easing,
   FadeIn,
+  SlideInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { Camera, FileUp, HelpCircle, ImageIcon, RotateCcw, Sparkles, X } from 'lucide-react-native';
+import { Camera, Clock3, FileUp, HelpCircle, ImageIcon, RotateCcw, ScanLine, ShieldCheck, Sparkles, SunMedium, X } from 'lucide-react-native';
 import { radius, spacing } from '@/constants/theme';
 import { Button } from '@/components/ui/Button';
 import { useThemeColors } from '@/lib/store/themeStore';
@@ -18,6 +19,8 @@ import { useToastStore } from '@/lib/store/toastStore';
 import type { CourseInput } from '@/types/course';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
+import { SwipeDismissSheet } from '@/components/ui/SwipeDismissSheet';
+import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
 
 interface ResultScannerModalProps {
   visible: boolean;
@@ -54,6 +57,7 @@ export function ResultScannerModal({
   const [permission, requestPermission] = useCameraPermissions();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [capturing, setCapturing] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const scanProgress = useSharedValue(0);
   useAutoTour('scanner', 700, visible);
 
@@ -61,6 +65,7 @@ export function ResultScannerModal({
     if (!visible) {
       setPreviewUri(null);
       setCapturing(false);
+      setHelpOpen(false);
       scanProgress.value = 0;
       return;
     }
@@ -111,7 +116,7 @@ export function ResultScannerModal({
   const hasResults = !!courses?.length;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => helpOpen ? setHelpOpen(false) : onClose()}>
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
         <View
           style={{
@@ -130,7 +135,16 @@ export function ResultScannerModal({
           <Text style={{ color: colors.text, fontSize: 16, fontWeight: '800', flex: 1, textAlign: 'center' }}>
             AI Result Import
           </Text>
-          <HelpCircle size={19} color={colors.textMuted} />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open scanner tips"
+            accessibilityHint="Explains how to capture a result accurately"
+            onPress={() => setHelpOpen(true)}
+            hitSlop={10}
+            style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}
+          >
+            <HelpCircle size={19} color={colors.primary} />
+          </Pressable>
         </View>
 
         <ScrollView
@@ -363,8 +377,60 @@ export function ResultScannerModal({
             </Pressable>
           )}
         </TourTarget>
+
+        {helpOpen ? (
+          <View style={{ position: 'absolute', inset: 0, zIndex: 30, justifyContent: 'flex-end' }}>
+            <Animated.View entering={FadeIn.duration(160)} style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(2,4,12,0.72)' }}>
+              <Pressable accessibilityLabel="Close scanner tips" onPress={() => setHelpOpen(false)} style={{ flex: 1 }} />
+            </Animated.View>
+            <Animated.View entering={SlideInDown.springify().damping(21).stiffness(200)}>
+              <SwipeDismissSheet
+                onDismiss={() => setHelpOpen(false)}
+                style={{ backgroundColor: colors.deep, borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
+              >
+                <SwipeDownHandle onDismiss={() => setHelpOpen(false)} color={colors.border} style={{ marginBottom: spacing.md }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryDim, marginRight: spacing.md }}>
+                    <HelpCircle size={21} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontSize: 19, fontWeight: '900' }}>Get a clean scan</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 16, marginTop: 2 }}>A few seconds of setup makes extraction much more accurate.</Text>
+                  </View>
+                  <Pressable accessibilityLabel="Close scanner tips" onPress={() => setHelpOpen(false)} hitSlop={10}>
+                    <X size={21} color={colors.textMuted} />
+                  </Pressable>
+                </View>
+
+                <View style={{ overflow: 'hidden', borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+                  <ScannerTip icon={<ScanLine size={17} color={colors.primary} />} title="Keep the whole result in frame" body="Include course codes, units, CA, exam, and total columns without cutting off the page edges." />
+                  <ScannerTip icon={<SunMedium size={17} color={colors.warning} />} title="Use even lighting" body="Place the result flat, avoid shadows and glare, and hold the phone steady before capturing." />
+                  <ScannerTip icon={<ShieldCheck size={17} color={colors.success} />} title="Review before saving" body="AcadeGrade shows every extracted course first. Nothing enters your semester until you confirm it." />
+                  <ScannerTip icon={<Clock3 size={17} color={colors.info} />} title="Scanning allowance" body="You can analyze 5 files per 15 minutes and 20 per day. Retakes count only after submission." last />
+                </View>
+
+                <Pressable onPress={() => setHelpOpen(false)} style={{ height: 48, marginTop: spacing.lg, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: colors.textInverse, fontSize: 14, fontWeight: '900' }}>Got it, start scanning</Text>
+                </Pressable>
+              </SwipeDismissSheet>
+            </Animated.View>
+          </View>
+        ) : null}
       </SafeAreaView>
     </Modal>
+  );
+}
+
+function ScannerTip({ icon, title, body, last = false }: { icon: React.ReactNode; title: string; body: string; last?: boolean }) {
+  const colors = useThemeColors();
+  return (
+    <View style={{ flexDirection: 'row', padding: spacing.md, borderBottomWidth: last ? 0 : 1, borderBottomColor: colors.borderSubtle }}>
+      <View style={{ width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.overlay, marginRight: spacing.sm }}>{icon}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: colors.text, fontSize: 13, fontWeight: '800' }}>{title}</Text>
+        <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 16, marginTop: 3 }}>{body}</Text>
+      </View>
+    </View>
   );
 }
 

@@ -8,7 +8,7 @@ import * as Clipboard from 'expo-clipboard';
 import { File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { ArrowLeft, Plus, Camera, Trash2, X, Download, Share2, Copy, BookOpen, CheckCircle2 } from 'lucide-react-native';
+import { Plus, Camera, Trash2, X, Download, Share2, Copy, BookOpen, CheckCircle2 } from 'lucide-react-native';
 import firestore from '@react-native-firebase/firestore';
 import { spacing } from '@/constants/theme';
 import { Card } from '@/components/ui/Card';
@@ -30,6 +30,7 @@ import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
 import { SwipeDismissSheet } from '@/components/ui/SwipeDismissSheet';
+import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -366,6 +367,17 @@ export default function SemesterDetail() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <FixedPageHeader
+        title={semester?.label ?? 'Semester results'}
+        subtitle={semester?.session || 'Course record'}
+        onBack={() => router.back()}
+        right={(
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 99, backgroundColor: semester?.isComplete ? colors.successDim : `${colors.warning}18` }}>
+            {semester?.isComplete ? <CheckCircle2 size={12} color={colors.success} /> : null}
+            <Text style={{ color: semester?.isComplete ? colors.success : colors.warning, fontSize: 9, fontWeight: '900' }}>{semester?.isComplete ? 'COMPLETE' : 'IN PROGRESS'}</Text>
+          </View>
+        )}
+      />
       <FlatList
         ref={listRef}
         data={courses}
@@ -375,21 +387,7 @@ export default function SemesterDetail() {
         ListHeaderComponent={
           <View style={{ paddingBottom: spacing.lg }}>
             <TourTarget tourId="semester-summary" onTourFocus={() => listRef.current?.scrollToOffset({ offset: 0, animated: true })}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
-              <Pressable onPress={() => router.back()} accessibilityLabel="Back to results" hitSlop={10} style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-                <ArrowLeft size={20} color={colors.text} />
-              </Pressable>
-              <View style={{ flex: 1, marginLeft: spacing.md }}>
-                <Text style={{ color: colors.text, fontSize: 20, fontWeight: '900' }} numberOfLines={1}>{semester?.label ?? 'Semester results'}</Text>
-                <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>{semester?.session || 'Course record'}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 99, backgroundColor: semester?.isComplete ? colors.successDim : `${colors.warning}18` }}>
-                {semester?.isComplete && <CheckCircle2 size={12} color={colors.success} />}
-                <Text style={{ color: semester?.isComplete ? colors.success : colors.warning, fontSize: 9, fontWeight: '900' }}>{semester?.isComplete ? 'COMPLETE' : 'IN PROGRESS'}</Text>
-              </View>
-            </View>
-
-            <View style={{ padding: spacing.lg, borderRadius: 20, backgroundColor: colors.deep, borderWidth: 1, borderColor: colors.primaryDim }}>
+            <Animated.View entering={FadeInDown.springify().damping(20).stiffness(190)} style={{ padding: spacing.lg, borderRadius: 20, backgroundColor: colors.deep, borderWidth: 1, borderColor: colors.primaryDim }}>
               <Text style={{ color: colors.textFaint, fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>SEMESTER GPA</Text>
               <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 4 }}>
                 <Text style={{ color: colors.primaryGlow, fontSize: 38, lineHeight: 43, fontWeight: '900', fontVariant: ['tabular-nums'] }}>{semResult.gpa.toFixed(2)}</Text>
@@ -400,7 +398,7 @@ export default function SemesterDetail() {
                 <Metric label="Graded" value={String(metrics.length)} colors={colors} />
                 <Metric label="Credits" value={String(semResult.creditLoaded)} colors={colors} />
               </View>
-            </View>
+            </Animated.View>
             </TourTarget>
 
             <TourTarget tourId="semester-entry-actions">
@@ -440,7 +438,7 @@ export default function SemesterDetail() {
           </View>
         }
         renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 40).duration(250)}>
+          <Animated.View entering={FadeInDown.delay(index * 40).springify().damping(20).stiffness(185)}>
               <Card themeColors={colors} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: spacing.md }}>
                 <Pressable onPress={() => { setEditingCourse(item); setModalOpen(true); }} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                   <View style={{ flex: 1 }}>
@@ -532,20 +530,8 @@ function SemesterDetailSkeleton({ onBack }: { onBack: () => void }) {
   const colors = useThemeColors();
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.void }}>
+      <FixedPageHeader title="Semester results" subtitle="Loading course record…" onBack={onBack} />
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: 120 }} scrollEnabled={false}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg }}>
-          <Pressable onPress={onBack} accessibilityLabel="Back to results" hitSlop={10} style={{ width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }}>
-            <ArrowLeft size={20} color={colors.text} />
-          </Pressable>
-          <SkeletonPulse accessibilityLabel="Loading this semester" style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginLeft: spacing.md }}>
-            <View style={{ flex: 1 }}>
-              <SkeletonLine width="64%" height={16} />
-              <SkeletonLine width="38%" height={9} style={{ marginTop: 7 }} />
-            </View>
-            <SkeletonCircle size={34} />
-          </SkeletonPulse>
-        </View>
-
         <SkeletonPulse accessibilityLabel="Loading semester courses and totals">
           <SkeletonBlock height={146} borderRadius={20} style={{ marginBottom: spacing.md }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
