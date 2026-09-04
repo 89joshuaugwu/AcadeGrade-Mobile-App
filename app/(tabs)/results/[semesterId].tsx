@@ -31,6 +31,7 @@ import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/co
 import { SwipeDownHandle } from '@/components/ui/SwipeDownHandle';
 import { SwipeDismissSheet } from '@/components/ui/SwipeDismissSheet';
 import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
+import { useHeaderScrollEdge } from '@/components/ui/HeaderFadeEdge';
 
 /**
  * REBUILT: light theme + a proper multi-source OCR upload menu, matching
@@ -66,6 +67,7 @@ export default function SemesterDetail() {
   const [codeInput, setCodeInput] = useState('');
   const [codeWorking, setCodeWorking] = useState(false);
   const listRef = useRef<FlatList<CourseWithId>>(null);
+  const { edgeVisible, onHeaderScroll } = useHeaderScrollEdge();
   const initialLoading = !semesterId || semesterSnapshotId !== semesterId || coursesSnapshotId !== semesterId;
   const semesterReady = semester?.id === semesterId;
   useAutoTour('semester', 750, !initialLoading);
@@ -377,9 +379,12 @@ export default function SemesterDetail() {
             <Text style={{ color: semester?.isComplete ? colors.success : colors.warning, fontSize: 9, fontWeight: '900' }}>{semester?.isComplete ? 'COMPLETE' : 'IN PROGRESS'}</Text>
           </View>
         )}
+        edgeVisible={edgeVisible}
       />
       <FlatList
         ref={listRef}
+        onScroll={onHeaderScroll}
+        scrollEventThrottle={16}
         data={courses}
         keyExtractor={(c) => c.id}
         showsVerticalScrollIndicator={false}
@@ -509,10 +514,13 @@ export default function SemesterDetail() {
           const computed = computeCourseMetrics(input);
           const courseCollection = db.collection('users').doc(uid).collection('semesters').doc(semesterId).collection('courses');
           const courseRef = input.id ? courseCollection.doc(input.id) : courseCollection.doc();
+          const persistedCourse = Object.fromEntries(
+            Object.entries(computed).filter(([, value]) => value !== undefined),
+          );
           await courseRef.set({
-            ...computed,
+            ...persistedCourse,
             pending: false,
-            createdAt: firestore.FieldValue.serverTimestamp(),
+            ...(input.id ? {} : { createdAt: firestore.FieldValue.serverTimestamp() }),
             updatedAt: firestore.FieldValue.serverTimestamp(),
           }, { merge: true });
           markInsightsStale();
@@ -592,7 +600,7 @@ function CourseCodeModal({ mode, shareCode, codeInput, working, onCodeChange, on
   useAutoTour('course-code', 650, mode !== null);
   return (
     <Modal visible={mode !== null} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.7)' }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.7)' }}>
         <Pressable style={{ flex: 1 }} onPress={onClose} />
         <SwipeDismissSheet
           onDismiss={onClose}
@@ -690,7 +698,8 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
         caScore: ca,
         examScore: exam,
         grade: inputMode === 'grade' ? grade : undefined,
-        estimated: inputMode === 'score',
+        estimated: inputMode === 'grade',
+        isAR: initialCourse?.isAR,
       });
     } catch (saveError: any) {
       setError(saveError?.message ?? 'Could not save this course.');
@@ -702,7 +711,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,10,0.72)' }}
       >
         <Pressable style={{ flex: 1 }} onPress={onClose} />
@@ -724,6 +733,7 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
           <ScrollView
             ref={formScrollRef}
             contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
+            automaticallyAdjustKeyboardInsets
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             scrollEventThrottle={16}
@@ -789,10 +799,10 @@ function AddCourseModal({ visible, onClose, onSave, initialCourse }: { visible: 
                 <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 16, marginBottom: spacing.sm }}>Enter the scores exactly as shown on your result. Your total and grade are calculated automatically.</Text>
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   <View style={{ flex: 1 }}>
-                    <Input label="CA (0–30)" value={caScore} onChangeText={setCaScore} keyboardType="decimal-pad" placeholder="24" themeColors={colors} />
+                    <Input label="CA (0–30)" value={caScore} onChangeText={setCaScore} onFocus={() => formScrollRef.current?.scrollTo({ y: 215, animated: true })} keyboardType="decimal-pad" placeholder="24" themeColors={colors} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Input label="Exam (0–70)" value={examScore} onChangeText={setExamScore} keyboardType="decimal-pad" placeholder="51" themeColors={colors} />
+                    <Input label="Exam (0–70)" value={examScore} onChangeText={setExamScore} onFocus={() => formScrollRef.current?.scrollTo({ y: 215, animated: true })} keyboardType="decimal-pad" placeholder="51" themeColors={colors} />
                   </View>
                 </View>
               </>

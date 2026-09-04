@@ -19,6 +19,7 @@ import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
+import { useHeaderScrollEdge } from '@/components/ui/HeaderFadeEdge';
 
 export default function ResultsList() {
   const colors = useThemeColors();
@@ -32,6 +33,7 @@ export default function ResultsList() {
   const academicPlan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+  const { edgeVisible, onHeaderScroll } = useHeaderScrollEdge();
   useAutoTour('results', 650, !loading);
 
   function markInsightsStale() {
@@ -107,9 +109,12 @@ export default function ResultsList() {
       <FixedPageHeader
         title="Results Hub"
         subtitle={[profile?.university, profile?.department].filter(Boolean).join(' · ') || 'Your academic record'}
+        edgeVisible={edgeVisible}
       />
       <ScrollView
         ref={scrollRef}
+        onScroll={onHeaderScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }}
       >

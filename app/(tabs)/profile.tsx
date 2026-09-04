@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Switch, Image, Pressable, Modal, Share as NativeShare, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, Switch, Image, Pressable, Modal, Share as NativeShare, useWindowDimensions, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { File, Paths } from 'expo-file-system';
@@ -548,6 +548,7 @@ export default function Profile() {
       </Modal>
 
       <Modal visible={timelineSheetOpen} transparent statusBarTranslucent animationType="fade" onRequestClose={() => { if (!savingTimeline) setTimelineSheetOpen(false); }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <Pressable disabled={savingTimeline} onPress={() => setTimelineSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.72)' }}>
           <Animated.View entering={FadeInDown.springify().damping(21)}>
             <Pressable onPress={(event) => event.stopPropagation()} style={{ backgroundColor: c.deep, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderColor: c.border, padding: spacing.lg, paddingBottom: Math.max(spacing.xl, insets.bottom + spacing.md) }}>
@@ -595,9 +596,11 @@ export default function Profile() {
             </Pressable>
           </Animated.View>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={deleteSheetOpen} transparent statusBarTranslucent animationType="fade" onRequestClose={() => { if (!deleting) setDeleteSheetOpen(false); }}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <Pressable disabled={deleting} onPress={() => setDeleteSheetOpen(false)} style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(2,4,12,0.76)' }}>
           <Animated.View entering={FadeInDown.springify().damping(21)}>
           <Pressable
@@ -642,6 +645,7 @@ export default function Profile() {
           </Pressable>
           </Animated.View>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

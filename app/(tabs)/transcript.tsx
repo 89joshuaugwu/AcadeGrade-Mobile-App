@@ -21,6 +21,7 @@ import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
+import { useHeaderScrollEdge } from '@/components/ui/HeaderFadeEdge';
 
 interface SharedTranscript {
   id: string;
@@ -61,6 +62,7 @@ export default function Transcript() {
   const [sharedLinks, setSharedLinks] = useState<SharedTranscript[]>([]);
   const [linksLoading, setLinksLoading] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
+  const { edgeVisible, onHeaderScroll } = useHeaderScrollEdge();
   const loading = academicLoading || linksLoading;
   useAutoTour('transcript', 650, !loading);
 
@@ -189,8 +191,9 @@ export default function Transcript() {
         title="Unofficial Transcript"
         subtitle="Preview, export, and securely share your completed academic record."
         tourId="transcript-heading"
+        edgeVisible={edgeVisible}
       />
-      <ScrollView ref={scrollRef} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} onScroll={onHeaderScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <TourTarget tourId="transcript-actions">
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
           <Pressable

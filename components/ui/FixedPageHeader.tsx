@@ -14,10 +14,11 @@ interface FixedPageHeaderProps {
   right?: ReactNode;
   tourId?: string;
   edge?: 'fade' | 'line' | 'none';
+  edgeVisible?: boolean;
 }
 
 /** A compact header intended to sit above, rather than inside, page scrolling. */
-export function FixedPageHeader({ title, subtitle, onBack, right, tourId, edge = 'fade' }: FixedPageHeaderProps) {
+export function FixedPageHeader({ title, subtitle, onBack, right, tourId, edge = 'fade', edgeVisible = false }: FixedPageHeaderProps) {
   const colors = useThemeColors();
 
   const header = (
@@ -30,7 +31,7 @@ export function FixedPageHeader({ title, subtitle, onBack, right, tourId, edge =
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: colors.void,
-        borderBottomWidth: edge === 'line' ? 1 : 0,
+        borderBottomWidth: edge === 'line' && edgeVisible ? 1 : 0,
         borderBottomColor: colors.borderSubtle,
         zIndex: 5,
       }}
@@ -54,7 +55,7 @@ export function FixedPageHeader({ title, subtitle, onBack, right, tourId, edge =
 
       {right ? <View style={{ marginLeft: spacing.md }}>{right}</View> : null}
 
-      {edge === 'fade' ? <HeaderFadeEdge /> : null}
+      {edge === 'fade' ? <HeaderFadeEdge visible={edgeVisible} /> : null}
     </Animated.View>
   );
 

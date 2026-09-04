@@ -17,6 +17,7 @@ import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 import { FixedPageHeader } from '@/components/ui/FixedPageHeader';
+import { useHeaderScrollEdge } from '@/components/ui/HeaderFadeEdge';
 
 export default function NewSemester() {
   const colors = useThemeColors();
@@ -26,6 +27,7 @@ export default function NewSemester() {
   const showToast = useToastStore((state) => state.show);
   const { semesters, loading: academicLoading } = useAcademicData();
   const [creating, setCreating] = useState(false);
+  const { edgeVisible, onHeaderScroll } = useHeaderScrollEdge();
   useAutoTour('new-semester', 650, !academicLoading);
 
   const plan = useMemo(() => getAcademicPlan(profile, semesters), [profile, semesters]);
@@ -77,8 +79,9 @@ export default function NewSemester() {
         title="Build your timeline"
         subtitle="Only the next valid semester can be created."
         onBack={() => router.back()}
+        edgeVisible={edgeVisible}
       />
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxxl }} showsVerticalScrollIndicator={false}>
+      <ScrollView onScroll={onHeaderScroll} scrollEventThrottle={16} contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxxl }} showsVerticalScrollIndicator={false}>
         {academicLoading ? (
           <SkeletonPulse accessibilityLabel="Checking your academic plan">
             <SkeletonBlock height={132} borderRadius={radius.xl} style={{ marginBottom: spacing.xl }} />

@@ -13,7 +13,7 @@ import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonPulse } from '@/components/ui/Skeleton';
 import { useToastStore } from '@/lib/store/toastStore';
-import { HeaderFadeEdge } from '@/components/ui/HeaderFadeEdge';
+import { HeaderFadeEdge, useHeaderScrollEdge } from '@/components/ui/HeaderFadeEdge';
 
 interface NotificationItem {
   id: string;
@@ -45,6 +45,7 @@ export default function Notifications() {
   const showToast = useToastStore((state) => state.show);
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const { edgeVisible, onHeaderScroll } = useHeaderScrollEdge();
   useAutoTour('notifications', 650, !loading);
 
   useEffect(() => {
@@ -125,7 +126,7 @@ export default function Notifications() {
           </Pressable>
         )}
       </TourTarget>
-      <HeaderFadeEdge height={12} />
+      <HeaderFadeEdge height={12} visible={edgeVisible} />
       </View>
 
       <TourTarget tourId="notifications-list" style={{ flex: 1 }}>
@@ -136,6 +137,8 @@ export default function Notifications() {
       ) : (
       <FlatList
         data={items}
+        onScroll={onHeaderScroll}
+        scrollEventThrottle={16}
         keyExtractor={(n) => n.id}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm }}
         ListEmptyComponent={

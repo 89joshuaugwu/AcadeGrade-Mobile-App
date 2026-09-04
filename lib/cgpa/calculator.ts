@@ -47,7 +47,9 @@ export function computeCourseMetrics(course: CourseInput): CourseMetrics {
     gradePoint,
     piPoint,
     estimated,
-    isAR: course.isAR,
+    // Firestore rejects explicit `undefined` values. Keep the optional field
+    // absent for regular courses and only persist it when it was provided.
+    ...(course.isAR !== undefined ? { isAR: course.isAR } : {}),
   };
 }
 

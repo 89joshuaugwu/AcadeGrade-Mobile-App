@@ -301,10 +301,11 @@ export default function Register() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.void }}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <SafeAreaView style={{ flex: 1 }}>
           <ScrollView
             ref={registrationScrollRef}
+            automaticallyAdjustKeyboardInsets
             contentContainerStyle={{ padding: spacing.xl, paddingBottom: spacing.xxxl }}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}

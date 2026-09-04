@@ -23,7 +23,7 @@ import { getAcademicPlan } from '@/lib/academic/timeline';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { registerTourAction } from '@/lib/tour/registry';
-import { HeaderFadeEdge } from '@/components/ui/HeaderFadeEdge';
+import { HeaderFadeEdge, useHeaderScrollEdge } from '@/components/ui/HeaderFadeEdge';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
 
 type TabType = 'forecast' | 'whatif' | 'risk' | 'analysis';
@@ -70,6 +70,7 @@ export default function Insights() {
   const [clock, setClock] = useState(0);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
+  const { edgeVisible, onHeaderScroll } = useHeaderScrollEdge();
   const initialLoading = academicLoading || analyticsLoading;
   useAutoTour('insights', 750, !initialLoading);
 
@@ -263,11 +264,14 @@ export default function Insights() {
             );
           })}
       </TourTarget>
-      <HeaderFadeEdge />
+      <HeaderFadeEdge visible={edgeVisible} />
       </View>
 
       <ScrollView
         ref={scrollRef}
+        automaticallyAdjustKeyboardInsets
+        onScroll={onHeaderScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.lg, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"

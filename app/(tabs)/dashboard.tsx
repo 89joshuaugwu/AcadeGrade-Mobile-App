@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, RefreshControl, useWindowDime
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GraduationCap, CheckCircle2, Lightbulb, ChevronRight } from 'lucide-react-native';
+import { GraduationCap, CheckCircle2, Lightbulb, ChevronRight, BookOpen } from 'lucide-react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { DEGREE_CLASSES, spacing, radius, type ThemeColors } from '@/constants/theme';
 import { TrendChart } from '@/components/dashboard/TrendChart';
@@ -15,6 +15,7 @@ import { useThemeColors } from '@/lib/store/themeStore';
 import { TourTarget } from '@/components/tour/TourTarget';
 import { useAutoTour } from '@/lib/tour/useAutoTour';
 import { SkeletonBlock, SkeletonCircle, SkeletonLine, SkeletonPulse } from '@/components/ui/Skeleton';
+import { HeaderFadeEdge, useHeaderScrollEdge } from '@/components/ui/HeaderFadeEdge';
 
 const PERFORMANCE_GRADIENTS = {
   first: '#166534',
@@ -50,6 +51,20 @@ function blendHexColors(first: string, second: string, firstWeight: number) {
   return `#${channel(firstRed, secondRed)}${channel(firstGreen, secondGreen)}${channel(firstBlue, secondBlue)}`;
 }
 
+function timestampMillis(value: unknown): number {
+  if (!value) return 0;
+  if (typeof value === 'number') return value;
+  if (value instanceof Date) return value.getTime();
+  if (typeof (value as { toMillis?: unknown }).toMillis === 'function') {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  if (typeof (value as { toDate?: unknown }).toDate === 'function') {
+    return (value as { toDate: () => Date }).toDate().getTime();
+  }
+  const parsed = new Date(value as string).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 export default function Dashboard() {
   const c = useThemeColors();
   const { width } = useWindowDimensions();
@@ -58,17 +73,30 @@ export default function Dashboard() {
   const { semesters, coursesBySemester, cgpa, pi, totalCredits, totalCourses, atRiskCount, loading } = useAcademicData();
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+  const { edgeVisible, onHeaderScroll } = useHeaderScrollEdge();
   useAutoTour('dashboard', 850, !loading);
 
   const trendData = semesters.map((s, i) => ({ x: i + 1, gpa: s.gpa, pi: s.pi }));
-  const recentGrades = useMemo(
-    () => Object.entries(coursesBySemester)
-      .flatMap(([semesterId, courses]) => courses.map((course) => ({ ...course, semesterId })))
-      .filter((course) => course.grade)
-      .sort((a, b) => ((b.updatedAt as any)?.toMillis?.() ?? 0) - ((a.updatedAt as any)?.toMillis?.() ?? 0))
-      .slice(0, 3),
-    [coursesBySemester]
-  );
+  const recentGrades = useMemo(() => {
+    const semesterById = new Map(semesters.map((semester) => [semester.id, semester]));
+    return Object.entries(coursesBySemester)
+      .flatMap(([semesterId, courses]) => courses.map((course) => ({
+        ...course,
+        semesterId,
+        semester: semesterById.get(semesterId),
+      })))
+      .filter((course) => Boolean(course.grade) && !course.pending)
+      .sort((a, b) => {
+        const updatedDifference = timestampMillis(b.updatedAt ?? b.createdAt) - timestampMillis(a.updatedAt ?? a.createdAt);
+        if (updatedDifference !== 0) return updatedDifference;
+        const levelDifference = (b.semester?.level ?? 0) - (a.semester?.level ?? 0);
+        if (levelDifference !== 0) return levelDifference;
+        const semesterDifference = (b.semester?.semester ?? 0) - (a.semester?.semester ?? 0);
+        if (semesterDifference !== 0) return semesterDifference;
+        return (a.code || a.title).localeCompare(b.code || b.title);
+      })
+      .slice(0, 3);
+  }, [coursesBySemester, semesters]);
   const semesterDelta = semesters.length >= 2 ? semesters[semesters.length - 1].gpa - semesters[semesters.length - 2].gpa : 0;
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Student';
   const isPiPrimary = profile?.gradeMode === 'pi';
@@ -137,34 +165,43 @@ export default function Dashboard() {
           </TourTarget>
         </Animated.View>
 
-        <LinearGradient
-          pointerEvents="none"
-          colors={[`${c.void}F5`, `${c.void}B8`, `${c.void}00`]}
-          locations={[0, 0.45, 1]}
-          style={{ position: 'absolute', left: 0, right: 0, bottom: -18, height: 20 }}
-        />
+        <HeaderFadeEdge visible={edgeVisible} height={20} />
       </View>
 
       <ScrollView
         ref={scrollRef}
+        onScroll={onHeaderScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 500); }} tintColor={c.primary} />}
       >
         <Animated.View entering={FadeInDown.delay(160).duration(350)} style={{ marginBottom: spacing.lg }}>
           <TourTarget tourId="dashboard-recent" onTourFocus={() => scrollRef.current?.scrollTo({ y: 0, animated: true })}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-              <Text style={{ color: c.text, fontWeight: '700', fontSize: 16 }}>Recent Grades</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primaryDim }}>
+                  <BookOpen size={15} color={c.primary} />
+                </View>
+                <View>
+                  <Text style={{ color: c.text, fontWeight: '800', fontSize: 16 }}>Recent grades</Text>
+                  <Text style={{ color: c.textFaint, fontSize: 10, marginTop: 1 }}>Your latest result updates</Text>
+                </View>
+              </View>
               <Pressable onPress={() => router.push('/(tabs)/results')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700' }}>View All</Text>
+                <Text style={{ color: c.primary, fontSize: 12, fontWeight: '800' }}>View all</Text>
                 <ChevronRight size={14} color={c.primary} />
               </Pressable>
             </View>
             {recentGrades.length === 0 ? (
-              <Text style={{ color: c.textFaint, fontSize: 13 }}>No graded courses yet.</Text>
+              <View style={{ minHeight: 92, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}>
+                <Text style={{ color: c.textMuted, fontSize: 13, fontWeight: '700' }}>No graded courses yet</Text>
+                <Text style={{ color: c.textFaint, fontSize: 11, marginTop: 3 }}>Your newest results will appear here.</Text>
+              </View>
             ) : (
-              <View style={{ gap: 8 }}>
-                {recentGrades.map((course) => {
+              <View style={{ borderRadius: radius.lg, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, overflow: 'hidden' }}>
+                {recentGrades.map((course, index) => {
                   const gradeColor = getGradeColor(course.grade!);
+                  const hasNumericScore = course.totalScore != null;
                   return (
                     <Pressable
                       key={`${course.semesterId}-${course.id}`}
@@ -172,19 +209,34 @@ export default function Dashboard() {
                       accessibilityLabel={`Open ${course.code || course.title} result`}
                       accessibilityHint="Opens the semester containing this course"
                       onPress={() => router.push({ pathname: '/(tabs)/results/[semesterId]', params: { semesterId: course.semesterId } })}
-                      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: pressed ? c.primary : c.border, borderRadius: radius.md, padding: spacing.md, opacity: pressed ? 0.86 : 1, transform: [{ scale: pressed ? 0.992 : 1 }] })}
+                      style={({ pressed }) => ({
+                        minHeight: 78,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: 11,
+                        backgroundColor: pressed ? c.overlay : c.surface,
+                        borderTopWidth: index === 0 ? 0 : 1,
+                        borderTopColor: c.borderSubtle,
+                        opacity: pressed ? 0.9 : 1,
+                      })}
                     >
-                      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${gradeColor}18`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
-                        <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 13 }}>{course.grade}</Text>
+                      <View style={{ position: 'absolute', left: 0, top: 13, bottom: 13, width: 3, borderTopRightRadius: 3, borderBottomRightRadius: 3, backgroundColor: gradeColor }} />
+                      <View style={{ width: 42, height: 42, borderRadius: 13, backgroundColor: `${gradeColor}18`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md }}>
+                        <Text style={{ color: gradeColor, fontWeight: '900', fontSize: 16 }}>{course.grade}</Text>
                       </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: c.text, fontWeight: '600', fontSize: 13 }} numberOfLines={1}>{course.title || course.code}</Text>
-                        <Text style={{ color: c.textFaint, fontSize: 11 }}>{course.grade} · {course.units} Credits</Text>
+                      <View style={{ flex: 1, minWidth: 0, paddingRight: spacing.sm }}>
+                        <Text style={{ color: c.text, fontWeight: '800', fontSize: 12 }} numberOfLines={1}>{course.code || 'COURSE'}</Text>
+                        <Text style={{ color: c.textMuted, fontWeight: '600', fontSize: 11, marginTop: 2 }} numberOfLines={1}>{course.title || 'Untitled course'}</Text>
+                        <Text style={{ color: c.textFaint, fontSize: 9, marginTop: 3 }} numberOfLines={1}>{course.semester?.label ?? 'Semester result'} · {course.units} unit{course.units === 1 ? '' : 's'}</Text>
                       </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 14 }}>{course.totalScore ?? '—'}/100</Text>
-                        <Text style={{ color: c.textFaint, fontSize: 10 }}>Score</Text>
+                      <View style={{ minWidth: 57, alignItems: 'flex-end' }}>
+                        <View style={{ paddingHorizontal: 9, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: `${gradeColor}14` }}>
+                          <Text style={{ color: gradeColor, fontWeight: '900', fontSize: 12, fontVariant: ['tabular-nums'] }}>{hasNumericScore ? course.totalScore : course.gradePoint.toFixed(1)}</Text>
+                        </View>
+                        <Text style={{ color: c.textFaint, fontSize: 9, marginTop: 3 }}>{hasNumericScore ? 'out of 100' : 'grade point'}</Text>
                       </View>
+                      <ChevronRight size={14} color={c.textFaint} style={{ marginLeft: 4 }} />
                     </Pressable>
                   );
                 })}
