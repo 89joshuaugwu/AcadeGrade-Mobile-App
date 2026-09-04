@@ -55,15 +55,19 @@ export default function Dashboard() {
   const { width } = useWindowDimensions();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
-  const { semesters, allCourses, cgpa, pi, totalCredits, totalCourses, atRiskCount, loading } = useAcademicData();
+  const { semesters, coursesBySemester, cgpa, pi, totalCredits, totalCourses, atRiskCount, loading } = useAcademicData();
   const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   useAutoTour('dashboard', 850, !loading);
 
   const trendData = semesters.map((s, i) => ({ x: i + 1, gpa: s.gpa, pi: s.pi }));
   const recentGrades = useMemo(
-    () => [...allCourses].filter((x) => x.grade).sort((a, b) => ((b.updatedAt as any)?.toMillis?.() ?? 0) - ((a.updatedAt as any)?.toMillis?.() ?? 0)).slice(0, 3),
-    [allCourses]
+    () => Object.entries(coursesBySemester)
+      .flatMap(([semesterId, courses]) => courses.map((course) => ({ ...course, semesterId })))
+      .filter((course) => course.grade)
+      .sort((a, b) => ((b.updatedAt as any)?.toMillis?.() ?? 0) - ((a.updatedAt as any)?.toMillis?.() ?? 0))
+      .slice(0, 3),
+    [coursesBySemester]
   );
   const semesterDelta = semesters.length >= 2 ? semesters[semesters.length - 1].gpa - semesters[semesters.length - 2].gpa : 0;
   const firstName = profile?.fullName?.split(' ')[0] ?? 'Student';
@@ -84,7 +88,7 @@ export default function Dashboard() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.void }}>
       {/* Fixed academic snapshot. Detailed information scrolls underneath. */}
-      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: c.void, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, zIndex: 2 }}>
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: c.void, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl, zIndex: 2 }}>
         <Animated.View entering={FadeIn.duration(300)} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
           <TourTarget tourId="dashboard-header" style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View>
@@ -132,6 +136,13 @@ export default function Dashboard() {
             <StatCard colors={c} icon={<Lightbulb size={16} color={atRiskCount ? c.danger : c.success} />} label="At risk" value={atRiskCount} danger={atRiskCount > 0} />
           </TourTarget>
         </Animated.View>
+
+        <LinearGradient
+          pointerEvents="none"
+          colors={[`${c.void}F5`, `${c.void}B8`, `${c.void}00`]}
+          locations={[0, 0.45, 1]}
+          style={{ position: 'absolute', left: 0, right: 0, bottom: -18, height: 20 }}
+        />
       </View>
 
       <ScrollView
@@ -155,7 +166,14 @@ export default function Dashboard() {
                 {recentGrades.map((course) => {
                   const gradeColor = getGradeColor(course.grade!);
                   return (
-                    <View key={course.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md }}>
+                    <Pressable
+                      key={`${course.semesterId}-${course.id}`}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open ${course.code || course.title} result`}
+                      accessibilityHint="Opens the semester containing this course"
+                      onPress={() => router.push({ pathname: '/(tabs)/results/[semesterId]', params: { semesterId: course.semesterId } })}
+                      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderWidth: 1, borderColor: pressed ? c.primary : c.border, borderRadius: radius.md, padding: spacing.md, opacity: pressed ? 0.86 : 1, transform: [{ scale: pressed ? 0.992 : 1 }] })}
+                    >
                       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${gradeColor}18`, alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
                         <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 13 }}>{course.grade}</Text>
                       </View>
@@ -167,7 +185,7 @@ export default function Dashboard() {
                         <Text style={{ color: gradeColor, fontWeight: '800', fontSize: 14 }}>{course.totalScore ?? '—'}/100</Text>
                         <Text style={{ color: c.textFaint, fontSize: 10 }}>Score</Text>
                       </View>
-                    </View>
+                    </Pressable>
                   );
                 })}
               </View>

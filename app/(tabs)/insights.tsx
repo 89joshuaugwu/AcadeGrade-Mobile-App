@@ -264,7 +264,7 @@ export default function Insights() {
 
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 120 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.lg, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

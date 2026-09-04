@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import { View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
-import { LayoutDashboard, FileText, GraduationCap, MoreHorizontal, Settings, Bell, ChevronRight, Moon, Sun, Smartphone } from 'lucide-react-native';
+import { LayoutDashboard, FileText, GraduationCap, MoreVertical, Settings, Bell, ChevronRight, Moon, Sun, Smartphone } from 'lucide-react-native';
 import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 import { radius, spacing } from '@/constants/theme';
 import { useThemeColors, useThemeStore, type ThemeMode } from '@/lib/store/themeStore';
@@ -38,6 +38,10 @@ export default function TabsLayout() {
   const startChapter = useTourStore((state) => state.startChapter);
   const [moreOpen, setMoreOpen] = useState(false);
   const [moreExpanded, setMoreExpanded] = useState(false);
+  const moreSnapPoints = useMemo(
+    () => [220 + Math.min(insets.bottom, 24), 340 + Math.min(insets.bottom, 24)],
+    [insets.bottom],
+  );
 
   const openMore = useCallback(() => {
     setMoreExpanded(false);
@@ -91,7 +95,7 @@ export default function TabsLayout() {
 
       <BottomSheetModal
         ref={sheetRef}
-        snapPoints={['31%', '47%']}
+        snapPoints={moreSnapPoints}
         enableDynamicSizing={false}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
@@ -140,7 +144,7 @@ const TAB_ITEMS = [
   { name: 'results', label: 'Results', tourId: 'nav-results', Icon: FileText },
   { name: 'insights', label: 'Insights', tourId: 'nav-insights', Icon: undefined },
   { name: 'transcript', label: 'Transcript', tourId: 'nav-transcript', Icon: GraduationCap },
-  { name: 'more', label: 'More', tourId: 'nav-more', Icon: MoreHorizontal },
+  { name: 'more', label: 'More', tourId: 'nav-more', Icon: MoreVertical },
 ] as const;
 
 function CylindricalTabBar({ state, navigation, onOpenMore, bottomInset, colors }: any & { onOpenMore: () => void; bottomInset: number; colors: ReturnType<typeof useThemeColors> }) {
